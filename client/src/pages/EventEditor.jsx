@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE, resolveImageUrl } from "../config/api";
 
 export default function EventEditor() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [blocks, setBlocks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +84,7 @@ export default function EventEditor() {
         const res = await fetch(`${API_BASE}/api/events/${slug}/private`, {
           credentials: "include",
         });
-        
+
         if (res.status === 401) {
           window.location.href = "/login";
           return;
@@ -567,6 +568,10 @@ export default function EventEditor() {
           </div>
         </div>
       )}
+
+      <button onClick={() => navigate("/")} style={{ marginBottom: "1rem" }}>
+        ← Torna alla dashboard
+      </button>
 
       <h1>Editor: {event.title}</h1>
 

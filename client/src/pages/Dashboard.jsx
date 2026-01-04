@@ -152,7 +152,26 @@ export default function Dashboard() {
         color: "#f5f5f5",
       }}
     >
-      <h1 style={{ marginBottom: "1rem" }}>I tuoi eventi</h1>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "1rem",
+      }}>
+      <h1>I tuoi eventi</h1>
+
+      <button
+        onClick={async () => {
+          await fetch(`${API_BASE}/api/auth/logout`, {
+            method: "POST",
+            credentials: "include",
+          });
+          window.location.href = "/login";
+        }}
+      >
+        Logout
+      </button>
+      </div>
 
       <button
         onClick={() => navigate("/new")}
