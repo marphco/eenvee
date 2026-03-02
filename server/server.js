@@ -9,6 +9,8 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import rsvpRoutes from "./routes/rsvpRoutes.js";
+import inviteRoutes from "./routes/inviteRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 import uploadsRouter from "./routes/uploads.js";
 
 dotenv.config();
@@ -16,9 +18,31 @@ dotenv.config();
 const app = express();
 
 // ✅ CORS MUST be before routes
+const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173,http://localhost:5174")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+console.log("[CORS] allowed origins:", allowedOrigins);
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      console.log("[CORS] request origin:", origin);
+
+      if (origin.startsWith("http://localhost")) {
+        return callback(null, origin);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, origin);
+      }
+
+      console.warn("[CORS] blocked origin", origin);
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
   })
 );
@@ -37,7 +61,9 @@ app.use("/uploads", express.static(uploadsDir));
 app.use("/api/auth", authRoutes);
 app.use("/api/uploads", uploadsRouter);
 app.use("/api/events", eventRoutes);
+app.use("/api/events", inviteRoutes); // registra sotto /api/events/:slug/invites
 app.use("/api/rsvps", rsvpRoutes);
+app.use("/api/payments", paymentRoutes);
 
 app.get("/", (req, res) => res.json({ message: "YNVIO API is running" }));
 
