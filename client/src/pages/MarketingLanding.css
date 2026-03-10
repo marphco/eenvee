@@ -10,7 +10,7 @@
   align-items: center;
   padding: 1.5rem clamp(1.25rem, 4vw, 4rem);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(60, 79, 118, 0.05);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -41,7 +41,7 @@
   font-family: var(--font-display);
   line-height: 1.1;
   margin: 0 0 1.5rem 0;
-  background: linear-gradient(to right, #fff, #f4c46b);
+  background: linear-gradient(to right, var(--text-primary), var(--accent));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -106,7 +106,7 @@
   justify-content: center;
   color: var(--accent);
   margin-bottom: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(60, 79, 118, 0.05);
 }
 
 .step-card h3 {
@@ -158,7 +158,7 @@
   border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 500;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(60, 79, 118, 0.1);
 }
 
 .catalog-info {
@@ -184,8 +184,8 @@
   padding: 4rem 2rem;
   text-align: center;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(244, 196, 107, 0.05), rgba(79, 55, 255, 0.05));
-  border: 1px solid rgba(244, 196, 107, 0.15);
+  background: linear-gradient(135deg, rgba(26, 188, 156, 0.05), rgba(60, 79, 118, 0.05));
+  border: 1px solid rgba(60, 79, 118, 0.05);
 }
 
 .premium-box h2 {
@@ -203,7 +203,7 @@
 .marketing-footer {
   margin-top: auto;
   padding: 2rem clamp(1.25rem, 4vw, 4rem);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(60, 79, 118, 0.05);
   display: flex;
   justify-content: space-between;
   color: var(--text-muted);

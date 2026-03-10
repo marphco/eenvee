@@ -47,7 +47,7 @@
 
 .editor-canvas-stage {
   flex: 1;
-  background: #111;
+  background: var(--bg-body); /* Set to Cream background based on user request */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -63,7 +63,7 @@
    Currently it's just a flex centered container that might scroll if it exceeds screen */
 .canvas-scaler {
   position: relative;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 40px rgba(60, 79, 118, 0.15);
 }
 
 .artboard {
@@ -153,7 +153,7 @@
 
 .active-btn {
   background: var(--accent) !important;
-  color: #000 !important;
+  color: #ffffff !important;
   border-color: var(--accent) !important;
 }
 
@@ -178,14 +178,14 @@
   min-width: 0;
 }
 .mobile-icon-btn:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(60, 79, 118, 0.08);
 }
 .mobile-icon-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 .mobile-icon-btn.variant-primary {
-  color: #000;
+  color: #ffffff;
   background: var(--accent);
 }
 .mobile-icon-btn.variant-primary:hover {
@@ -257,7 +257,7 @@
     width: 100%;
     order: 2;
     z-index: 1000;
-    background: #0f0f15;
+    background: var(--bg-surface);
     border-top: 1px solid var(--border);
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
@@ -289,7 +289,7 @@
     position: absolute;
     top: 0; right: 0; bottom: 0;
     width: 40px;
-    background: linear-gradient(to right, transparent, #181820 80%);
+    background: linear-gradient(to right, transparent, var(--bg-surface) 80%);
     pointer-events: none;
   }
   .font-scroll-container {
@@ -323,7 +323,7 @@
   }
 
   .mobile-tab-panel {
-    background: #181820;
+    background: var(--bg-surface);
     border-bottom: 1px solid var(--border);
     padding: 1rem;
     display: flex;
@@ -410,7 +410,7 @@ body.editor-locked {
 }
 .stepper-btn:hover {
   color: var(--accent) !important;
-  background: rgba(255,255,255,0.05) !important;
+  background: rgba(60, 79, 118, 0.05) !important;
 }
 /* Custom Range Slider Styling to match mobile polish as requested */
 .custom-slider {
@@ -418,13 +418,21 @@ body.editor-locked {
   appearance: none;
   width: 100%;
   height: 6px !important;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(60, 79, 118, 0.1);
   border-radius: 10px;
   outline: none;
   border: none !important;
   padding: 0 !important;
   cursor: pointer;
   margin: 0 !important;
+}
+
+/* Add accent color to the lower (filled) part of the track */
+.custom-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(var(--accent), var(--accent)) 0/var(--sx, 0%) 100% no-repeat rgba(60, 79, 118, 0.1);
+  border-radius: 10px;
 }
 
 .custom-slider::-webkit-slider-thumb {
@@ -434,9 +442,10 @@ body.editor-locked {
   height: 14px;
   background: #ffffff;
   border-radius: 99px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 10px rgba(60, 79, 118, 0.2);
   cursor: pointer;
   transition: transform 0.1s ease;
+  margin-top: -4px; /* Center thumb on track */
 }
 
 .custom-slider::-moz-range-thumb {
@@ -444,7 +453,7 @@ body.editor-locked {
   height: 14px;
   background: #ffffff;
   border-radius: 99px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 10px rgba(60, 79, 118, 0.2);
   cursor: pointer;
   border: none;
 }
@@ -458,7 +467,7 @@ body.editor-locked {
   height: 4px;
 }
 .custom-scrollbar-mini::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(60, 79, 118, 0.05);
   border-radius: 10px;
 }
 .custom-scrollbar-mini::-webkit-scrollbar-thumb {
@@ -471,5 +480,5 @@ body.editor-locked {
 
 /* Override generic property-panel styles that break range inputs */
 .property-panel input[type="range"].custom-slider {
-  background: rgba(255, 255, 255, 0.1);
+  background: transparent;
 }

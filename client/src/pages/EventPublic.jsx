@@ -199,7 +199,7 @@ export default function EventPublic() {
       <div style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: event.theme?.heroBgColor || '#0f0f15',
+        backgroundColor: event.theme?.heroBgColor || 'var(--bg-body)',
         zIndex: 0,
         pointerEvents: 'none'
       }} />

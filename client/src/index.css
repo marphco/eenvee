@@ -1,34 +1,39 @@
 @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Space+Grotesk:wght@400;500;600&display=swap");
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   --font-display: "Playfair Display", "Times New Roman", serif;
   --font-sans: "Space Grotesk", "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont;
 
-  --bg-body: #040404;
-  --bg-canvas: #07070b;
-  --bg-surface: linear-gradient(145deg, rgba(17,17,24,0.92), rgba(9,9,12,0.92));
-  --bg-panel: rgba(19, 19, 26, 0.86);
-  --bg-panel-strong: rgba(27, 27, 35, 0.92);
-  --bg-card: rgba(255, 255, 255, 0.02);
-  --bg-glass: rgba(255, 255, 255, 0.04);
+  /* Sfondi chiari basati sulla palette (Panna) */
+  --bg-body: #F4ECD6;
+  --bg-canvas: #faf6f0;
+  --bg-surface: #ffffff;
+  --bg-panel: rgba(255, 255, 255, 0.85);
+  --bg-panel-strong: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.7);
+  --bg-glass: rgba(255, 255, 255, 0.6);
 
-  --text-primary: #f5f2eb;
-  --text-muted: rgba(245, 242, 235, 0.68);
-  --text-soft: rgba(245, 242, 235, 0.45);
-  --text-invert: #050404;
+  /* Testi scuri basati sulla palette (Blu scuro/Navy) */
+  --text-primary: #3C4F76;
+  --text-muted: rgba(60, 79, 118, 0.7);
+  --text-soft: rgba(60, 79, 118, 0.5);
+  --text-invert: #F4ECD6;
 
-  --accent: #f4c46b;
-  --accent-strong: #f0a328;
-  --accent-soft: rgba(244, 196, 107, 0.15);
-  --accent-secondary: #8b7bff;
-  --accent-tertiary: #5fddc1;
+  /* Accenti vibranti (Tiffany vivido, Malva, Ruggine/Ocra) */
+  --accent: #1ABC9C;
+  --accent-strong: #16A085;
+  --accent-soft: rgba(26, 188, 156, 0.15);
+  --accent-secondary: #AE8CA3;
+  --accent-tertiary: #895737;
 
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-color-strong: rgba(255, 255, 255, 0.16);
+  /* Bordi per il light theme */
+  --border-color: rgba(60, 79, 118, 0.1);
+  --border-color-strong: rgba(60, 79, 118, 0.2);
 
-  --shadow-soft: 0 20px 60px rgba(0, 0, 0, 0.45);
-  --shadow-ring: 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  /* Ombre delicate per il light theme */
+  --shadow-soft: 0 10px 40px rgba(60, 79, 118, 0.08);
+  --shadow-ring: 0 0 0 1px rgba(60, 79, 118, 0.05) inset;
 
   --radius-xs: 8px;
   --radius-sm: 12px;
@@ -97,14 +102,14 @@ body::after {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(60, 79, 118, 0.03);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(60, 79, 118, 0.15);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.26);
+  background: rgba(60, 79, 118, 0.25);
 }

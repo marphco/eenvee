@@ -198,7 +198,7 @@ export const PREBUILT_TEMPLATES = [
     theme: {
       preset: "noir",
       accent: "#ff3366",
-      background: "#0f0f12",
+      background: "var(--bg-body)",
       fonts: { heading: "Space Grotesk", body: "Inter" }
     },
     layers: [

@@ -57,8 +57,8 @@
 textarea {
   width: 100%;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(60, 79, 118, 0.1);
+  background: rgba(60, 79, 118, 0.03);
   color: var(--text-primary);
   padding: 0.65rem 0.75rem;
 }
@@ -74,7 +74,7 @@ textarea {
   flex-direction: column;
   gap: 0.5rem;
   padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(60, 79, 118, 0.05);
 }
 
 .quick-paste-zone label {
@@ -123,12 +123,12 @@ textarea {
 }
 
 .invite-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(60, 79, 118, 0.04);
 }
 
 .invite-row.selected {
   border-color: var(--accent);
-  background: rgba(244, 196, 107, 0.05);
+  background: rgba(26, 188, 156, 0.05);
 }
 
 .invite-info strong {

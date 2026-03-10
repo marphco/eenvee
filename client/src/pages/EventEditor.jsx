@@ -229,7 +229,7 @@ const CustomFontSelect = ({ value, onChange, fonts, selectedLayer }) => {
                    cursor: 'pointer',
                    borderBottom: '1px solid rgba(255,255,255,0.05)',
                    backgroundColor: value === f ? 'var(--accent)' : 'transparent',
-                   color: value === f ? '#000' : 'var(--text-main)',
+                   color: value === f ? '#ffffff' : 'var(--text-main)',
                    transition: 'all 0.15s ease',
                    display: 'flex',
                    flexDirection: 'column',
@@ -1501,7 +1501,7 @@ export default function EventEditor() {
                               style={{ 
                                 padding: '4px 10px', fontSize: '9px', fontWeight: 700, borderRadius: '15px', border: 'none', cursor: 'pointer',
                                 background: alignmentReference === 'canvas' ? 'var(--accent)' : 'transparent',
-                                color: alignmentReference === 'canvas' ? '#000' : 'var(--text-soft)',
+                                color: alignmentReference === 'canvas' ? '#ffffff' : 'var(--text-soft)',
                                 transition: 'all 0.2s ease'
                               }}
                             >CANVAS</button>
@@ -1510,7 +1510,7 @@ export default function EventEditor() {
                               style={{ 
                                 padding: '4px 10px', fontSize: '9px', fontWeight: 700, borderRadius: '15px', border: 'none', cursor: 'pointer',
                                 background: alignmentReference === 'selection' ? 'var(--accent)' : 'transparent',
-                                color: alignmentReference === 'selection' ? '#000' : 'var(--text-soft)',
+                                color: alignmentReference === 'selection' ? '#ffffff' : 'var(--text-soft)',
                                 transition: 'all 0.2s ease'
                               }}
                             >SELEZIONE</button>
@@ -1532,7 +1532,7 @@ export default function EventEditor() {
                                     flexShrink: 0, width: '32px', height: '32px', borderRadius: '6px', 
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     background: keyLayerId === layer.id ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
-                                    color: keyLayerId === layer.id ? '#000' : 'var(--text-soft)',
+                                    color: keyLayerId === layer.id ? '#ffffff' : 'var(--text-soft)',
                                     cursor: 'pointer', border: '1px solid transparent',
                                     borderColor: hoveredLayerId === layer.id ? 'var(--accent)' : 'transparent',
                                     transition: 'all 0.2s'
@@ -1607,13 +1607,13 @@ export default function EventEditor() {
                         </div>
 
                         <div style={{display: 'flex', gap: '0.25rem', marginLeft: 'auto'}}>
-                          <Button variant="ghost" onClick={() => updateSelectedLayer({fontWeight: selectedLayer.fontWeight === 'bold' ? 'normal' : 'bold'})} style={{padding: '0.4rem', borderRadius: 'var(--radius-sm)', justifyContent: 'center', background: selectedLayer.fontWeight === 'bold' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontWeight === 'bold' ? '#000' : 'var(--text-soft)', border: 'none'}}>
+                          <Button variant="ghost" onClick={() => updateSelectedLayer({fontWeight: selectedLayer.fontWeight === 'bold' ? 'normal' : 'bold'})} style={{padding: '0.4rem', borderRadius: 'var(--radius-sm)', justifyContent: 'center', background: selectedLayer.fontWeight === 'bold' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontWeight === 'bold' ? '#ffffff' : 'var(--text-soft)', border: 'none'}}>
                             <Bold size={16}/>
                           </Button>
-                          <Button variant="ghost" onClick={() => updateSelectedLayer({fontStyle: selectedLayer.fontStyle === 'italic' ? 'normal' : 'italic'})} style={{padding: '0.4rem', borderRadius: 'var(--radius-sm)', justifyContent: 'center', background: selectedLayer.fontStyle === 'italic' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontStyle === 'italic' ? '#000' : 'var(--text-soft)', border: 'none'}}>
+                          <Button variant="ghost" onClick={() => updateSelectedLayer({fontStyle: selectedLayer.fontStyle === 'italic' ? 'normal' : 'italic'})} style={{padding: '0.4rem', borderRadius: 'var(--radius-sm)', justifyContent: 'center', background: selectedLayer.fontStyle === 'italic' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontStyle === 'italic' ? '#ffffff' : 'var(--text-soft)', border: 'none'}}>
                             <Italic size={16}/>
                           </Button>
-                          <Button variant="ghost" onClick={() => updateSelectedLayer({textDecoration: selectedLayer.textDecoration === 'underline' ? 'none' : 'underline'})} style={{padding: '0.4rem', borderRadius: 'var(--radius-sm)', justifyContent: 'center', background: selectedLayer.textDecoration === 'underline' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.textDecoration === 'underline' ? '#000' : 'var(--text-soft)', border: 'none'}}>
+                          <Button variant="ghost" onClick={() => updateSelectedLayer({textDecoration: selectedLayer.textDecoration === 'underline' ? 'none' : 'underline'})} style={{padding: '0.4rem', borderRadius: 'var(--radius-sm)', justifyContent: 'center', background: selectedLayer.textDecoration === 'underline' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.textDecoration === 'underline' ? '#ffffff' : 'var(--text-soft)', border: 'none'}}>
                             <Underline size={16}/>
                           </Button>
                         </div>
@@ -1658,7 +1658,7 @@ export default function EventEditor() {
                           onChange={e => updateSelectedLayer({letterSpacing: parseFloat(e.target.value)})} 
                           style={{
                             flex: 1, 
-                            background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.letterSpacing || 0) + 10) / 60 * 100)))}%, rgba(255,255,255,0.1) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.letterSpacing || 0) + 10) / 60 * 100)))}%)`
+                            background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.letterSpacing || 0) + 10) / 60 * 100)))}%, rgba(60, 79, 118, 0.1) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.letterSpacing || 0) + 10) / 60 * 100)))}%)`
                           }}
                         />
                         <span style={{fontSize: '14px', width: '30px', textAlign: 'right', fontWeight: 700, color: 'var(--text-soft)'}}>{selectedLayer.letterSpacing || 0}</span>
@@ -1676,7 +1676,7 @@ export default function EventEditor() {
                           onChange={e => updateSelectedLayer({lineHeight: parseFloat(e.target.value)})} 
                           style={{
                             flex: 1, 
-                            background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100)))}%, rgba(255,255,255,0.1) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100)))}%)`
+                            background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100)))}%, rgba(60, 79, 118, 0.1) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100)))}%)`
                           }}
                         />
                         <span style={{fontSize: '14px', width: '30px', textAlign: 'right', fontWeight: 700, color: 'var(--text-soft)'}}>{selectedLayer.lineHeight || 1.2}</span>
@@ -1699,7 +1699,7 @@ export default function EventEditor() {
                           onChange={(e) => updateSelectedLayer({ opacity: parseFloat(e.target.value) })}
                           style={{ 
                             flex: 1,
-                            background: `linear-gradient(to right, var(--accent) ${Math.round((selectedLayer.opacity ?? 1) * 100)}%, rgba(255,255,255,0.1) ${Math.round((selectedLayer.opacity ?? 1) * 100)}%)`
+                            background: `linear-gradient(to right, var(--accent) ${Math.round((selectedLayer.opacity ?? 1) * 100)}%, rgba(60, 79, 118, 0.1) ${Math.round((selectedLayer.opacity ?? 1) * 100)}%)`
                           }}
                         />
                         <span style={{ fontSize: '14px', color: 'var(--text-soft)', fontWeight: 700, minWidth: '40px', textAlign: 'right' }}>
@@ -2020,16 +2020,16 @@ export default function EventEditor() {
                         <div style={{ 
                           width: '20px', 
                           height: '20px', 
-                          background: event.theme?.heroBgColor || '#0f0f15', 
+                          background: event.theme?.heroBgColor || 'var(--bg-body)', 
                           borderRadius: '4px', 
-                          border: '1px solid rgba(255,255,255,0.1)' 
+                          border: '1px solid rgba(60, 79, 118, 0.1)' 
                         }} />
                       </Button>
                       
                       {displayColorPicker === 'eventHeroBg' && (
                         <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                           <CustomColorPicker 
-                            color={event.theme?.heroBgColor || '#0f0f15'} 
+                            color={event.theme?.heroBgColor || 'var(--bg-body)'} 
                             onChange={(color) => updateTheme({ heroBgColor: color })} 
                           />
                         </div>
@@ -2055,7 +2055,7 @@ export default function EventEditor() {
                                 background: (tex && tex !== 'none') ? `url(${tex})` : 'var(--surface-light)', 
                                 backgroundSize: 'cover', 
                                 borderRadius: '8px', 
-                                border: (event.theme?.heroBg === tex || (tex === null && event.theme?.heroBg === 'none') || (tex === null && !event.theme?.heroBg)) ? '2px solid var(--accent)' : '1px solid rgba(255,255,255,0.1)',
+                                border: (event.theme?.heroBg === tex || (tex === null && event.theme?.heroBg === 'none') || (tex === null && !event.theme?.heroBg)) ? '2px solid var(--accent)' : '1px solid rgba(60, 79, 118, 0.1)',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -2088,7 +2088,7 @@ export default function EventEditor() {
                               onChange={(e) => updateTheme({ heroBgOpacity: parseFloat(e.target.value) })}
                               style={{ 
                                 flex: 1, 
-                                background: `linear-gradient(to right, var(--accent) ${Math.round((event.theme?.heroBgOpacity ?? 1) * 100)}%, rgba(255,255,255,0.1) ${Math.round((event.theme?.heroBgOpacity ?? 1) * 100)}%)`
+                                background: `linear-gradient(to right, var(--accent) ${Math.round((event.theme?.heroBgOpacity ?? 1) * 100)}%, rgba(60, 79, 118, 0.1) ${Math.round((event.theme?.heroBgOpacity ?? 1) * 100)}%)`
                               }}
                             />
                             <span style={{ fontSize: '12px', fontWeight: 700, minWidth: '35px', textAlign: 'right' }}>{Math.round((event.theme?.heroBgOpacity ?? 1) * 100)}%</span>
@@ -2177,7 +2177,7 @@ export default function EventEditor() {
                </div>
                <div className="mobile-tab-content" style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '1rem', boxSizing: 'border-box' }}>
                   {activeMobileTab === 'font' && selectedLayer && (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', overflow: isFontExpanded ? 'hidden' : 'visible' }}>
                       {!isFontExpanded ? (
                         <div style={{display: 'flex', alignItems: 'center', width: '100%'}}>
                           <div className="font-list-wrapper">
@@ -2189,7 +2189,7 @@ export default function EventEditor() {
                                    style={{
                                      whiteSpace: 'nowrap', padding: '12px 18px', 
                                      background: selectedLayer?.fontFamily === f ? 'var(--accent)' : 'var(--surface-light)', 
-                                     color: selectedLayer?.fontFamily === f ? '#000' : 'var(--text-primary)', 
+                                     color: selectedLayer?.fontFamily === f ? '#ffffff' : 'var(--text-primary)', 
                                      borderRadius: '12px', border: 'none', cursor: 'pointer',
                                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: '4px',
                                      minWidth: '130px'
@@ -2201,7 +2201,7 @@ export default function EventEditor() {
                               ))}
                             </div>
                           </div>
-                          <button onClick={() => setIsFontExpanded(true)} style={{background: 'var(--surface-light)', border: 'none', color: 'var(--text-primary)', padding: '0.8rem', borderRadius: '50%', marginLeft: '0.8rem', cursor: 'pointer', flexShrink: 0, boxShadow: '0 4px 10px rgba(0,0,0,0.2)'}}><ChevronUp size={20}/></button>
+                          <button onClick={() => setIsFontExpanded(true)} style={{background: 'var(--surface-light)', border: 'none', color: 'var(--text-primary)', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', margin: '0 0.2rem 0 0.8rem', cursor: 'pointer', flexShrink: 0, boxShadow: '0 4px 12px rgba(60, 79, 118, 0.15)'}}><ChevronUp size={20}/></button>
                         </div>
                       ) : (
                         <div style={{width: '100%', height: '50vh', display: 'flex', flexDirection: 'column'}}>
@@ -2213,7 +2213,7 @@ export default function EventEditor() {
                                  style={{
                                    padding: '14px 20px', textAlign: 'left', 
                                    background: selectedLayer?.fontFamily === f ? 'var(--accent)' : 'transparent', 
-                                   color: selectedLayer?.fontFamily === f ? '#000' : 'var(--text-primary)', 
+                                   color: selectedLayer?.fontFamily === f ? '#ffffff' : 'var(--text-primary)', 
                                    border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', 
                                    display: 'flex', flexDirection: 'column', gap: '4px'
                                  }}
@@ -2247,7 +2247,7 @@ export default function EventEditor() {
                           onChange={(e) => updateSelectedLayer({ fontSize: parseInt(e.target.value) })}
                           style={{ 
                             flex: 1, 
-                            background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, Math.round((selectedLayer.fontSize - 8) / 192 * 100)))}%, rgba(255,255,255,0.1) ${Math.max(0, Math.min(100, Math.round((selectedLayer.fontSize - 8) / 192 * 100)))}%)`
+                            background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, Math.round((selectedLayer.fontSize - 8) / 192 * 100)))}%, rgba(60, 79, 118, 0.1) ${Math.max(0, Math.min(100, Math.round((selectedLayer.fontSize - 8) / 192 * 100)))}%)`
                           }}
                         />
                         <span style={{ fontSize: '18px', color: 'var(--text-soft)', fontWeight: 600 }}>A</span>
@@ -2256,13 +2256,13 @@ export default function EventEditor() {
                   )}
                   {activeMobileTab === 'format' && selectedLayer && (
                     <div style={{display: 'flex', gap: '1rem', justifyContent: 'center', flex: 1}}>
-                       <Button variant="ghost" onClick={() => updateSelectedLayer({fontWeight: selectedLayer.fontWeight === 'bold' ? 'normal' : 'bold'})} style={{background: selectedLayer.fontWeight === 'bold' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontWeight === 'bold' ? '#000' : 'var(--text-soft)', padding: '0.8rem'}}>
+                       <Button variant="ghost" onClick={() => updateSelectedLayer({fontWeight: selectedLayer.fontWeight === 'bold' ? 'normal' : 'bold'})} style={{background: selectedLayer.fontWeight === 'bold' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontWeight === 'bold' ? '#ffffff' : 'var(--text-soft)', padding: '0.8rem'}}>
                          <Bold size={24}/>
                        </Button>
-                       <Button variant="ghost" onClick={() => updateSelectedLayer({fontStyle: selectedLayer.fontStyle === 'italic' ? 'normal' : 'italic'})} style={{background: selectedLayer.fontStyle === 'italic' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontStyle === 'italic' ? '#000' : 'var(--text-soft)', padding: '0.8rem'}}>
+                       <Button variant="ghost" onClick={() => updateSelectedLayer({fontStyle: selectedLayer.fontStyle === 'italic' ? 'normal' : 'italic'})} style={{background: selectedLayer.fontStyle === 'italic' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontStyle === 'italic' ? '#ffffff' : 'var(--text-soft)', padding: '0.8rem'}}>
                          <Italic size={24}/>
                        </Button>
-                       <Button variant="ghost" onClick={() => updateSelectedLayer({textDecoration: selectedLayer.textDecoration === 'underline' ? 'none' : 'underline'})} style={{background: selectedLayer.textDecoration === 'underline' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.textDecoration === 'underline' ? '#000' : 'var(--text-soft)', padding: '0.8rem'}}>
+                       <Button variant="ghost" onClick={() => updateSelectedLayer({textDecoration: selectedLayer.textDecoration === 'underline' ? 'none' : 'underline'})} style={{background: selectedLayer.textDecoration === 'underline' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.textDecoration === 'underline' ? '#ffffff' : 'var(--text-soft)', padding: '0.8rem'}}>
                          <Underline size={24}/>
                        </Button>
                     </div>
@@ -2286,7 +2286,7 @@ export default function EventEditor() {
                           onChange={(e) => updateSelectedLayer({ opacity: parseFloat(e.target.value) })}
                           style={{ 
                             flex: 1,
-                            background: `linear-gradient(to right, var(--accent) ${Math.round((selectedLayer.opacity ?? 1) * 100)}%, rgba(255,255,255,0.1) ${Math.round((selectedLayer.opacity ?? 1) * 100)}%)`
+                            background: `linear-gradient(to right, var(--accent) ${Math.round((selectedLayer.opacity ?? 1) * 100)}%, rgba(60, 79, 118, 0.1) ${Math.round((selectedLayer.opacity ?? 1) * 100)}%)`
                           }}
                         />
                         <span style={{ fontSize: '14px', color: 'var(--text-soft)', fontWeight: 700, minWidth: '40px', textAlign: 'right' }}>
@@ -2341,7 +2341,7 @@ export default function EventEditor() {
                                  onChange={(e) => setCanvasProps(prev => ({ ...prev, bgOpacity: parseFloat(e.target.value) }))}
                                  style={{ 
                                    flex: 1, 
-                                   background: `linear-gradient(to right, var(--accent) ${Math.round((canvasProps.bgOpacity ?? 1) * 100)}%, rgba(255,255,255,0.1) ${Math.round((canvasProps.bgOpacity ?? 1) * 100)}%)`
+                                   background: `linear-gradient(to right, var(--accent) ${Math.round((canvasProps.bgOpacity ?? 1) * 100)}%, rgba(60, 79, 118, 0.1) ${Math.round((canvasProps.bgOpacity ?? 1) * 100)}%)`
                                  }}
                                />
                               <span style={{ fontSize: '11px', fontWeight: 700, minWidth: '35px', textAlign: 'right' }}>{Math.round((canvasProps.bgOpacity ?? 1) * 100)}%</span>
@@ -2498,7 +2498,7 @@ export default function EventEditor() {
                                       background: (tex && tex !== 'none') ? `url(${tex})` : 'var(--surface-light)', 
                                       backgroundSize: 'cover', 
                                       borderRadius: '4px', 
-                                      border: (event.theme?.heroBg === tex || (tex === null && event.theme?.heroBg === 'none') || (tex === null && !event.theme?.heroBg) ) ? '2px solid var(--accent)' : '1px solid rgba(255,255,255,0.1)', 
+                                      border: (event.theme?.heroBg === tex || (tex === null && event.theme?.heroBg === 'none') || (tex === null && !event.theme?.heroBg) ) ? '2px solid var(--accent)' : '1px solid rgba(60, 79, 118, 0.1)', 
                                       cursor: 'pointer',
                                       display: 'flex',
                                       alignItems: 'center',
@@ -2528,7 +2528,7 @@ export default function EventEditor() {
                                onChange={(e) => updateTheme({ heroBgOpacity: parseFloat(e.target.value) })}
                                style={{ 
                                  width: '100%', 
-                                 background: `linear-gradient(to right, var(--accent) ${Math.round((event.theme?.heroBgOpacity ?? 1) * 100)}%, rgba(255,255,255,0.1) ${Math.round((event.theme?.heroBgOpacity ?? 1) * 100)}%)`
+                                 background: `linear-gradient(to right, var(--accent) ${Math.round((event.theme?.heroBgOpacity ?? 1) * 100)}%, rgba(60, 79, 118, 0.1) ${Math.round((event.theme?.heroBgOpacity ?? 1) * 100)}%)`
                                }}
                              />
                            </div>
@@ -2544,13 +2544,13 @@ export default function EventEditor() {
                              onClick={() => setDisplayColorPicker(displayColorPicker === 'eventHeroBgMobile' ? false : 'eventHeroBgMobile')}
                            >
                              <PaintBucket size={14} style={{ marginRight: 6 }} /> Colore
-                             <div style={{ width: '14px', height: '14px', background: (event.theme?.heroBgColor || '#0f0f15'), borderRadius: '2px', marginLeft: 8, border: '1px solid rgba(255,255,255,0.2)' }} />
+                             <div style={{ width: '14px', height: '14px', background: (event.theme?.heroBgColor || 'var(--bg-body)'), borderRadius: '2px', marginLeft: 8, border: '1px solid rgba(255,255,255,0.2)' }} />
                            </Button>
                          </div>
 
                          {displayColorPicker === 'eventHeroBgMobile' && (
                            <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '4px' }}>
-                             <CustomColorPicker color={event.theme?.heroBgColor || '#0f0f15'} onChange={(color) => updateTheme({ heroBgColor: color })} />
+                             <CustomColorPicker color={event.theme?.heroBgColor || 'var(--bg-body)'} onChange={(color) => updateTheme({ heroBgColor: color })} />
                            </div>
                          )}
 
@@ -2644,7 +2644,7 @@ export default function EventEditor() {
                                       background: (tex && tex !== 'none') ? `url(${tex})` : 'var(--surface-light)', 
                                       backgroundSize: 'cover', 
                                       borderRadius: '4px', 
-                                      border: (event.theme?.coverLiner === tex || (tex === null && event.theme?.coverLiner === 'none')) ? '2px solid var(--accent)' : '1px solid rgba(255,255,255,0.1)', 
+                                      border: (event.theme?.coverLiner === tex || (tex === null && event.theme?.coverLiner === 'none')) ? '2px solid var(--accent)' : '1px solid rgba(60, 79, 118, 0.1)', 
                                       cursor: 'pointer',
                                       display: 'flex',
                                       alignItems: 'center',
@@ -2674,7 +2674,7 @@ export default function EventEditor() {
                                onChange={(e) => updateTheme({ linerOpacity: parseFloat(e.target.value) })}
                                style={{ 
                                  width: '100%', 
-                                 background: `linear-gradient(to right, var(--accent) ${Math.round((event.theme?.linerOpacity ?? 1) * 100)}%, rgba(255,255,255,0.1) ${Math.round((event.theme?.linerOpacity ?? 1) * 100)}%)`
+                                 background: `linear-gradient(to right, var(--accent) ${Math.round((event.theme?.linerOpacity ?? 1) * 100)}%, rgba(60, 79, 118, 0.1) ${Math.round((event.theme?.linerOpacity ?? 1) * 100)}%)`
                                }}
                              />
                            </div>
@@ -2853,7 +2853,7 @@ export default function EventEditor() {
           <div style={{
             position: 'absolute',
             inset: 0,
-            backgroundColor: event.theme?.heroBgColor || '#0f0f15',
+            backgroundColor: event.theme?.heroBgColor || 'var(--bg-body)',
             zIndex: 0,
             pointerEvents: 'none'
           }} />
@@ -3014,11 +3014,11 @@ export default function EventEditor() {
                     maxWidth: '90vw',
                     justifyContent: 'center'
                   }}>
-                    <div style={{ background: 'var(--accent)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', flexShrink: 0 }}>
+                    <div style={{ background: 'var(--accent)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', flexShrink: 0 }}>
                        <Sparkles size={18}/>
                     </div>
                      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#000' }}>Regolazione Sfondo</span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>Regolazione Sfondo</span>
                       <span style={{ fontSize: '10px', color: '#666' }}>Trascina per posizionare • Scali con gli angoli</span>
                     </div>
                     <div style={{ width: '1px', height: '30px', background: 'rgba(0,0,0,0.1)', margin: '0 5px' }}></div>
@@ -3033,10 +3033,10 @@ export default function EventEditor() {
                          onPointerDown={(e) => e.stopPropagation()}
                          style={{ 
                            width: '80px', 
-                           background: `linear-gradient(to right, var(--accent) ${Math.round((canvasProps.bgOpacity ?? 1) * 100)}%, rgba(255,255,255,0.1) ${Math.round((canvasProps.bgOpacity ?? 1) * 100)}%)`
+                           background: `linear-gradient(to right, var(--accent) ${Math.round((canvasProps.bgOpacity ?? 1) * 100)}%, rgba(60, 79, 118, 0.1) ${Math.round((canvasProps.bgOpacity ?? 1) * 100)}%)`
                          }}
                        />
-                      <span style={{ fontSize: '10px', fontWeight: 700, minWidth: '25px', color: '#000' }}>{Math.round((canvasProps.bgOpacity ?? 1) * 100)}%</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, minWidth: '25px', color: '#ffffff' }}>{Math.round((canvasProps.bgOpacity ?? 1) * 100)}%</span>
                     </div>
                   </div>
                 )}
