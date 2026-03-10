@@ -34,7 +34,9 @@ export default function EventRsvps() {
   useEffect(() => {
     async function fetchAll() {
       try {
-        await apiFetch("/api/auth/me");
+        const meRes = await apiFetch("/api/auth/me");
+        const meData = await meRes.json();
+        if (!meData.user) throw new Error("Unauthorized");
         setAuthChecked(true);
 
         const evRes = await apiFetch(`/api/events/${slug}/private`);

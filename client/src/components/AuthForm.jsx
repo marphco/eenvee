@@ -30,7 +30,9 @@ export default function AuthForm({ initialMode = "login", onAuthSuccess }) {
         throw new Error(data.message || "Errore auth");
       }
 
-      await apiFetch(`/api/auth/me`);
+      const meRes = await apiFetch(`/api/auth/me`);
+      const meData = await meRes.json();
+      if (!meData.user) throw new Error("Errore auth: cookie non ricevuto");
       
       // Callback success per gestire il redirect flessibile
       if (onAuthSuccess) {
@@ -63,7 +65,9 @@ export default function AuthForm({ initialMode = "login", onAuthSuccess }) {
           throw new Error(data.message || "Errore auth Google");
         }
 
-        await apiFetch(`/api/auth/me`);
+        const meRes = await apiFetch(`/api/auth/me`);
+        const meData = await meRes.json();
+        if (!meData.user) throw new Error("Errore login: sessione non avviata");
         
         if (onAuthSuccess) {
            onAuthSuccess();

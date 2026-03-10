@@ -74,12 +74,13 @@ export default function Dashboard() {
       try {
         const meRes = await apiFetch(`/api/auth/me`);
 
-        if (meRes.status === 401) {
+        if (!meRes.ok) throw new Error("Errore auth check");
+
+        const meData = await meRes.json();
+        if (!meData.user) {
           navigate("/login");
           return;
         }
-
-        if (!meRes.ok) throw new Error("Errore auth check");
 
         const res = await apiFetch(`/api/events`);
 

@@ -25,7 +25,8 @@ export default function TemplateCatalog() {
   const handleSelectTemplate = async (templateId) => {
     try {
       const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: "include" });
-      if (res.ok) {
+      const data = res.ok ? await res.json() : null;
+      if (data && data.user) {
         navigate(`/new?templateId=${templateId}`);
       } else {
         navigate(`/edit/demo?templateId=${templateId}`);

@@ -26,7 +26,8 @@ export default function MarketingLanding() {
           credentials: "include",
         });
         if (res.ok) {
-          setUser(true);
+          const data = await res.json();
+          setUser(!!data.user);
         }
       } catch {
         setUser(null);
