@@ -44,7 +44,7 @@ export default function MarketingLanding() {
       <nav className="marketing-nav">
         <div className="marketing-logo" onClick={() => navigate("/")} style={{cursor:"pointer"}}>
           <img 
-            src="/logo-cartevite.png" 
+            src="/logo-cartevite.svg" 
             alt="Cartevite" 
             style={{ 
               height: "40px", 

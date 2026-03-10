@@ -179,7 +179,7 @@ export default function Dashboard() {
           <div className="dashboard-title-block">
             <div style={{ marginBottom: "1rem" }}>
               <img 
-                src="/logo-cartevite.png" 
+                src="/logo-cartevite.svg" 
                 alt="Cartevite" 
                 style={{ 
                   height: "45px", 
