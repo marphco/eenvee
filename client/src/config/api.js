@@ -1,4 +1,7 @@
 const getApiBase = () => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return ""; // In produzione usa il proxy di Vercel per aggirare i blocchi dei cookie di terze parti
+  }
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE;
   const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
