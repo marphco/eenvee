@@ -13,10 +13,12 @@ const createToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
+const isProd = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_PROJECT_ID;
+
 const cookieOptions = {
   httpOnly: true,
-  secure: false, // ✅ DEV HTTP
-  sameSite: "lax", // ✅ DEV cross-port ok su localhost
+  secure: isProd ? true : false,
+  sameSite: isProd ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
@@ -148,11 +150,7 @@ router.post("/google", async (req, res) => {
 });
 
 router.post("/logout", (req, res) => {
-  res.clearCookie(COOKIE_NAME, {
-    httpOnly: true,
-    secure: false,
-    sameSite: "lax",
-  });
+  res.clearCookie(COOKIE_NAME, cookieOptions);
   res.json({ message: "Logout ok" });
 });
 
