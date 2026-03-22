@@ -245,12 +245,12 @@ export default function EventPublic() {
         
         {/* HERO SECTION - Always 100vh or min-content to avoid overlap */}
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '20px 0' }}>
-          <div style={{ 
-            position: 'relative', 
-            zIndex: 2,
-            transform: `scale(${window.innerWidth <= 768 ? 0.6 : 0.8})`,
-            transformOrigin: 'center center'
-          }}>
+           <div style={{
+             position: 'relative',
+             zIndex: 2,
+             transform: `scale(${window.innerWidth <= 768 ? 0.6 : 0.88})`,
+             transformOrigin: 'center center'
+           }}>
             <EnvelopeAnimation
               envelopeFormat={event.theme?.envelopeFormat || 'vertical'}
               guestName={event.theme?.coverText}

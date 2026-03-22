@@ -119,9 +119,8 @@ export default function EnvelopeRectangular({
   
   const envClass = forceHorizontal ? "env-horizontal" : "env-vertical";
   
-  // La Busta Verticale diventerà the speculare all'invito nativo, così che The lo "ospiti" The The a the pennello. 
-  // La Orizzontale the remains the classical The 1.4 the the the The The the approved.
-  const dynamicEnvRatio = forceHorizontal ? 1.35 : nativeRatio;
+  // La Busta Verticale diventerà leggermente più larga dell'invito nativo (+0.1) per far sì che the lo "ospiti" The The a the pennello e sia visibile ai lati.
+  const dynamicEnvRatio = forceHorizontal ? 1.35 : (nativeRatio + 0.1);
   
   // CardScale a 1.0 (come nel quadrato) per massimo riempimento della tasca
   const cardScale = forceHorizontal ? 1 : 1.0;
@@ -140,10 +139,10 @@ export default function EnvelopeRectangular({
     // In modalità preview (es. tab Scenario), usiamo lo scale passato esternamente (o 1.0)
     if (preview) return (externalScale || 1.0);
 
-    // Se siamo nella pagina pubblica (Hero), usiamo una scala maestosa (1.05)
-    if (isEventPage) return 1.05;
+    // Se siamo nella pagina pubblica (Hero), usiamo una scala di sicurezza (1.1 per tutti i formati pubblici)
+    if (isEventPage) return 1.1;
 
-    const baseW = forceHorizontal ? 460 : 500;
+    const baseW = forceHorizontal ? 460 : 510;
     const baseH = baseW / dynamicEnvRatio;
     
     // Quando è chiusa, usiamo solo l'altezza della tasca (baseH).
@@ -214,9 +213,7 @@ export default function EnvelopeRectangular({
        // Il valore 0.4 sposta il baricentro verso il basso, 'colmatando' il vuoto residuo sopra il pannello.
        y += (0.4 * baseH) * currentScale;
     }
-    
-    // Correzione estetica aggiuntiva per la fase estratta (invito fuori)
-    if (phase === "extracted") { y += 30; }
+        // Lo spostamento finale viene gestito dinamicamente nell'animate prop del div principale per sincronizzazione.
     
     return y;
   };
@@ -241,7 +238,7 @@ export default function EnvelopeRectangular({
            className={`envelope-3d-scene ${envClass} ${isEditingLiner ? 'is-editing-liner' : ''}`}
            initial={{ y: 0, scale: 1 }}
            animate={{ 
-             y: getSceneY(getSceneScale()),
+             y: getSceneY(getSceneScale()) + (phase === "extracted" ? -180 : 0),
              scale: getSceneScale()
            }}
            transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }} 
@@ -420,13 +417,13 @@ export default function EnvelopeRectangular({
            
            {/* INVITATION CARD */}
            {!editMode && (
-             <motion.div 
-               className={`envelope-card-wrapper phase-${phase}`}
-               initial={{ z: 3 }}
-               animate={{ z: phase === "extracted" ? 50 : 3 }}
-               transition={{ 
-                 duration: phase === "extracted" ? 0.6 : 0.3, 
-                 ease: "easeOut",
+              <motion.div 
+                className={`envelope-card-wrapper phase-${phase}`}
+                initial={{ z: 3 }}
+                animate={{ z: phase === "extracted" ? 50 : 3 }}
+                transition={{ 
+                  duration: phase === "extracted" ? 0.6 : 0.3, 
+                  ease: "easeOut",
                  delay: phase === "extracted" ? 0.3 : 0
                }}
                style={{ transformStyle: 'preserve-3d' }}
@@ -434,9 +431,9 @@ export default function EnvelopeRectangular({
                <motion.div className="envelope-card-content"
                   initial={{ y: "0%", x: "0%", scale: cardScale, rotate: startRot }}
                   animate={{ 
-                    y: phase === "extracted" ? (isEventPage ? (forceHorizontal ? "16%" : "12%") : "-25%") : (phase === "extracting" ? "-130%" : "0%"),
-                    x: phase === "extracted" ? (isEventPage ? (forceHorizontal ? "-10%" : "-6%") : "-35%") : "0%",
-                    scale: phase === "extracted" ? (forceHorizontal ? 1.15 : 1) : (forceHorizontal ? 1.3 : 1),
+                    y: phase === "extracted" ? (isEventPage ? (forceHorizontal ? "18%" : "15%") : "-25%") : (phase === "extracting" ? "-130%" : "0%"),
+                    x: phase === "extracted" ? (isEventPage ? (forceHorizontal ? "0%" : "4%") : "-35%") : "0%",
+                    scale: phase === "extracted" ? (forceHorizontal ? 1.45 : 1.1) : (forceHorizontal ? 1.3 : 1),
                     rotate: phase === "extracted" ? endRot : startRot,
                     zIndex: phase === "extracted" ? 6 : 2
                    }}

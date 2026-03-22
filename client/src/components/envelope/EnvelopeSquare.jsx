@@ -134,11 +134,9 @@ export default function EnvelopeSquare({
            className={`envelope-3d-scene ${envClass} ${isEditingLiner ? 'is-editing-liner' : ''}`}
            initial={{ y: 0, scale: 1 }}
            animate={{ 
-             y: externalScale !== null 
-                ? ((phase === "flap_open" || phase === "extracting") ? 0.3 * 500 * externalScale : (phase === "extracted" ? 40 : 0))
-                : (phase === "extracted" ? 50 : (phase === "flap_open" || phase === "extracting" ? 10 : 0)),
-             scale: externalScale !== null ? externalScale : (phase === "extracted" ? 1.15 : 1)
-           }}
+              y: (phase === "extracted" ? -100 : 0),
+              scale: externalScale !== null ? externalScale : (phase === "extracted" ? 1.15 : 1)
+            }}
            transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }} 
            style={{
              '--liner-x': `${linerX}px`,
@@ -329,8 +327,8 @@ export default function EnvelopeSquare({
                    initial={{ y: "0%", x: "0%", scale: 1, rotate: startRot }}
                    animate={{ 
                      y: phase === "extracted" ? (isEventPage ? "12%" : "-25%") : (phase === "extracting" ? "-130%" : "0%"),
-                     x: phase === "extracted" ? (isEventPage ? "-6%" : "-35%") : "0%",
-                     scale: 1,
+                     x: phase === "extracted" ? (isEventPage ? "4%" : "-35%") : "0%",
+                     scale: phase === "extracted" ? (isEventPage ? 1.0 : 1.1) : 1,
                      rotate: phase === "extracted" ? endRot : startRot,
                      zIndex: phase === "extracted" ? 6 : 2
                    }}
