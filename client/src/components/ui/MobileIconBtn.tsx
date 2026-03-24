@@ -1,0 +1,34 @@
+import React from "react";
+import type { LucideIcon } from "lucide-react";
+
+interface MobileIconBtnProps {
+  icon: LucideIcon;
+  label: string;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  disabled?: boolean;
+  variant?: string;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+const MobileIconBtn: React.FC<MobileIconBtnProps> = ({ 
+  icon: Icon, 
+  label, 
+  onClick, 
+  disabled, 
+  variant = "ghost", 
+  className = "", 
+  style = {} 
+}) => (
+  <button 
+    onClick={onClick} 
+    disabled={disabled} 
+    className={`mobile-icon-btn variant-${variant} ${className}`}
+    style={style}
+  >
+    <Icon size={18} className="mib-icon"/>
+    <span className="mib-label">{label}</span>
+  </button>
+);
+
+export default MobileIconBtn;
