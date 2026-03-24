@@ -113,7 +113,7 @@ export const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
       {/* =======================
           DYNAMIC SECTIONS (Blocks)
           ======================= */}
-      <div className="dynamic-sections-container">
+      <div className="dynamic-sections-container" style={{ position: 'relative', overflow: 'visible' }}>
         {blocks.map((block, idx) => (
           <BuilderSection 
             key={block.id || idx}

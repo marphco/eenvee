@@ -94,12 +94,12 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: '38px',
+              width: '42px',
               height: '10px',
-              backgroundColor: isAnchorHovered ? 'var(--accent)' : '#ffffff',
-              border: isAnchorHovered ? '1px solid var(--accent)' : '1px solid rgba(0,0,0,0.1)',
+              backgroundColor: isAnchorHovered ? 'var(--accent)' : 'var(--accent-soft, #f0f4ff)',
+              border: `1.5px solid var(--accent)`,
               borderRadius: '10px',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+              boxShadow: '0 3px 8px rgba(0,0,0,0.2)',
               transition: 'all 0.2s ease',
               pointerEvents: 'none' 
             }}
