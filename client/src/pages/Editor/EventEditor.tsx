@@ -279,6 +279,7 @@ export default function EventEditor() {
           userLinerImages={userLinerImages} isEditingLiner={isEditingLiner} setIsEditingLiner={setIsEditingLiner}
           scenarioBgInputRef={scenarioBgInputRef} userScenarioBgImages={userScenarioBgImages}
           showMobileAnchorGrid={showMobileAnchorGrid} setShowMobileAnchorGrid={setShowMobileAnchorGrid}
+          pushToHistory={pushToHistory}
         />
         <MobileToolbar 
            activeMobileTab={activeMobileTab} setActiveMobileTab={setActiveMobileTab}
@@ -294,6 +295,7 @@ export default function EventEditor() {
            deleteSelectedLayers={deleteSelectedLayers} addTextLayer={addTextLayer}
            isFontExpanded={isFontExpanded} setIsFontExpanded={setIsFontExpanded}
            scenarioBgInputRef={scenarioBgInputRef} invitoBgInputRef={invitoBgInputRef} textureInputRef={textureInputRef} fileInputRef={fileInputRef}
+           pushToHistory={pushToHistory}
          />
         <EditorStage 
           stageRef={stageRef} canvasRef={canvasRef} editorMode={editorMode} isMobile={isMobile}

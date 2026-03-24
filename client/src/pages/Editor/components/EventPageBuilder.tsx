@@ -12,10 +12,11 @@ interface EventPageBuilderProps {
   scenarioScale: number;
   updateTheme: (updates: any) => void;
   blocks: Block[];
+  setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
   pushToHistory: () => void;
 }
 
-export const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
+export function EventPageBuilder({
   event,
   canvasProps,
   layers,
@@ -23,16 +24,22 @@ export const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
   scenarioScale,
   updateTheme,
   blocks,
+  setBlocks,
   pushToHistory
-}) => {
+}: EventPageBuilderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
 
   const handleHeightChange = (index: number, newHeight: number) => {
     const newBlocks = [...blocks];
-    // Use any as intermediate to bypass exactOptionalPropertyTypes spread issues
     newBlocks[index] = { ...newBlocks[index], height: newHeight } as any;
-    updateTheme({ blocks: newBlocks });
+    setBlocks(newBlocks); // Reattività immediata
+  };
+
+  const handleHeightChangeComplete = () => {
+    // Sincronizza con il tema dell'evento solo alla fine del drag per performance e history pulita
+    updateTheme({ blocks: blocks }); 
+    pushToHistory();
   };
 
   return (
@@ -122,7 +129,7 @@ export const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
             isSelected={selectedBlockId === block.id}
             onClick={() => setSelectedBlockId(block.id || null)}
             onHeightChange={(h) => handleHeightChange(idx, h)}
-            onHeightChangeComplete={() => pushToHistory()}
+            onHeightChangeComplete={handleHeightChangeComplete}
           />
         ))}
       </div>

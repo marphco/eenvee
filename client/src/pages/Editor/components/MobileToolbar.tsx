@@ -46,6 +46,7 @@ interface MobileToolbarProps {
   invitoBgInputRef: React.RefObject<HTMLInputElement | null>;
   textureInputRef: React.RefObject<HTMLInputElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  pushToHistory: () => void;
 }
 
 const MobileToolbar: React.FC<MobileToolbarProps> = ({
@@ -81,7 +82,8 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
   scenarioBgInputRef,
   invitoBgInputRef,
   textureInputRef,
-  fileInputRef
+  fileInputRef,
+  pushToHistory
 }) => {
   return (
     <div className="mobile-toolbar-container">
@@ -122,9 +124,9 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                       <div className="font-list-wrapper">
                         <div className="font-scroll-container">
                           {AVAILABLE_FONTS.slice(0, 15).map(f => (
-                             <button 
+                            <button 
                                key={f} 
-                               onClick={() => { updateSelectedLayer({ fontFamily: f }); loadGoogleFont(f); }} 
+                               onClick={() => { pushToHistory(); updateSelectedLayer({ fontFamily: f }); loadGoogleFont(f); }} 
                                style={{
                                  whiteSpace: 'nowrap', padding: '8px 14px', 
                                  background: selectedLayer?.fontFamily === f ? 'var(--accent)' : 'var(--surface-light)', 
@@ -148,7 +150,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                          {AVAILABLE_FONTS.map(f => (
                            <button 
                              key={f} 
-                             onClick={() => { updateSelectedLayer({ fontFamily: f }); loadGoogleFont(f); setIsFontExpanded(false); }} 
+                             onClick={() => { pushToHistory(); updateSelectedLayer({ fontFamily: f }); loadGoogleFont(f); setIsFontExpanded(false); }} 
                              style={{
                                padding: '8px 16px', textAlign: 'left', 
                                background: selectedLayer?.fontFamily === f ? 'var(--accent)' : 'transparent', 
@@ -206,6 +208,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                       max="200" 
                       step="1" 
                       value={selectedLayer.fontSize || 32} 
+                      onPointerDown={() => pushToHistory()}
                       onChange={(e) => updateSelectedLayer({ fontSize: parseInt(e.target.value) })}
                       style={{ 
                         flex: 1, 
@@ -218,13 +221,13 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
               )}
               {activeMobileTab === 'format' && selectedLayer && (
                 <div style={{display: 'flex', gap: '1rem', justifyContent: 'center', flex: 1}}>
-                   <Button variant="ghost" onClick={() => updateSelectedLayer({fontWeight: selectedLayer.fontWeight === 'bold' ? 'normal' : 'bold'})} style={{background: selectedLayer.fontWeight === 'bold' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontWeight === 'bold' ? '#ffffff' : 'var(--text-soft)', padding: '0.8rem'}}>
+                   <Button variant="ghost" onClick={() => { pushToHistory(); updateSelectedLayer({fontWeight: selectedLayer.fontWeight === 'bold' ? 'normal' : 'bold'}); }} style={{background: selectedLayer.fontWeight === 'bold' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontWeight === 'bold' ? '#ffffff' : 'var(--text-soft)', padding: '0.8rem'}}>
                      <Bold size={18}/>
                    </Button>
-                   <Button variant="ghost" onClick={() => updateSelectedLayer({fontStyle: selectedLayer.fontStyle === 'italic' ? 'normal' : 'italic'})} style={{background: selectedLayer.fontStyle === 'italic' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontStyle === 'italic' ? '#ffffff' : 'var(--text-soft)', padding: '0.8rem'}}>
+                   <Button variant="ghost" onClick={() => { pushToHistory(); updateSelectedLayer({fontStyle: selectedLayer.fontStyle === 'italic' ? 'normal' : 'italic'}); }} style={{background: selectedLayer.fontStyle === 'italic' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.fontStyle === 'italic' ? '#ffffff' : 'var(--text-soft)', padding: '0.8rem'}}>
                      <Italic size={18}/>
                    </Button>
-                   <Button variant="ghost" onClick={() => updateSelectedLayer({textDecoration: selectedLayer.textDecoration === 'underline' ? 'none' : 'underline'})} style={{background: selectedLayer.textDecoration === 'underline' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.textDecoration === 'underline' ? '#ffffff' : 'var(--text-soft)', padding: '0.8rem'}}>
+                   <Button variant="ghost" onClick={() => { pushToHistory(); updateSelectedLayer({textDecoration: selectedLayer.textDecoration === 'underline' ? 'none' : 'underline'}); }} style={{background: selectedLayer.textDecoration === 'underline' ? 'var(--accent)' : 'var(--surface-light)', color: selectedLayer.textDecoration === 'underline' ? '#ffffff' : 'var(--text-soft)', padding: '0.8rem'}}>
                      <Underline size={18}/>
                    </Button>
                 </div>
@@ -245,6 +248,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                       max="1" 
                       step="0.01" 
                       value={selectedLayer.opacity !== undefined ? selectedLayer.opacity : 1} 
+                      onPointerDown={() => pushToHistory()}
                       onChange={(e) => updateSelectedLayer({ opacity: parseFloat(e.target.value) })}
                       style={{ 
                         flex: 1,
@@ -268,7 +272,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                           justifyContent: 'space-between',
                           ...(displayColorPicker === 'canvasBg' ? { boxShadow: '0 0 15px rgba(var(--accent-rgb), 0.5)', zIndex: 1 } : {})
                         }} 
-                        onClick={() => setDisplayColorPicker(displayColorPicker === 'canvasBg' ? false : 'canvasBg')}
+                        onClick={() => { if (displayColorPicker !== 'canvasBg') pushToHistory(); setDisplayColorPicker(displayColorPicker === 'canvasBg' ? false : 'canvasBg'); }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center' }}>
                           <PaintBucket size={18} style={{ marginRight: 6 }} />
@@ -299,6 +303,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                              className="custom-slider"
                              min="0" max="1" step="0.01" 
                              value={canvasProps.bgOpacity ?? 1} 
+                             onPointerDown={() => pushToHistory()}
                              onChange={(e) => setCanvasProps((prev: CanvasProps) => ({ ...prev, bgOpacity: parseFloat(e.target.value) }))}
                              style={{ 
                                flex: 1, 
@@ -386,9 +391,9 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                               }
 
                               return (
-                                <button
+                               <button
                                   key={pos.val}
-                                  onClick={() => updateTheme({ heroBgPosition: pos.val })}
+                                  onClick={() => { pushToHistory(); updateTheme({ heroBgPosition: pos.val }); }}
                                   style={{
                                     width: '40px',
                                     height: '40px',
@@ -438,7 +443,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                             {([null, ...AVAILABLE_SCENARIO_BGS.map(b => b.url), ...userScenarioBgImages.slice(0, 2)]).map(tex => (
                                <div 
                                  key={tex || 'none'}
-                                 onClick={() => updateTheme({ heroBg: tex || 'none' })}
+                                 onClick={() => { pushToHistory(); updateTheme({ heroBg: tex || 'none' }); }}
                                  style={{
                                    aspectRatio: '1', 
                                    background: (tex && tex !== 'none') ? `url(${tex})` : 'var(--surface-light)', 
@@ -474,6 +479,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                             className="custom-slider"
                             min="0" max="1" step="0.01" 
                             value={event.theme?.heroBgOpacity ?? 1} 
+                            onPointerDown={() => pushToHistory()}
                             onChange={(e) => updateTheme({ heroBgOpacity: parseFloat(e.target.value) })}
                             style={{ 
                               width: '100%', 
@@ -485,7 +491,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                            <label style={{ fontSize: '9px', fontWeight: 600, color: 'var(--text-soft)' }}>Colore</label>
                            <button
-                             onClick={() => setDisplayColorPicker(displayColorPicker === 'eventHeroBgMobile' ? false : 'eventHeroBgMobile')}
+                             onClick={() => { if (displayColorPicker !== 'eventHeroBgMobile') pushToHistory(); setDisplayColorPicker(displayColorPicker === 'eventHeroBgMobile' ? false : 'eventHeroBgMobile'); }}
                              style={{ 
                                width: '32px', height: '32px', 
                                background: (event.theme?.heroBgColor || 'var(--bg-body)'), 
@@ -521,14 +527,14 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                       <Button 
                         variant={event.theme?.envelopeFormat === 'horizontal' ? 'primary' : 'subtle'} 
                         style={{ flex: 1, justifyContent: 'center', fontSize: '12px', padding: '10px 0' }}
-                        onClick={() => updateTheme({ envelopeFormat: 'horizontal' })}
+                        onClick={() => { pushToHistory(); updateTheme({ envelopeFormat: 'horizontal' }); }}
                       >
                         Orizzontale
                       </Button>
                       <Button 
                         variant={event.theme?.envelopeFormat !== 'horizontal' ? 'primary' : 'subtle'} 
                         style={{ flex: 1, justifyContent: 'center', fontSize: '12px', padding: '10px 0' }}
-                        onClick={() => updateTheme({ envelopeFormat: 'vertical' })}
+                        onClick={() => { pushToHistory(); updateTheme({ envelopeFormat: 'vertical' }); }}
                       >
                         Verticale
                       </Button>
@@ -547,7 +553,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                             justifyContent: 'space-between',
                             ...(displayColorPicker === 'coverBg' ? { boxShadow: '0 0 15px rgba(var(--accent-rgb), 0.5)', zIndex: 1 } : {})
                           }} 
-                          onClick={() => setDisplayColorPicker(displayColorPicker === 'coverBg' ? false : 'coverBg')}
+                          onClick={() => { if (displayColorPicker !== 'coverBg') pushToHistory(); setDisplayColorPicker(displayColorPicker === 'coverBg' ? false : 'coverBg'); }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center' }}>
                             <PaintBucket size={18} style={{ marginRight: 6 }} />
@@ -563,7 +569,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                             justifyContent: 'space-between',
                             ...(displayColorPicker === 'coverPocket' ? { boxShadow: '0 0 15px rgba(var(--accent-rgb), 0.5)', zIndex: 1 } : {})
                           }} 
-                          onClick={() => setDisplayColorPicker(displayColorPicker === 'coverPocket' ? false : 'coverPocket')}
+                          onClick={() => { if (displayColorPicker !== 'coverPocket') pushToHistory(); setDisplayColorPicker(displayColorPicker === 'coverPocket' ? false : 'coverPocket'); }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center' }}>
                             <PaintBucket size={18} style={{ marginRight: 6 }} />
@@ -612,7 +618,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                              {([null, ...AVAILABLE_LINERS.map(l => l.url), ...userLinerImages]).map(tex => (
                               <div 
                                 key={tex || 'none'}
-                                onClick={() => updateTheme({ coverLiner: tex || 'none', coverPocketLiner: tex || 'none' })}
+                                onClick={() => { pushToHistory(); updateTheme({ coverLiner: tex || 'none', coverPocketLiner: tex || 'none' }); }}
                                 style={{
                                   aspectRatio: '1', 
                                   background: (tex && tex !== 'none') ? `url(${tex})` : 'var(--surface-light)', 
@@ -648,6 +654,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                            className="custom-slider"
                            min="0" max="1" step="0.01" 
                            value={event.theme?.linerOpacity ?? 1} 
+                           onPointerDown={() => pushToHistory()}
                            onChange={(e) => updateTheme({ linerOpacity: parseFloat(e.target.value) })}
                            style={{ 
                              width: '100%', 
@@ -664,7 +671,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                            fontSize: '10px',
                            ...(displayColorPicker === 'coverLiner' ? { boxShadow: '0 0 15px rgba(var(--accent-rgb), 0.3)' } : {})
                          }}
-                         onClick={() => setDisplayColorPicker(displayColorPicker === 'coverLiner' ? false : 'coverLiner')}
+                          onClick={() => { if (displayColorPicker !== 'coverLiner') pushToHistory(); setDisplayColorPicker(displayColorPicker === 'coverLiner' ? false : 'coverLiner'); }}
                        >
                          <PaintBucket size={18} style={{ marginRight: 6 }} /> Colore
                          <div style={{ width: '14px', height: '14px', background: (event.theme?.coverLinerColor || '#ffffff'), borderRadius: '2px', marginLeft: 8, border: '1px solid rgba(255,255,255,0.2)' }} />

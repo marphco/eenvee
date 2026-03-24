@@ -48,6 +48,7 @@ interface DesktopSidebarProps {
   userScenarioBgImages: string[];
   showMobileAnchorGrid: boolean;
   setShowMobileAnchorGrid: (show: boolean) => void;
+  pushToHistory: () => void;
 }
 
 const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
@@ -87,7 +88,8 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   scenarioBgInputRef,
   userScenarioBgImages,
   showMobileAnchorGrid,
-  setShowMobileAnchorGrid
+  setShowMobileAnchorGrid,
+  pushToHistory
 }) => {
   return (
     <div className="editor-sidebar left-sidebar">
@@ -191,7 +193,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <Button 
                   variant={displayColorPicker === 'canvasBg' ? "primary" : "subtle"}
-                  onClick={() => setDisplayColorPicker(displayColorPicker === 'canvasBg' ? false : 'canvasBg')}
+                  onClick={() => { if (displayColorPicker !== 'canvasBg') pushToHistory(); setDisplayColorPicker(displayColorPicker === 'canvasBg' ? false : 'canvasBg'); }}
                   style={{ 
                     width: '100%', 
                     justifyContent: 'space-between', 
@@ -208,7 +210,13 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 
                 {displayColorPicker === 'canvasBg' && (
                   <div style={{ padding: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '4px', border: '1px solid var(--border)' }}>
-                    <CustomColorPicker color={canvasProps.bgColor || '#ffffff'} onChange={(color) => setCanvasProps(prev => ({ ...prev, bgColor: color }))} />
+                    <CustomColorPicker 
+                      color={canvasProps.bgColor || '#ffffff'} 
+                      onChange={(color) => { 
+                        // Note: actual pushToHistory for canvasBg is already handled in EventEditor or should be here if it's the first change
+                        setCanvasProps(prev => ({ ...prev, bgColor: color })); 
+                      }} 
+                    />
                   </div>
                 )}
               </div>
@@ -291,14 +299,14 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 <Button 
                   variant={event.theme?.envelopeFormat === 'horizontal' ? 'primary' : 'subtle'} 
                   style={{ flex: 1, justifyContent: 'center', fontSize: '11px', padding: '6px 0' }}
-                  onClick={() => updateTheme({ envelopeFormat: 'horizontal' })}
+                  onClick={() => { pushToHistory(); updateTheme({ envelopeFormat: 'horizontal' }); }}
                 >
                   Orizzontale
                 </Button>
                 <Button 
                   variant={event.theme?.envelopeFormat !== 'horizontal' ? 'primary' : 'subtle'} 
                   style={{ flex: 1, justifyContent: 'center', fontSize: '11px', padding: '6px 0' }}
-                  onClick={() => updateTheme({ envelopeFormat: 'vertical' })}
+                  onClick={() => { pushToHistory(); updateTheme({ envelopeFormat: 'vertical' }); }}
                 >
                   Verticale
                 </Button>
@@ -307,24 +315,24 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           )}
               <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-soft)', marginBottom: '4px', display: 'block' }}>Colore Principale</label>
               <div 
-                onClick={() => setDisplayColorPicker(displayColorPicker === 'envelope' ? false : 'envelope')}
+                onClick={() => { if (displayColorPicker !== 'envelope') pushToHistory(); setDisplayColorPicker(displayColorPicker === 'envelope' ? false : 'envelope'); }}
                 style={{width: '100%', height: '36px', background: event.theme?.coverBg || '#54392d', borderRadius: '6px', border: '2px solid var(--border)', cursor: 'pointer', marginBottom: displayColorPicker === 'envelope' ? '12px' : '0'}}
               />
               {displayColorPicker === 'envelope' && (
                 <div style={{ marginBottom: '12px' }}>
-                  <CustomColorPicker color={event.theme?.coverBg || '#54392d'} onChange={(color) => updateTheme({ coverBg: color })} />
+                  <CustomColorPicker color={event.theme?.coverBg || '#54392d'} onChange={(color) => { if (event.theme?.coverBg !== color) updateTheme({ coverBg: color }); }} />
                 </div>
               )}
             </div>
             <div>
               <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-soft)', marginBottom: '4px', display: 'block' }}>Colore Tasca</label>
               <div 
-                onClick={() => setDisplayColorPicker(displayColorPicker === 'pocket' ? false : 'pocket')}
+                onClick={() => { if (displayColorPicker !== 'pocket') pushToHistory(); setDisplayColorPicker(displayColorPicker === 'pocket' ? false : 'pocket'); }}
                 style={{width: '100%', height: '36px', background: event.theme?.coverPocketColor || event.theme?.coverBg || '#54392d', borderRadius: '6px', border: '2px solid var(--border)', cursor: 'pointer', marginBottom: displayColorPicker === 'pocket' ? '12px' : '0'}}
               />
               {displayColorPicker === 'pocket' && (
                 <div style={{ marginBottom: '12px' }}>
-                  <CustomColorPicker color={event.theme?.coverPocketColor || event.theme?.coverBg || '#54392d'} onChange={(color) => updateTheme({ coverPocketColor: color })} />
+                  <CustomColorPicker color={event.theme?.coverPocketColor || event.theme?.coverBg || '#54392d'} onChange={(color) => { if ((event.theme?.coverPocketColor || event.theme?.coverBg) !== color) updateTheme({ coverPocketColor: color }); }} />
                 </div>
               )}
             </div>
@@ -337,6 +345,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 <Button 
                   variant={displayColorPicker === 'linerColor' ? "primary" : "subtle"} 
                   onClick={() => {
+                    if (displayColorPicker !== 'linerColor') pushToHistory();
                     setDisplayColorPicker(displayColorPicker === 'linerColor' ? false : 'linerColor');
                     if (displayColorPicker !== 'linerColor') setIsEnvelopeOpen(true);
                   }}
@@ -355,7 +364,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 </Button>
                 {displayColorPicker === 'linerColor' && (
                   <div style={{ padding: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '4px', border: '1px solid var(--border)', marginTop: '4px' }}>
-                    <CustomColorPicker color={event.theme?.coverLinerColor || '#ffffff'} onChange={(color) => updateTheme({ coverLinerColor: color })} />
+                    <CustomColorPicker color={event.theme?.coverLinerColor || '#ffffff'} onChange={(color) => { if (event.theme?.coverLinerColor !== color) updateTheme({ coverLinerColor: color }); }} />
                   </div>
                 )}
               </div>
@@ -369,6 +378,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
+                      pushToHistory();
                       const url = URL.createObjectURL(file);
                       updateTheme({ coverLiner: url, coverPocketLiner: url });
                       setIsEnvelopeOpen(true);
@@ -381,7 +391,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 {/* Thumbnails Interno Busta */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                   <div 
-                    onClick={() => updateTheme({ coverLiner: 'none', coverPocketLiner: 'none' })}
+                    onClick={() => { pushToHistory(); updateTheme({ coverLiner: 'none', coverPocketLiner: 'none' }); }}
                     style={{
                       aspectRatio: '1', background: 'var(--surface-light)', borderRadius: '6px', 
                       border: (!event.theme?.coverLiner || event.theme?.coverLiner === 'none') ? '2px solid var(--accent)' : '1px solid var(--border)', 
@@ -391,7 +401,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   {AVAILABLE_LINERS.map((tex) => (
                     <div 
                       key={tex.id}
-                      onClick={() => updateTheme({ coverLiner: tex.url, coverPocketLiner: tex.url })}
+                      onClick={() => { pushToHistory(); updateTheme({ coverLiner: tex.url, coverPocketLiner: tex.url }); }}
                       style={{
                         aspectRatio: '1', background: `url(${tex.url})`, backgroundSize: 'cover', borderRadius: '6px', 
                         border: (event.theme?.coverLiner === tex.url || event.theme?.coverLiner?.endsWith(tex.url)) ? '2px solid var(--accent)' : '1px solid var(--border)', 
@@ -403,7 +413,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   {userLinerImages.map((tex, idx) => (
                     <div 
                       key={`user-liner-${idx}`}
-                      onClick={() => updateTheme({ coverLiner: tex, coverPocketLiner: tex })}
+                      onClick={() => { pushToHistory(); updateTheme({ coverLiner: tex, coverPocketLiner: tex }); }}
                       style={{
                         aspectRatio: '1', background: `url(${tex})`, backgroundSize: 'cover', borderRadius: '6px', 
                         border: event.theme?.coverLiner === tex ? '2px solid var(--accent)' : '1px solid var(--border)', 
@@ -468,7 +478,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             <div>
               <Button 
                 variant={displayColorPicker === 'eventHeroBg' ? "primary" : "subtle"}
-                onClick={() => setDisplayColorPicker(displayColorPicker === 'eventHeroBg' ? false : 'eventHeroBg')}
+                onClick={() => { if (displayColorPicker !== 'eventHeroBg') pushToHistory(); setDisplayColorPicker(displayColorPicker === 'eventHeroBg' ? false : 'eventHeroBg'); }}
                 style={{ 
                   width: '100%', 
                   justifyContent: 'space-between', 
@@ -487,7 +497,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               
               {displayColorPicker === 'eventHeroBg' && (
                 <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '8px' }}>
-                  <CustomColorPicker color={event.theme?.heroBgColor || 'var(--bg-body)'} onChange={(color) => updateTheme({ heroBgColor: color })} />
+                  <CustomColorPicker color={event.theme?.heroBgColor || 'var(--bg-body)'} onChange={(color) => { if (event.theme?.heroBgColor !== color) updateTheme({ heroBgColor: color }); }} />
                 </div>
               )}
             </div>
@@ -516,6 +526,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
+                    pushToHistory();
                     const url = URL.createObjectURL(file);
                     updateTheme({ heroBg: url });
                   }
@@ -527,7 +538,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 
                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                     <div 
-                     onClick={() => updateTheme({ heroBg: 'none' })}
+                     onClick={() => { pushToHistory(); updateTheme({ heroBg: 'none' }); }}
                      style={{
                        aspectRatio: '1', background: 'var(--surface-light)', borderRadius: '6px', 
                        border: (!event.theme?.heroBg || event.theme?.heroBg === 'none') ? '2px solid var(--accent)' : '1px solid var(--border)', 
@@ -537,7 +548,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                     {AVAILABLE_SCENARIO_BGS.map((tex) => (
                      <div 
                        key={tex.id}
-                       onClick={() => updateTheme({ heroBg: tex.url })}
+                       onClick={() => { pushToHistory(); updateTheme({ heroBg: tex.url }); }}
                        style={{
                          aspectRatio: '1', background: `url(${tex.url})`, backgroundSize: 'cover', borderRadius: '6px', 
                          border: (event.theme?.heroBg === tex.url || event.theme?.heroBg?.endsWith(tex.url)) ? '2px solid var(--accent)' : '1px solid var(--border)', 
@@ -570,6 +581,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                    className="custom-slider"
                    min="0" max="1" step="0.01" 
                    value={event.theme?.heroBgOpacity ?? 1} 
+                   onPointerDown={() => pushToHistory()}
                    onChange={(e) => updateTheme({ heroBgOpacity: parseFloat(e.target.value) })}
                    style={{ 
                      width: '100%', 
@@ -616,7 +628,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                     return (
                       <button
                         key={pos.val}
-                        onClick={() => updateTheme({ heroBgPosition: pos.val })}
+                        onClick={() => { pushToHistory(); updateTheme({ heroBgPosition: pos.val }); }}
                         style={{
                           width: '32px',
                           height: '32px',

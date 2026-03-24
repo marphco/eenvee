@@ -24,6 +24,9 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId); // Crucial for reliable dragging
+    
     const startY = e.clientY;
     const initHeight = block.height || 400;
 
@@ -32,7 +35,8 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
       onHeightChange(Math.max(100, initHeight + dy));
     };
 
-    const handleUp = () => {
+    const handleUp = (upEv: PointerEvent) => {
+      target.releasePointerCapture(upEv.pointerId);
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
       window.removeEventListener('pointercancel', handleUp);
@@ -49,7 +53,10 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   return (
     <div 
       className={`builder-section-item ${isSelected ? 'selected' : ''}`}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       style={{
         width: '100%',
         height: (block.height || 400) + 'px',
@@ -60,7 +67,8 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
         transition: 'border-color 0.2s ease',
         marginTop: index > 0 ? '-2px' : '0px', // elimina il doppio bordo tra blocchi
         zIndex: currentZIndex, 
-        cursor: 'default'
+        cursor: 'default',
+        overflow: 'visible'
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -71,40 +79,42 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
       </div>
 
       {isSelected && (
-        <div 
-          className="section-resize-hitbox"
-          onMouseEnter={(e: React.MouseEvent) => { e.stopPropagation(); setIsAnchorHovered(true); }}
-          onMouseLeave={(e: React.MouseEvent) => { e.stopPropagation(); setIsAnchorHovered(false); }}
-          style={{
-            position: 'absolute',
-            bottom: '-7px',
-            left: '0',
-            width: '100%',
-            height: '14px',
-            cursor: 'ns-resize',
-            zIndex: 200,
-            touchAction: 'none'
-          }}
-          onPointerDown={handlePointerDown}
-        >
-          {/* Maniglia Visiva (indifferente agli eventi puntatore) */}
+        <>
           <div 
+            className="section-resize-hitbox"
+            onMouseEnter={(e: React.MouseEvent) => { e.stopPropagation(); setIsAnchorHovered(true); }}
+            onMouseLeave={(e: React.MouseEvent) => { e.stopPropagation(); setIsAnchorHovered(false); }}
             style={{
               position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '42px',
-              height: '10px',
-              backgroundColor: isAnchorHovered ? 'var(--accent)' : 'var(--accent-soft, #f0f4ff)',
-              border: `1.5px solid var(--accent)`,
-              borderRadius: '10px',
-              boxShadow: '0 3px 8px rgba(0,0,0,0.2)',
-              transition: 'all 0.2s ease',
-              pointerEvents: 'none' 
+              bottom: '-7px',
+              left: '0',
+              width: '100%',
+              height: '14px',
+              cursor: 'ns-resize',
+              zIndex: 200,
+              touchAction: 'none'
             }}
-          />
-        </div>
+            onPointerDown={handlePointerDown}
+          >
+            {/* Maniglia Visiva Pillola (Canva Style) */}
+            <div 
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '42px',
+                height: '8px',
+                backgroundColor: isAnchorHovered ? 'var(--accent)' : '#ffffff',
+                border: `1.5px solid var(--accent)`,
+                borderRadius: '10px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                transition: 'all 0.2s ease',
+                pointerEvents: 'none' 
+              }}
+            />
+          </div>
+        </>
       )}
     </div>
   );

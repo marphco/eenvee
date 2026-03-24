@@ -223,14 +223,17 @@ const EditorStage: React.FC<EditorStageProps> = ({
         </div>
       ) : editorMode === 'event_page' ? (
         <EventPageBuilder 
-          event={event} 
-          canvasProps={canvasProps} 
-          layers={layers} 
-          isMobile={isMobile} 
-          scenarioScale={scenarioScale} 
-          updateTheme={updateTheme} 
-          blocks={blocks || []}
-          pushToHistory={pushToHistory}
+          {...{
+            event,
+            canvasProps,
+            layers,
+            isMobile,
+            scenarioScale,
+            updateTheme,
+            blocks: blocks || [],
+            setBlocks,
+            pushToHistory
+          } as any}
         />
       ) : (
         <div style={{ 
