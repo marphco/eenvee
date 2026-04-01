@@ -138,22 +138,14 @@ export interface Layer {
   id: string;
   type: string;
   text?: string;
-  src?: string;
   x: number | string;
   y: number;
   fontSize?: number;
   fontFamily?: string;
   fontWeight?: string;
-  fontStyle?: string;
-  textDecoration?: string;
-  letterSpacing?: number;
-  lineHeight?: number;
   color?: string;
   textAlign?: string;
   width?: number | string;
-  opacity?: number;
-  w?: number;
-  h?: number;
 }
 
 export interface PrebuiltTemplate {
@@ -165,9 +157,6 @@ export interface PrebuiltTemplate {
     bgImage: string;
     width: number;
     height: number;
-    bgX?: number;
-    bgY?: number;
-    bgScale?: number;
   };
   theme: {
     preset: string;
@@ -334,7 +323,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     layers: [
       { id: "l1", type: "text", text: "Siamo felici di annunciare il battesimo di", x: "center", y: 160, fontSize: 20, fontFamily: "Inter", fontWeight: "300", color: "#555555", textAlign: "center", width: "max-content" },
       { id: "l2", type: "text", text: "Leonardo", x: "center", y: 268, fontSize: 96, fontFamily: "Alex Brush", fontWeight: "normal", color: "#a0cecb", textAlign: "center", width: "max-content" },
-      { id: "l3", type: "text", text: "Domenica 18 Ottobre 2026\nChiesa di San Lorenzo\nore 11,00\n\nSeguirà rinfresco presso Villa Flora.", x: "center", y: 760, fontSize: 26, fontFamily: "Inter", fontWeight: "normal", color: "#444444", textAlign: "center", width: "max-content" }
+      { id: "l3", type: "text", text: "Domenica 18 Ottobre 2026\nChiesa di San Lorenzo, ore 11:00\nSeguirà rinfresco presso Villa Flora.", x: "center", y: 760, fontSize: 20, fontFamily: "Inter", fontWeight: "normal", color: "#444444", textAlign: "center", width: "max-content" }
     ],
     blocks: [
       { id: "r1", type: "rsvp", order: 1, props: {} }
