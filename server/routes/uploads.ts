@@ -2,11 +2,10 @@ import express, { Request, Response, NextFunction } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import Event from "../models/Event.js";
-
-console.log("[DEBUG TOP] uploads.ts eval - R2_BUCKET_NAME:", process.env.R2_BUCKET_NAME);
+import { getR2Client } from "../utils/r2.js";
 
 const router = express.Router();
 
@@ -37,7 +36,8 @@ const requirePremiumForGalleryUpload = async (req: Request, res: Response, next:
     if (!ev) return res.status(404).json({ error: "Evento non trovato" });
 
     const isPremium = (ev.plan || "free").toLowerCase() === "premium";
-    if (!isPremium) {
+    // Allow uploads in local development or if premium
+    if (!isPremium && process.env.NODE_ENV === "production") {
       return res.status(403).json({ error: "Gallery solo Premium" });
     }
 
@@ -47,10 +47,6 @@ const requirePremiumForGalleryUpload = async (req: Request, res: Response, next:
   }
 };
 
-interface MulterRequest extends Request {
-  files?: Express.Multer.File[];
-}
-
 // Caricamento Immagini
 router.post(
   "/",
@@ -59,32 +55,30 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const files = (req as any).files as Express.Multer.File[] || [];
+      const { slug, folder: customFolder } = req.query;
       const urls: string[] = [];
 
-      // Check R2 on every request to avoid dotenv loading issues
       const r2Config = {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-        endpoint: process.env.R2_ENDPOINT,
         bucketName: process.env.R2_BUCKET_NAME,
         publicUrl: process.env.R2_PUBLIC_URL
       };
 
-      const isR2Ready = !!(r2Config.accessKeyId && r2Config.secretAccessKey && r2Config.endpoint && r2Config.bucketName);
+      const isR2Ready = !!(process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY && process.env.R2_ENDPOINT && r2Config.bucketName);
 
       if (isR2Ready) {
-        const client = new S3Client({
-          region: "auto",
-          endpoint: r2Config.endpoint,
-          credentials: {
-            accessKeyId: r2Config.accessKeyId || "",
-            secretAccessKey: r2Config.secretAccessKey || "",
-          },
-        });
+        const client = getR2Client();
+        
+        // Determina la cartella di destinazione
+        let folder = "temp";
+        if (customFolder === "templates") {
+          folder = "templates";
+        } else if (slug) {
+          folder = `events/${slug}`;
+        }
 
         const uploadPromises = files.map(async (file) => {
           const ext = path.extname(file.originalname);
-          const key = `events/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+          const key = `${folder}/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
 
           const s3Upload = new Upload({
             client,
@@ -127,55 +121,21 @@ router.post(
 
 // ✅ Endpoint di test per R2
 router.post("/test-r2", upload.single("image"), async (req: Request, res: Response) => {
-  console.log("[DEBUG REQ] process.env.R2_BUCKET_NAME:", process.env.R2_BUCKET_NAME);
-  console.log("[DEBUG REQ] All env keys:", Object.keys(process.env).filter(k => k.startsWith("R2_") || k === "PORT"));
-
   const r2Config = {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-    endpoint: process.env.R2_ENDPOINT,
     bucketName: process.env.R2_BUCKET_NAME,
     publicUrl: process.env.R2_PUBLIC_URL
   };
 
-  const isR2Ready = !!(r2Config.accessKeyId && r2Config.secretAccessKey && r2Config.endpoint && r2Config.bucketName);
+  const isR2Ready = !!(process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY && process.env.R2_ENDPOINT && r2Config.bucketName);
 
   if (!isR2Ready) {
-    return res.status(500).json({ 
-      error: "R2 non configurato", 
-      debug: { 
-        hasKey: !!r2Config.accessKeyId, 
-        keyLen: r2Config.accessKeyId?.length,
-        secretLen: r2Config.secretAccessKey?.length,
-        endpoint: r2Config.endpoint,
-        bucket: r2Config.bucketName 
-      } 
-    });
+    return res.status(500).json({ error: "R2 non configurato" });
   }
-
-  // Debug log (masked)
-  console.log("[TEST-R2] Attempting upload with:", {
-    keyStart: r2Config.accessKeyId?.substring(0, 4),
-    secretEnd: r2Config.secretAccessKey?.substring(r2Config.secretAccessKey.length - 4),
-    endpoint: r2Config.endpoint,
-    bucket: r2Config.bucketName
-  });
 
   if (!req.file) return res.status(400).json({ error: "Nessun file inviato" });
 
   try {
-    const client = new S3Client({
-      region: "us-east-1", // Alcuni client preferiscono us-east-1 per il signing v4 su R2
-      endpoint: r2Config.endpoint,
-      forcePathStyle: true,
-      credentials: {
-        accessKeyId: r2Config.accessKeyId || "",
-        secretAccessKey: r2Config.secretAccessKey || "",
-      },
-    });
-
-    console.log("[DEBUG R2] CLIENT CREATED. Region: us-east-1, Endpoint:", r2Config.endpoint);
-
+    const client = getR2Client();
     const ext = path.extname(req.file.originalname);
     const key = `test/${Date.now()}${ext}`;
 

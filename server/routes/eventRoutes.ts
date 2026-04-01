@@ -5,6 +5,7 @@ import requireAuth, { AuthRequest } from "../middleware/requireAuth.js";
 import { getRsvpsSummary } from "../controllers/rsvpSummaryController.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
+import { deleteR2Folder } from "../utils/r2.js";
 
 const router = express.Router();
 
@@ -196,6 +197,9 @@ router.delete("/:slug", requireAuth, async (req: AuthRequest, res: Response) => 
     if (existing.ownerId.toString() !== req.userId) {
       return res.status(403).json({ message: "Non autorizzato" });
     }
+
+    // ✅ Pulizia R2 prima di eliminare dal DB
+    await deleteR2Folder(`events/${slug}`);
 
     await Event.deleteOne({ slug });
     res.json({ message: "Evento eliminato" });

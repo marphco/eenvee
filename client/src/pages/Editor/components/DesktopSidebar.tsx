@@ -49,6 +49,7 @@ interface DesktopSidebarProps {
   showMobileAnchorGrid: boolean;
   setShowMobileAnchorGrid: (show: boolean) => void;
   pushToHistory: () => void;
+  handleBackgroundUpload: (file: File, type: 'canvas' | 'liner' | 'scenario') => Promise<void>;
 }
 
 const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
@@ -89,7 +90,8 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   userScenarioBgImages,
   showMobileAnchorGrid,
   setShowMobileAnchorGrid,
-  pushToHistory
+  pushToHistory,
+  handleBackgroundUpload
 }) => {
   return (
     <div className="editor-sidebar left-sidebar">
@@ -253,10 +255,9 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                onChange={(e) => {
                  const file = e.target.files?.[0];
                  if (file) {
-                   const url = URL.createObjectURL(file);
-                   setCanvasProps((prev: CanvasProps) => ({ ...prev, bgImage: url }));
-                    setIsEditingBackground(true);
+                   handleBackgroundUpload(file, 'canvas');
                  }
+                 e.target.value = '';
                }}
              />
              {canvasProps.bgImage && (
@@ -378,12 +379,9 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      pushToHistory();
-                      const url = URL.createObjectURL(file);
-                      updateTheme({ coverLiner: url, coverPocketLiner: url });
-                      setIsEnvelopeOpen(true);
-                      setIsEditingLiner(true);
+                      handleBackgroundUpload(file, 'liner');
                     }
+                    e.target.value = '';
                   }}
                 />
                 <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-soft)', marginBottom: '4px' }}>Motivi Predefiniti</div>
@@ -526,10 +524,9 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    pushToHistory();
-                    const url = URL.createObjectURL(file);
-                    updateTheme({ heroBg: url });
+                    handleBackgroundUpload(file, 'scenario');
                   }
+                  e.target.value = '';
                 }}
               />
 

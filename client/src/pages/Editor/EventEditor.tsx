@@ -160,11 +160,32 @@ export default function EventEditor() {
     });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- UPLOAD HELPER ---
+  const uploadToR2 = async (file: File, customFolder?: string): Promise<string> => {
+    const formData = new FormData();
+    formData.append("images", file);
+
+    const folderParam = customFolder ? `&folder=${customFolder}` : "";
+    const res = await apiFetch(`/api/uploads?slug=${slug}${folderParam}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || "Upload fallito");
+    }
+    const data = await res.json();
+    return data.urls[0];
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
+      try {
+        // Optimistic preview (optional, but keep it simple for now with real upload)
+        const r2Url = await uploadToR2(file);
+        
         const img = new Image();
         img.onload = () => {
           const maxDim = 300;
@@ -175,13 +196,35 @@ export default function EventEditor() {
             w *= ratio;
             h *= ratio;
           }
-          addLayer("image", { src: ev.target?.result as string, w: Math.round(w), h: Math.round(h) });
+          addLayer("image", { src: r2Url, w: Math.round(w), h: Math.round(h) });
         };
-        img.src = ev.target?.result as string;
-      };
-      reader.readAsDataURL(file);
+        img.src = r2Url;
+      } catch (err) {
+        console.error("Upload error:", err);
+        alert("Errore durante il caricamento dell'immagine.");
+      }
     }
     e.target.value = '';
+  };
+
+  const handleBackgroundUpload = async (file: File, type: 'canvas' | 'liner' | 'scenario') => {
+    try {
+      const r2Url = await uploadToR2(file);
+      if (type === 'canvas') {
+        setCanvasProps(prev => ({ ...prev, bgImage: r2Url }));
+        setIsEditingBackground(true);
+      } else if (type === 'liner') {
+        updateTheme({ coverLiner: r2Url, coverPocketLiner: r2Url });
+        setIsEnvelopeOpen(true);
+        setIsEditingLiner(true);
+      } else if (type === 'scenario') {
+        updateTheme({ heroBg: r2Url });
+      }
+      setIsDirty(true);
+    } catch (err: any) {
+      console.error("Background upload error:", err);
+      alert(`Errore caricamento: ${err.message}`);
+    }
   };
 
   // --- FONT LOADING ---
@@ -280,6 +323,7 @@ export default function EventEditor() {
           scenarioBgInputRef={scenarioBgInputRef} userScenarioBgImages={userScenarioBgImages}
           showMobileAnchorGrid={showMobileAnchorGrid} setShowMobileAnchorGrid={setShowMobileAnchorGrid}
           pushToHistory={pushToHistory}
+          handleBackgroundUpload={handleBackgroundUpload}
         />
         <MobileToolbar 
            activeMobileTab={activeMobileTab} setActiveMobileTab={setActiveMobileTab}

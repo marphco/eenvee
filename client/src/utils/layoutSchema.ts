@@ -174,9 +174,9 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     id: "wedding_floral",
     name: "Romantico Floreale",
     category: "Matrimonio",
-    thumbnail: "/templates/wedding_floral.png",
+    thumbnail: "https://media.eenvee.com/templates/wedding_floral.png",
     canvas: {
-      bgImage: "/templates/wedding_floral.png",
+      bgImage: "https://media.eenvee.com/templates/wedding_floral.png",
       width: 800,
       height: 800
     },
@@ -200,9 +200,9 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     id: "wedding_minimal",
     name: "Minimalista Elegante",
     category: "Matrimonio",
-    thumbnail: "/templates/wedding_minimal.png",
+    thumbnail: "https://media.eenvee.com/templates/wedding_minimal.png",
     canvas: {
-      bgImage: "/templates/wedding_minimal.png",
+      bgImage: "https://media.eenvee.com/templates/wedding_minimal.png",
       width: 800,
       height: 800
     },
@@ -225,9 +225,9 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     id: "wedding_ornate",
     name: "Classico Reale",
     category: "Matrimonio",
-    thumbnail: "/templates/wedding_ornate.png",
+    thumbnail: "https://media.eenvee.com/templates/wedding_ornate.png",
     canvas: {
-      bgImage: "/templates/wedding_ornate.png",
+      bgImage: "https://media.eenvee.com/templates/wedding_ornate.png",
       width: 800,
       height: 800
     },
@@ -252,9 +252,9 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     id: "party_retro",
     name: "Neon Party",
     category: "Feste",
-    thumbnail: "/templates/party_retro.png",
+    thumbnail: "https://media.eenvee.com/templates/party_retro.png",
     canvas: {
-      bgImage: "/templates/party_retro.png",
+      bgImage: "https://media.eenvee.com/templates/party_retro.png",
       width: 800,
       height: 800
     },
@@ -280,9 +280,9 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     id: "business_corporate",
     name: "Gala Aziendale",
     category: "Business",
-    thumbnail: "/templates/business_corporate.png",
+    thumbnail: "https://media.eenvee.com/templates/business_corporate.png",
     canvas: {
-      bgImage: "/templates/business_corporate.png",
+      bgImage: "https://media.eenvee.com/templates/business_corporate.png",
       width: 800,
       height: 800
     },
