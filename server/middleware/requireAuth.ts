@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const COOKIE_NAME = "cartevite_token";
+const COOKIE_NAME = "eenvee_token";
 
 export interface AuthRequest extends Request {
   userId?: string;

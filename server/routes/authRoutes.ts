@@ -5,7 +5,7 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
-const COOKIE_NAME = "cartevite_token";
+const COOKIE_NAME = "eenvee_token";
 
 const createToken = (userId: any) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET || "", { expiresIn: "7d" });

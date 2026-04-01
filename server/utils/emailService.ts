@@ -31,7 +31,7 @@ export const sendEmail = async ({ to, subject, html }: SendEmailParams) => {
     const transporter = createTransporter();
     
     const info = await transporter.sendMail({
-      from: `"Cartevite" <${process.env.EMAIL_FROM || 'hello@cartevite.com'}>`, // mittente (quello configurato su cloudflare/gmail alias)
+      from: `"eenvee" <${process.env.EMAIL_FROM || 'hello@eenvee.com'}>`, // mittente (quello configurato su cloudflare/gmail alias)
       to,
       subject,
       html,

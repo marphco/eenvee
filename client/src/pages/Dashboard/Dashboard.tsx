@@ -197,8 +197,8 @@ export default function Dashboard() {
           <div className="dashboard-title-block">
             <div style={{ marginBottom: "1rem" }}>
               <img 
-                src="/logo-cartevite.svg" 
-                alt="Cartevite" 
+                src="/logo-eenvee.svg" 
+                alt="eenvee" 
                 style={{ 
                   height: "45px", 
                   display: "block"
@@ -211,7 +211,7 @@ export default function Dashboard() {
 
           <div className="ui-toolbar__actions">
             <Button variant="ghost" onClick={() => navigate("/")} style={{ opacity: 0.7 }}>
-              Home Cartevite
+              Home eenvee
             </Button>
             <Button
               variant="outline"

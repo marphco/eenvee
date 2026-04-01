@@ -53,8 +53,8 @@ export default function MarketingLanding() {
       <nav className="marketing-nav">
         <div className="marketing-logo" onClick={() => navigate("/")} style={{cursor:"pointer"}}>
           <img 
-            src="/logo-cartevite.svg" 
-            alt="Cartevite" 
+            src="/logo-eenvee.svg" 
+            alt="eenvee" 
             style={{ 
               height: "40px", 
               display: "block"
@@ -195,7 +195,7 @@ export default function MarketingLanding() {
       <section className="marketing-section premium-teaser">
         <Surface variant="glass" className="premium-box">
           <h2>Passa a Premium per espandere le funzionalità.</h2>
-          <p>Sblocca la Gallery fotografica, elimina i limiti di caricamento e rimuovi il brand Cartevite, per darti un tocco ancora più esclusivo.</p>
+          <p>Sblocca la Gallery fotografica, elimina i limiti di caricamento e rimuovi il brand eenvee, per darti un tocco ancora più esclusivo.</p>
           <Button onClick={() => setShowAuthModal(true)} style={{ marginTop: "1rem" }}>
             <CreditCard size={18} style={{ marginRight: "0.5rem" }} />
             Scopri i vantaggi
@@ -205,7 +205,7 @@ export default function MarketingLanding() {
 
       {/* FOOTER */}
       <footer className="marketing-footer">
-        <div>Cartevite &copy; 2026. Tutti i diritti riservati.</div>
+        <div>eenvee &copy; 2026. Tutti i diritti riservati.</div>
         <div className="footer-links">
           <span>Privacy</span>
           <span>Termini</span>

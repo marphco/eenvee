@@ -1,5 +1,5 @@
 {
-  "name": "cartevite",
+  "name": "eenvee",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -11,15 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marphco/cartevite.git"
+    "url": "git+https://github.com/marphco/eenvee.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/marphco/cartevite/issues"
+    "url": "https://github.com/marphco/eenvee/issues"
   },
-  "homepage": "https://github.com/marphco/cartevite#readme",
+  "homepage": "https://github.com/marphco/eenvee#readme",
   "devDependencies": {
     "concurrently": "^9.2.1"
   }

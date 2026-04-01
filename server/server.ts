@@ -48,7 +48,7 @@ app.use("/api/events", inviteRoutes);
 app.use("/api/rsvps", rsvpRoutes);
 app.use("/api/payments", paymentRoutes);
 
-app.get("/", (req: Request, res: Response) => res.json({ message: "CARTEVITE API is running" }));
+app.get("/", (req: Request, res: Response) => res.json({ message: "eenvee API is running" }));
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error("GLOBAL ERROR:", err);

@@ -33,7 +33,7 @@ export const useEditorHistory = (
   const [draftRestored, setDraftRestored] = useState(false);
   
   const latestStateRef = useRef<EditorState | null>(null);
-  const DRAFT_KEY = `cartevite:draft:${slug}`;
+  const DRAFT_KEY = `eenvee:draft:${slug}`;
 
   // Helper per catturare lo stato corrente
   const captureState = useCallback((): EditorState | null => {
