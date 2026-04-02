@@ -24,6 +24,7 @@ interface EnvelopeSquareProps {
   linerColor?: string | null;
   scale?: number | null;
   isEventPage?: boolean;
+  isBuilder?: boolean;
 }
 
 type EnvelopePhase = 'closed' | 'flap_open' | 'extracting' | 'extracted';
@@ -40,7 +41,8 @@ export default function EnvelopeSquare({
   linerOpacity = 1,
   linerColor = null,
   scale: externalScale = null,
-  isEventPage = false
+  isEventPage = false,
+  isBuilder = false
 }: EnvelopeSquareProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<EnvelopePhase>(preview ? "extracted" : "closed"); 
@@ -149,7 +151,15 @@ export default function EnvelopeSquare({
   const getSceneScale = () => {
     if (preview) return (externalScale || 1.0);
     // Pagina pubblica: scala fissa per coerenza
-    if (isEventPage) return windowDims.w <= 768 ? 0.9 : 1.15;
+    if (isBuilder) {
+       if (windowDims.w <= 768) return 0.9;
+       return 0.85; 
+    }
+
+    if (isEventPage) {
+       if (windowDims.w <= 768) return 1.0;
+       return windowDims.w > 1200 ? 1.35 : 1.15; 
+    }
 
     const baseDim = 500;
     const isFullShow = phase !== "closed";
@@ -171,6 +181,10 @@ export default function EnvelopeSquare({
   };
 
   const getSceneY = (currentScale: number) => {
+    if (preview || isBuilder) return 0;
+    if (isEventPage) {
+       return phase === "extracted" ? (400 * 0.05 * currentScale) : 0;
+    }
     const baseDim = 500;
     const topLimit = 80;
     const bottomLimit = windowDims.w > 768 ? windowDims.h : windowDims.h - 260;

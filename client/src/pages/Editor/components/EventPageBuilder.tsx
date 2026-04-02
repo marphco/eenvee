@@ -42,6 +42,47 @@ export function EventPageBuilder({
     pushToHistory();
   };
 
+  const moveBlock = (index: number, direction: 'up' | 'down') => {
+    const newBlocks = [...blocks];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newBlocks.length) return;
+    
+    const current = newBlocks[index];
+    const target = newBlocks[targetIndex];
+    if (!current || !target) return;
+
+    newBlocks[index] = target;
+    newBlocks[targetIndex] = current;
+    
+    setBlocks(newBlocks);
+    updateTheme({ blocks: newBlocks });
+    pushToHistory();
+  };
+
+  const duplicateBlock = (index: number) => {
+    const blockToDuplicate = blocks[index];
+    if (!blockToDuplicate) return;
+
+    const newBlock: Block = { 
+      ...blockToDuplicate, 
+      id: 'block-' + Date.now() + '-' + Math.floor(Math.random() * 1000) 
+    };
+    
+    const newBlocks = [...blocks];
+    newBlocks.splice(index + 1, 0, newBlock);
+    setBlocks(newBlocks);
+    updateTheme({ blocks: newBlocks });
+    pushToHistory();
+  };
+
+  const deleteBlock = (index: number) => {
+    if (!window.confirm('Sei sicuro di voler eliminare questa sezione?')) return;
+    const newBlocks = blocks.filter((_, i) => i !== index);
+    setBlocks(newBlocks);
+    updateTheme({ blocks: newBlocks });
+    pushToHistory();
+  };
+
   return (
     <div 
       className="event-page-builder-container custom-scrollbar" 
@@ -53,9 +94,25 @@ export function EventPageBuilder({
         overflowY: 'auto', 
         overflowX: 'hidden',
         background: 'var(--bg-body)',
-        position: 'relative'
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: isMobile ? '0' : '0 80px 0 30px' // Padding destro aumentato a 80px per dare stacco alla toolbar
       }}
     >
+      <div 
+        className="event-page-width-constraint"
+        style={{
+          width: '100%',
+          maxWidth: isMobile ? '100%' : '900px', // Bilanciamento perfetto per schermi a metà
+          position: 'relative',
+          backgroundColor: 'var(--bg-surface)',
+          boxShadow: isMobile ? 'none' : '0 0 40px rgba(0,0,0,0.05)',
+          minHeight: '100%',
+          zIndex: 1
+        }}
+      >
       {/* =======================
           HERO SECTION (Blocco 1)
           ======================= */}
@@ -63,11 +120,13 @@ export function EventPageBuilder({
         className="event-hero-section"
         style={{
           width: '100%',
-          minHeight: '100%',
+          minHeight: isMobile ? '100%' : '950px', // Ripristino spazio generoso per proteggere l'aletta
+          maxHeight: isMobile ? 'none' : '1100px',
           position: 'relative',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'center', // Centramento solido
           justifyContent: 'center',
+          paddingTop: isMobile ? '0' : '100px', // Ripristino 100px per sicurezza totale contro il clipping
           backgroundColor: (event?.theme?.heroBg && (event.theme.heroBg.startsWith('#') || event.theme.heroBg.startsWith('rgb'))) 
             ? event.theme.heroBg 
             : 'var(--bg-body)',
@@ -93,7 +152,8 @@ export function EventPageBuilder({
         <div style={{ 
           position: 'relative', 
           zIndex: 2,
-          transform: `scale(${isMobile ? 0.6 : 0.8})`,
+          // Rimosso il transform scale manuale per delegare interamente alla busta
+          transform: isMobile ? 'scale(0.6)' : 'none', 
           transformOrigin: 'center center'
         }}>
           <EnvelopeAnimation 
@@ -111,6 +171,7 @@ export function EventPageBuilder({
             manualPhase={null}
             preview={false}
             isEventPage={true}
+            isBuilder={true}
           >
              <ReadOnlyCanvas layers={layers} canvasProps={canvasProps} />
           </EnvelopeAnimation>
@@ -130,6 +191,13 @@ export function EventPageBuilder({
             onClick={() => setSelectedBlockId(block.id || null)}
             onHeightChange={(h) => handleHeightChange(idx, h)}
             onHeightChangeComplete={handleHeightChangeComplete}
+            onMoveUp={() => moveBlock(idx, 'up')}
+            onMoveDown={() => moveBlock(idx, 'down')}
+            onDuplicate={() => duplicateBlock(idx)}
+            onDelete={() => deleteBlock(idx)}
+            isFirst={idx === 0}
+            isLast={idx === blocks.length - 1}
+            isMobile={isMobile}
           />
         ))}
       </div>
@@ -165,6 +233,7 @@ export function EventPageBuilder({
             + Aggiungi Sezione
           </button>
       </div>
+     </div>
     </div>
   );
 };

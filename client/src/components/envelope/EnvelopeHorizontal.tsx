@@ -24,6 +24,7 @@ interface EnvelopeHorizontalProps {
   linerColor?: string | null;
   scale?: number | null;
   isEventPage?: boolean;
+  isBuilder?: boolean;
 }
 
 type EnvelopePhase = 'closed' | 'flap_open' | 'extracting' | 'extracted';
@@ -40,7 +41,8 @@ export default function EnvelopeHorizontal({
   linerOpacity = 1,
   linerColor = null,
   scale: externalScale = null,
-  isEventPage = false
+  isEventPage = false,
+  isBuilder = false
 }: EnvelopeHorizontalProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<EnvelopePhase>(preview ? "extracted" : "closed"); 
@@ -98,7 +100,16 @@ export default function EnvelopeHorizontal({
 
   const getSceneScale = () => {
     if (preview) return (externalScale || 1.0);
-    if (isEventPage) return windowDims.w <= 768 ? 0.8 : 1.1;
+    if (isBuilder) {
+       // Per orizzontale (base 600px) usiamo 0.7 per armonizzare con gli altri formati nel builder
+       if (windowDims.w <= 768) return 0.8;
+       return 0.7; 
+    }
+
+    if (isEventPage) {
+       if (windowDims.w <= 768) return 0.95;
+       return windowDims.w > 1200 ? 1.35 : 1.15; 
+    }
 
     const baseW = 600;
     const baseH = baseW / dynamicEnvRatio;
@@ -121,6 +132,11 @@ export default function EnvelopeHorizontal({
   };
   
   const getSceneY = (currentScale: number) => {
+    if (preview || isBuilder) return 0;
+    if (isEventPage) {
+       const baseH = 600 / dynamicEnvRatio;
+       return phase === "extracted" ? (baseH * 0.05 * currentScale) : 0;
+    }
     const baseW = 600;
     const baseH = baseW / dynamicEnvRatio;
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Block } from '../../../types/editor';
+import SectionToolbar from './SectionToolbar';
 
 interface BuilderSectionProps {
   block: Block;
@@ -8,6 +9,13 @@ interface BuilderSectionProps {
   onClick: () => void;
   onHeightChange: (height: number) => void;
   onHeightChangeComplete?: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  isFirst: boolean;
+  isLast: boolean;
+  isMobile: boolean;
 }
 
 const BuilderSection: React.FC<BuilderSectionProps> = ({ 
@@ -16,7 +24,14 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   isSelected, 
   onClick, 
   onHeightChange, 
-  onHeightChangeComplete 
+  onHeightChangeComplete,
+  onMoveUp,
+  onMoveDown,
+  onDuplicate,
+  onDelete,
+  isFirst,
+  isLast,
+  isMobile
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isAnchorHovered, setIsAnchorHovered] = useState(false);
@@ -114,6 +129,15 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
               }}
             />
           </div>
+          <SectionToolbar 
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
+            isFirst={isFirst}
+            isLast={isLast}
+            layout={isMobile ? 'horizontal' : 'vertical'}
+          />
         </>
       )}
     </div>

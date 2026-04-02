@@ -24,6 +24,7 @@ interface EnvelopeVerticalProps {
   linerColor?: string | null;
   scale?: number | null;
   isEventPage?: boolean;
+  isBuilder?: boolean;
 }
 
 type EnvelopePhase = 'closed' | 'flap_open' | 'extracting' | 'extracted';
@@ -40,7 +41,8 @@ export default function EnvelopeVertical({
   linerOpacity = 1,
   linerColor = null,
   scale: externalScale = null,
-  isEventPage = false
+  isEventPage = false,
+  isBuilder = false
 }: EnvelopeVerticalProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<EnvelopePhase>(preview ? "extracted" : "closed"); 
@@ -114,7 +116,18 @@ export default function EnvelopeVertical({
 
   const getSceneScale = () => {
     if (preview) return (externalScale || 1.0);
-    if (isEventPage) return windowDims.w <= 768 ? 0.85 : 1.1;
+    
+    // Se siamo nel Builder (Editor), usiamo la scala "Luxury" per i margini e la toolbar
+    if (isBuilder) {
+       if (windowDims.w <= 768) return 0.85;
+       return 0.85; 
+    }
+
+    // Se siamo nella Pagina Pubblica, carichiamo la dimensione al massimo impatto
+    if (isEventPage) {
+       if (windowDims.w <= 768) return 0.95;
+       return windowDims.w > 1200 ? 1.25 : 1.1; 
+    }
 
     const baseW = 510;
     const baseH = baseW / dynamicEnvRatio;
@@ -137,6 +150,13 @@ export default function EnvelopeVertical({
   };
   
   const getSceneY = (currentScale: number) => {
+    if (preview || isBuilder) return 0;
+    if (isEventPage) {
+       // Centratura perfetta con offset di estrazione bilanciato
+       const baseH = 500 / dynamicEnvRatio;
+       return phase === "extracted" ? (baseH * 0.05 * currentScale) : 0;
+    }
+
     const baseW = 500;
     const baseH = baseW / dynamicEnvRatio;
 

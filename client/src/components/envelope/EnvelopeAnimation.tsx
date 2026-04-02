@@ -25,6 +25,7 @@ interface EnvelopeAnimationProps {
   linerColor?: string | null;
   scale?: number | null;
   isEventPage?: boolean;
+  isBuilder?: boolean;
 }
 
 export default function EnvelopeAnimation(props: EnvelopeAnimationProps) {
