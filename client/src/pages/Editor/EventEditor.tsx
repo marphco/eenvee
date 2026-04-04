@@ -58,6 +58,8 @@ export default function EventEditor() {
   // --- HISTORY & PERSISTENCE HOOK ---
   const [layers, setLayers] = useState<Layer[]>([]);
   const [event, setEvent] = useState<EventData | null>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [previewMobile, setPreviewMobile] = useState(false);
 
   const {
     isDirty, setIsDirty,
@@ -145,7 +147,7 @@ export default function EventEditor() {
 
   // --- WRAPPER FOR CONVENIENCE ---
   const addTextLayer = () => {
-    addLayer("text", {
+    const props: Partial<Layer> = {
       text: "Nuovo Testo",
       fontSize: 32,
       fontFamily: event?.theme?.fonts?.heading || "Playfair Display",
@@ -157,7 +159,13 @@ export default function EventEditor() {
       textDecoration: "none",
       letterSpacing: 0,
       lineHeight: 1.2
-    });
+    };
+    if (editorMode === 'event_page' && selectedBlockId) {
+      props.blockId = selectedBlockId;
+      props.x = 'center';
+      props.y = 'center';
+    }
+    addLayer("text", props);
   };
 
   // --- UPLOAD HELPER ---
@@ -196,7 +204,17 @@ export default function EventEditor() {
             w *= ratio;
             h *= ratio;
           }
-          addLayer("image", { src: r2Url, w: Math.round(w), h: Math.round(h) });
+          const props: Partial<Layer> = { 
+            src: r2Url, 
+            w: Math.round(w), 
+            h: Math.round(h)
+          };
+          if (editorMode === 'event_page' && selectedBlockId) {
+            props.blockId = selectedBlockId;
+            props.x = 'center';
+            props.y = 'center';
+          }
+          addLayer("image", props);
         };
         img.src = r2Url;
       } catch (err) {
@@ -306,6 +324,7 @@ export default function EventEditor() {
 
       <div className="editor-workspace">
         <DesktopSidebar 
+          slug={slug as string}
           editorMode={editorMode} setEditorMode={setEditorMode}
           selectedLayer={selectedLayer} selectedLayerIds={selectedLayerIds} layers={layers}
           setSelectedLayerIds={setSelectedLayerIds} updateSelectedLayer={updateSelectedLayer}
@@ -324,6 +343,11 @@ export default function EventEditor() {
           showMobileAnchorGrid={showMobileAnchorGrid} setShowMobileAnchorGrid={setShowMobileAnchorGrid}
           pushToHistory={pushToHistory}
           handleBackgroundUpload={handleBackgroundUpload}
+          blocks={blocks}
+          setBlocks={setBlocks}
+          selectedBlockId={selectedBlockId}
+          previewMobile={previewMobile}
+          setPreviewMobile={setPreviewMobile}
         />
         <MobileToolbar 
            activeMobileTab={activeMobileTab} setActiveMobileTab={setActiveMobileTab}
@@ -340,6 +364,8 @@ export default function EventEditor() {
            isFontExpanded={isFontExpanded} setIsFontExpanded={setIsFontExpanded}
            scenarioBgInputRef={scenarioBgInputRef} invitoBgInputRef={invitoBgInputRef} textureInputRef={textureInputRef} fileInputRef={fileInputRef}
            pushToHistory={pushToHistory}
+           previewMobile={previewMobile}
+           setPreviewMobile={setPreviewMobile}
          />
         <EditorStage 
           stageRef={stageRef} canvasRef={canvasRef} editorMode={editorMode} isMobile={isMobile}
@@ -359,6 +385,8 @@ export default function EventEditor() {
           pushToHistory={pushToHistory} setIsDirty={setIsDirty} setIsFontExpanded={setIsFontExpanded}
           stateBeforeActionRef={stateBeforeActionRef} latestStateRef={latestStateRef}
           blocks={blocks} setBlocks={setBlocks}
+          selectedBlockId={selectedBlockId} setSelectedBlockId={setSelectedBlockId}
+          previewMobile={previewMobile}
         />
         </div>
       </div>

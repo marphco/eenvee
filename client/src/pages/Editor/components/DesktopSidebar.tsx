@@ -3,14 +3,15 @@ import { Surface, Button } from "../../../ui";
 import { 
   Type, Image as ImageIcon, PaintBucket, Move, Mail, MailOpen, ArrowLeft, 
   ArrowRight, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, ArrowDownRight, 
-  ArrowDownLeft, Plus, Circle 
+  ArrowDownLeft, Plus, Circle, Sparkles, Smartphone, Layout
 } from "lucide-react";
 import PropertyPanel from "./PropertyPanel";
 import CustomColorPicker from "./CustomColorPicker";
 import { AVAILABLE_LINERS, AVAILABLE_SCENARIO_BGS } from "./EditorHelpers";
-import type { Layer, CanvasProps } from "../../../types/editor";
+import type { Layer, CanvasProps, Block } from "../../../types/editor";
 
 interface DesktopSidebarProps {
+  slug: string;
   editorMode: 'canvas' | 'envelope' | 'background' | 'event_page';
   setEditorMode: (mode: 'canvas' | 'envelope' | 'background' | 'event_page') => void;
   selectedLayer: Layer | undefined;
@@ -50,9 +51,15 @@ interface DesktopSidebarProps {
   setShowMobileAnchorGrid: (show: boolean) => void;
   pushToHistory: () => void;
   handleBackgroundUpload: (file: File, type: 'canvas' | 'liner' | 'scenario') => Promise<void>;
+  blocks?: Block[];
+  setBlocks?: React.Dispatch<React.SetStateAction<Block[]>>;
+  selectedBlockId?: string | null;
+  previewMobile?: boolean;
+  setPreviewMobile?: (val: boolean) => void;
 }
 
 const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
+  slug,
   editorMode,
   setEditorMode,
   selectedLayer,
@@ -91,7 +98,12 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   showMobileAnchorGrid,
   setShowMobileAnchorGrid,
   pushToHistory,
-  handleBackgroundUpload
+  handleBackgroundUpload,
+  blocks,
+  setBlocks,
+  selectedBlockId,
+  previewMobile,
+  setPreviewMobile
 }) => {
   return (
     <div className="editor-sidebar left-sidebar">
@@ -159,6 +171,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
            {/* EDITOR PROPRIETÀ */}
            <PropertyPanel 
+              slug={slug}
               selectedLayer={selectedLayer}
               selectedLayerIds={selectedLayerIds}
               layers={layers}
@@ -215,7 +228,6 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                     <CustomColorPicker 
                       color={canvasProps.bgColor || '#ffffff'} 
                       onChange={(color) => { 
-                        // Note: actual pushToHistory for canvasBg is already handled in EventEditor or should be here if it's the first change
                         setCanvasProps(prev => ({ ...prev, bgColor: color })); 
                       }} 
                     />
@@ -482,7 +494,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   justifyContent: 'space-between', 
                   padding: '10px 12px',
                   background: 'rgba(60, 79, 118, 0.05)',
-                  borderRadius: '12px',
+                  borderRadius: '100px',
                   ...(displayColorPicker === 'eventHeroBg' ? { boxShadow: '0 0 15px rgba(var(--accent-rgb), 0.5)', zIndex: 1 } : {})
                 }}
               >
@@ -509,7 +521,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   fontSize: '12px', 
                   padding: '10px 12px',
                   background: 'rgba(60, 79, 118, 0.05)',
-                  borderRadius: '12px'
+                  borderRadius: '100px'
                 }} 
                 onClick={() => scenarioBgInputRef.current?.click()}
               >
@@ -653,19 +665,112 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         </>
        )}
 
-       {editorMode === 'event_page' && (
-         <Surface variant="soft" className="panel-section">
-           <p style={{ fontSize: '10px', color: 'var(--text-soft)', marginBottom: '0', lineHeight: '1.5', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: '3px solid var(--accent)' }}>
-             Costruisci la pagina web pubblica del tuo evento aggiungendo intere nuove sezioni (Mappa, RSVP, Foto).
-           </p>
-           <h3 style={{ marginTop: '16px', marginBottom: '12px' }}>Gestione Sezioni</h3>
-           <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-             <Button variant="primary" style={{width: '100%', justifyContent: 'center'}} onClick={() => alert("Aggiunta moduli in arrivo nel prossimo step!")}>
-               <Plus size={18} style={{marginRight: 8}}/> Aggiungi Sezione
-             </Button>
-           </div>
-         </Surface>
-       )}
+        {editorMode === "event_page" && (
+          <>
+            <div style={{ marginBottom: '24px' }}>
+              <Button
+                variant={previewMobile ? "primary" : "subtle"}
+                onClick={() => setPreviewMobile?.(!previewMobile)}
+                style={{ 
+                  width: '100%', 
+                  justifyContent: 'center', 
+                  height: '42px',
+                  borderRadius: '100px',
+                  boxShadow: previewMobile ? '0 10px 20px rgba(var(--accent-rgb), 0.3)' : 'none',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  letterSpacing: '0.05em'
+                }}
+              >
+                {previewMobile ? <Layout size={18} style={{marginRight: 8}}/> : <Smartphone size={18} style={{marginRight: 8}}/>}
+                {previewMobile ? "FINE ANTEPRIMA" : "ANTEPRIMA MOBILE"}
+              </Button>
+            </div>
+
+            <div style={{ 
+              background: "rgba(var(--accent-rgb), 0.04)", 
+              borderRadius: "16px",
+              padding: "16px",
+              display: "flex",
+              gap: "12px",
+              marginBottom: "24px",
+              border: "1px solid rgba(var(--accent-rgb), 0.08)"
+            }}>
+              <div style={{ 
+                background: "var(--accent-soft)", 
+                width: "32px", 
+                height: "32px", 
+                borderRadius: "10px", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center",
+                color: "var(--accent)",
+                flexShrink: 0
+              }}><Sparkles size={16} /></div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-main)", textTransform: 'uppercase', letterSpacing: '0.05em' }}>Design Libero</span>
+                <p style={{ fontSize: "11px", color: "var(--text-soft)", lineHeight: "1.5", margin: 0 }}>
+                  Posiziona elementi dove vuoi in ogni sezione. <strong>eenvee</strong> li impilerà automaticamente per i tuoi ospiti su mobile.
+                </p>
+              </div>
+            </div>
+
+            {selectedBlockId ? (
+              <div key={selectedBlockId}>
+               {selectedLayerIds.length > 0 && (
+                 <PropertyPanel 
+                    slug={slug}
+                    selectedLayer={selectedLayer}
+                    selectedLayerIds={selectedLayerIds}
+                    layers={layers}
+                    setSelectedLayerIds={setSelectedLayerIds}
+                    updateSelectedLayer={updateSelectedLayer}
+                    deleteSelectedLayers={deleteSelectedLayers}
+                    alignLayers={alignLayers}
+                    hoveredLayerId={hoveredLayerId}
+                    setHoveredLayerId={setHoveredLayerId}
+                    keyLayerId={keyLayerId}
+                    setKeyLayerId={setKeyLayerId}
+                    alignmentReference={alignmentReference}
+                    setAlignmentReference={setAlignmentReference}
+                    displayColorPicker={displayColorPicker === 'font' ? 'font' : false}
+                    setDisplayColorPicker={(show) => setDisplayColorPicker(show)}
+                 />
+               )}
+
+               <Surface variant="soft" className="panel-section">
+                 <h3>Inserisci nel Blocco</h3>
+                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                   <Button variant="primary" style={{width: '100%', justifyContent: 'center'}} onClick={addTextLayer}>
+                     <Type size={18} style={{marginRight: 8}}/> Testo
+                   </Button>
+                   <Button variant="subtle" style={{width: '100%', justifyContent: 'center'}} onClick={() => fileInputRef.current?.click()}>
+                     <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
+                   </Button>
+                   <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{display: 'none'}} />
+                 </div>
+               </Surface>
+              </div>
+            ) : (
+              <Surface variant="soft" className="panel-section">
+                <p style={{ fontSize: '11px', color: 'var(--text-soft)', marginBottom: '0', lineHeight: '1.6', padding: '12px', background: 'rgba(var(--accent-rgb), 0.03)', borderRadius: '12px', borderLeft: '3px solid var(--accent)' }}>
+                  Costruisci la tua landing page aggiungendo nuove sezioni. Ogni sezione è un foglio libero dove puoi muovere tutto come preferisci.
+                </p>
+                <h3 style={{ marginTop: '20px', marginBottom: '12px', fontSize: '11px', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.05em' }}>GESTIONE SEZIONI</h3>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                  <Button variant="primary" style={{width: '100%', justifyContent: 'center'}} onClick={() => {
+                    if (blocks && setBlocks) {
+                      setBlocks([...blocks, { id: 'block-' + Date.now(), type: 'canvas', y: 0, height: 400, bgColor: '#ffffff' }]);
+                      pushToHistory();
+                    }
+                  }}>
+                    <Plus size={18} style={{marginRight: 8}}/> Aggiungi Sezione Vuota
+                  </Button>
+                </div>
+              </Surface>
+            )}
+          </>
+        )}
     </div>
   );
 };

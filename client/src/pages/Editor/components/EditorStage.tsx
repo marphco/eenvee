@@ -49,6 +49,9 @@ interface EditorStageProps {
   latestStateRef: React.MutableRefObject<any>;
   blocks: Block[];
   setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
+  selectedBlockId: string | null;
+  setSelectedBlockId: React.Dispatch<React.SetStateAction<string | null>>;
+  previewMobile: boolean;
 }
 
 const EditorStage: React.FC<EditorStageProps> = ({
@@ -93,7 +96,10 @@ const EditorStage: React.FC<EditorStageProps> = ({
   stateBeforeActionRef,
   latestStateRef,
   blocks,
-  setBlocks
+  setBlocks,
+  selectedBlockId,
+  setSelectedBlockId,
+  previewMobile
 }) => {
 
   return (
@@ -296,12 +302,21 @@ const EditorStage: React.FC<EditorStageProps> = ({
             event,
             canvasProps,
             layers,
+            setLayers,
+            selectedLayerIds,
+            setSelectedLayerIds,
             isMobile,
             scenarioScale,
             updateTheme,
             blocks: blocks || [],
             setBlocks,
-            pushToHistory
+            selectedBlockId,
+            setSelectedBlockId,
+            pushToHistory,
+            setIsDirty,
+            previewMobile,
+            editingLayerId,
+            setEditingLayerId
           } as any}
         />
       ) : (
@@ -443,7 +458,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
                  )}
                </div>
              )}
-             {layers.map((layer) => {
+             {layers.filter(l => !l.blockId).map((layer) => {
                 const isSelected = selectedLayerIds.includes(layer.id); const isEditing = editingLayerId === layer.id; const isHovered = hoveredLayerId === layer.id;
                 return (
                  <div key={layer.id} id={`layer-${layer.id}`} className={`canvas-layer ${isSelected ? 'selected' : ''}`}

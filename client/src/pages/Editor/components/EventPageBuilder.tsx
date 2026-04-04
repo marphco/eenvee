@@ -9,28 +9,64 @@ interface EventPageBuilderProps {
   event: any;
   canvasProps: CanvasProps;
   layers: Layer[];
+  setLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
+  selectedLayerIds: string[];
+  setSelectedLayerIds: (ids: string[]) => void;
   isMobile: boolean;
   scenarioScale: number;
   updateTheme: (updates: any, pushToHistory?: () => void) => void;
   blocks: Block[];
   setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
+  selectedBlockId: string | null;
+  setSelectedBlockId: React.Dispatch<React.SetStateAction<string | null>>;
   pushToHistory: () => void;
+  setIsDirty: (val: boolean) => void;
+  previewMobile: boolean;
+  editingLayerId: string | null;
+  setEditingLayerId: (id: string | null) => void;
 }
 
 export function EventPageBuilder({
   event,
   canvasProps,
   layers,
+  setLayers,
+  selectedLayerIds,
+  setSelectedLayerIds,
   isMobile,
   scenarioScale,
   updateTheme,
   blocks,
   setBlocks,
-  pushToHistory
+  selectedBlockId,
+  setSelectedBlockId,
+  pushToHistory,
+  setIsDirty,
+  previewMobile,
+  editingLayerId,
+  setEditingLayerId
 }: EventPageBuilderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [isInvitationOpened, setIsInvitationOpened] = useState(false);
+  const [editorScale, setEditorScale] = useState(1);
+  const LOGICAL_WIDTH = 1000;
+  const MAX_CANVA_WIDTH = 1200;
+
+  // CALCOLO SCALA UNIFICATA (Busta + Sezioni)
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const availableW = entry.contentRect.width;
+        // Riserviamo 100px per la toolbar a destra
+        const effectiveW = isMobile ? availableW : (availableW - 100); 
+        const newScale = Math.min(effectiveW, MAX_CANVA_WIDTH) / LOGICAL_WIDTH;
+        setEditorScale(newScale);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [isMobile]);
 
   const handleHeightChange = (index: number, newHeight: number) => {
     const newBlocks = [...blocks];
@@ -65,15 +101,26 @@ export function EventPageBuilder({
     const blockToDuplicate = blocks[index];
     if (!blockToDuplicate) return;
 
+    const newBlockId = 'block-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const newBlock: Block = { 
       ...blockToDuplicate, 
-      id: 'block-' + Date.now() + '-' + Math.floor(Math.random() * 1000) 
+      id: newBlockId 
     };
+
+    // Deep copy of layers belonging to this block
+    const blockLayers = layers.filter(l => l.blockId === blockToDuplicate.id);
+    const newLayers = blockLayers.map(l => ({
+      ...l,
+      id: 'layer-' + Math.random().toString(36).substr(2, 9),
+      blockId: newBlockId
+    }));
     
     const newBlocks = [...blocks];
     newBlocks.splice(index + 1, 0, newBlock);
+    
     setBlocks(newBlocks);
-    updateTheme({ blocks: newBlocks });
+    setLayers(prev => [...prev, ...newLayers]); // Aggiungi i nuovi layer clonati
+    updateTheme({ blocks: newBlocks, layers: [...layers, ...newLayers] });
     pushToHistory();
   };
 
@@ -97,109 +144,118 @@ export function EventPageBuilder({
     <div 
       className="event-page-builder-container custom-scrollbar" 
       ref={containerRef}
-      onClick={() => setSelectedBlockId(null)}
+      onClick={() => { setSelectedBlockId(null); setSelectedLayerIds([]); }}
       style={{ 
         width: '100%', 
         height: '100%', 
         overflowY: 'auto', 
         overflowX: 'hidden',
         background: 'var(--bg-body)',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        padding: isMobile ? '0' : '0 100px 0 30px' // Aumentato padding destro per alloggiare la toolbar esterna
+        position: 'relative'
       }}
     >
-      {/* =======================
-          HERO SECTION (Blocco 1) - FULL WIDTH
-          ======================= */}
-      <div 
-        className="event-hero-section"
-        style={{
-          width: '100%',
-          maxWidth: isMobile ? '100%' : '900px', // Limita la larghezza per matchare le sezioni
-          margin: '0 auto', // Centra la hero
-          minHeight: isMobile ? '100vh' : '100vh',
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: event?.theme?.heroBgColor || 'var(--bg-body)',
-          backgroundImage: (event?.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb') && event.theme.heroBg !== 'none') 
-            ? `url(${event.theme.heroBg})` 
-            : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: event?.theme?.heroBgPosition || 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'local',
-          overflow: 'visible' 
-        }}
-      >
-        {/* Overlay solo se c'è un'immagine di sfondo */}
-        {(event?.theme?.heroBg && event.theme.heroBg !== 'none' && !event.theme.heroBg.startsWith('#')) && (
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: event?.theme?.heroBgColor || 'transparent',
-            opacity: 1 - (event?.theme?.heroBgOpacity ?? 1),
-            zIndex: 1,
-            pointerEvents: 'none'
-          }} />
-        )}
-
-        <div style={{ 
-          position: 'relative', 
-          zIndex: 2,
-          transform: isMobile ? 'scale(0.6)' : 'none', 
-          transformOrigin: 'center center'
-        }}>
-          <EnvelopeAnimation 
-            envelopeFormat={event?.theme?.envelopeFormat || 'vertical'}
-            envelopeColor={event?.theme?.coverBg || '#54392d'}
-            linerImg={event?.theme?.coverLiner === 'none' ? null : (event?.theme?.coverLiner || null)}
-            pocketColor={event?.theme?.coverPocketColor || event?.theme?.coverBg || '#54392d'}
-            pocketLinerImg={event?.theme?.coverPocketLiner}
-            linerX={event?.theme?.linerX || 0}
-            linerY={event?.theme?.linerY || 0}
-            linerScale={event?.theme?.linerScale || 1}
-            linerOpacity={event?.theme?.linerOpacity ?? 1}
-            linerColor={event?.theme?.coverLinerColor || '#ffffff'}
-            canvasProps={canvasProps}
-            manualPhase={null}
-            isEventPage={true}
-            isBuilder={true}
-            isMobile={isMobile}
-            onOpenComplete={() => setIsInvitationOpened(true)}
-          >
-             <ReadOnlyCanvas layers={layers} canvasProps={canvasProps} />
-          </EnvelopeAnimation>
-        </div>
-        {/* SCROLL HINT (Ancorato alla base della Hero per centratura e visibilità) */}
-        {isInvitationOpened && <ScrollHint isMobile={isMobile} color={event?.theme?.accentColor || 'var(--accent)'} />}
-      </div>
-
-      {/* =======================
-          CONSTRAINED CONTENT (Blocks)
-          ======================= */}
       <div 
         className="event-page-width-constraint"
         style={{
           width: '100%',
-          maxWidth: isMobile ? '100%' : '900px', 
-          margin: '0 auto', // Centra il contenuto rispetto alla hero full-width
+          maxWidth: previewMobile ? '1020px' : '100%', // Allineato alla larghezza della busta + padding
+          margin: '0 auto', 
+          // CANALE SICURO PER LA TOOLBAR: reserviamo 100px a destra
+          paddingRight: isMobile ? '0' : '100px', 
           position: 'relative',
-          backgroundColor: '#ffffff',
-          boxShadow: isMobile ? 'none' : '0 0 40px rgba(0,0,0,0.05)',
           minHeight: '100%',
-          zIndex: 5
+          zIndex: 5,
+          overflow: 'visible',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          boxShadow: previewMobile ? '0 0 50px rgba(0,0,0,0.1)' : 'none',
         }}
       >
+        {/* =======================
+            HERO SECTION (Blocco 1) - ALLINEATA E SCALATA
+            ======================= */}
+        <div 
+          className="event-hero-section"
+          style={{
+            width: previewMobile ? '100%' : (editorScale * LOGICAL_WIDTH) + 'px',
+            minHeight: event?.theme?.envelopeFormat === 'vertical'
+              ? (isMobile ? '83vh' : '85vh') 
+              : (event?.theme?.envelopeFormat === 'horizontal'
+                  ? '80vh'
+                  : ((Math.abs((event?.canvas?.width || 0) - (event?.canvas?.height || 0)) < 10) ? (isMobile ? '720px' : '980px') : '100vh')),
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: event?.theme?.heroBgColor || 'transparent',
+            backgroundImage: (event?.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb') && event.theme.heroBg !== 'none') 
+              ? `url(${event.theme.heroBg})` 
+              : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: event?.theme?.heroBgPosition || 'center',
+            backgroundRepeat: 'no-repeat',
+            overflow: 'visible' 
+          }}
+        >
+          {/* Overlay solo se c'è un'immagine di sfondo */}
+          {(event?.theme?.heroBg && event.theme.heroBg !== 'none' && !event.theme.heroBg.startsWith('#')) && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: event?.theme?.heroBgColor || 'transparent',
+              opacity: 1 - (event?.theme?.heroBgOpacity ?? 1),
+              zIndex: 1,
+              pointerEvents: 'none'
+            }} />
+          )}
 
-      {/* =======================
-          DYNAMIC SECTIONS (Blocks)
-          ======================= */}
-      <div className="dynamic-sections-container" style={{ position: 'relative', overflow: 'visible' }}>
+          <div style={{ 
+            position: 'relative', 
+            zIndex: 2,
+            width: LOGICAL_WIDTH + 'px', 
+            display: 'flex',
+            justifyContent: 'center',
+            transform: isMobile ? 'scale(0.72)' : 'none', 
+            transformOrigin: 'center center', 
+            flexShrink: 0,
+            marginTop: event?.theme?.envelopeFormat === 'vertical'
+              ? (isMobile ? '1vh' : '5vh')
+              : (event?.theme?.envelopeFormat === 'horizontal'
+                  ? (isMobile ? '-10vh' : '0')
+                  : '0')
+          }}>
+            <EnvelopeAnimation 
+              envelopeFormat={event?.theme?.envelopeFormat || 'vertical'}
+              envelopeColor={event?.theme?.coverBg || '#54392d'}
+              linerImg={event?.theme?.coverLiner === 'none' ? null : (event?.theme?.coverLiner || null)}
+              pocketColor={event?.theme?.coverPocketColor || event?.theme?.coverBg || '#54392d'}
+              pocketLinerImg={event?.theme?.coverPocketLiner}
+              linerX={event?.theme?.linerX || 0}
+              linerY={event?.theme?.linerY || 0}
+              linerScale={event?.theme?.linerScale || 1}
+              linerOpacity={event?.theme?.linerOpacity ?? 1}
+              linerColor={event?.theme?.coverLinerColor || '#ffffff'}
+              canvasProps={canvasProps}
+              manualPhase={null}
+              isEventPage={true}
+              isBuilder={true}
+              isMobile={isMobile}
+              scale={editorScale}
+              onOpenComplete={() => setIsInvitationOpened(true)}
+            >
+               <ReadOnlyCanvas layers={layers} canvasProps={canvasProps} />
+            </EnvelopeAnimation>
+          </div>
+
+          {/* SCROLL HINT */}
+          {isInvitationOpened && <ScrollHint isMobile={isMobile} color={event?.theme?.accentColor || 'var(--accent)'} />}
+        </div>
+
+        {/* =======================
+            DYNAMIC SECTIONS (Blocks)
+            ======================= */}
+        <div className="dynamic-sections-container" style={{ position: 'relative', overflow: 'visible', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {blocks.map((block, idx) => (
           <BuilderSection 
             key={block.id || idx}
@@ -218,6 +274,16 @@ export function EventPageBuilder({
             isLast={idx === blocks.length - 1}
             isMobile={isMobile}
             bgColor={block.props?.bgColor || '#ffffff'}
+            layers={layers}
+            selectedLayerIds={selectedLayerIds}
+            setSelectedLayerIds={setSelectedLayerIds}
+            setLayers={setLayers}
+            pushToHistory={pushToHistory}
+            setIsDirty={setIsDirty}
+            previewMobile={previewMobile}
+            editingLayerId={editingLayerId}
+            setEditingLayerId={setEditingLayerId}
+            editorScale={editorScale} // Passiamo la scala calcolata
           />
         ))}
       </div>

@@ -61,15 +61,16 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
         gap: isHorizontal ? '4px' : '6px',
         padding: isHorizontal ? '6px 8px' : '8px 6px',
         backgroundColor: 'var(--bg-surface)',
-        borderRadius: isHorizontal ? '12px' : '14px',
+        borderRadius: '100px',
         border: '1.5px solid var(--accent)',
         boxShadow: isHorizontal 
-          ? '0 8px 20px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.08)' 
-          : 'var(--shadow-soft)',
+          ? '0 12px 35px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.12)' 
+          : '0 10px 30px rgba(60, 79, 118, 0.12)',
         zIndex: 1000,
         pointerEvents: 'auto',
-        minWidth: isHorizontal ? '220px' : '56px',
-        justifyContent: 'center'
+        minWidth: isHorizontal ? '240px' : '56px',
+        justifyContent: 'center',
+        backdropFilter: 'blur(10px)'
       }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -101,19 +102,19 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
       <div style={{ position: 'relative' }}>
         <ToolbarButton 
           onClick={() => setShowColorPicker(!showColorPicker)} 
-          icon={
-            <div style={{ 
-              width: '20px', 
-              height: '20px', 
-              backgroundColor: bgColor || '#ffffff', 
-              borderRadius: '6px',
-              border: '2px solid #fff',
-              boxShadow: '0 0 0 1px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }} />
-          } 
+            icon={
+              <div style={{ 
+                width: '18px', 
+                height: '18px', 
+                backgroundColor: bgColor || '#ffffff', 
+                borderRadius: '50%', // Rendi lo swatch circolare
+                border: '1.5px solid #fff',
+                boxShadow: '0 0 0 1px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }} />
+            } 
           label="COLORE"
           title="Colore Sfondo" 
           isActive={showColorPicker}
@@ -211,25 +212,28 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({ onClick, icon, disabled, 
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: '8px',
+      borderRadius: '50%', // Rendi i pulsanti circolari
       backgroundColor: isActive ? (isDestructive ? 'rgba(231, 76, 60, 0.2)' : 'var(--accent-soft)') : 'transparent',
       color: disabled ? 'var(--text-soft)' : (isDestructive ? '#e74c3c' : (isActive ? 'var(--accent)' : 'var(--text-primary)')),
       cursor: disabled ? 'not-allowed' : 'pointer',
-      transition: 'all 0.2s ease',
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
       border: 'none',
       opacity: disabled ? 0.4 : 1,
-      gap: '2px'
+      gap: '1px',
+      boxShadow: isActive ? 'inset 0 0 0 1px rgba(var(--accent-rgb), 0.1)' : 'none'
     }}
     onMouseEnter={(e) => {
       if (!disabled && !isActive) {
-        e.currentTarget.style.backgroundColor = isDestructive ? 'rgba(231, 76, 60, 0.1)' : 'var(--accent-soft)';
+        e.currentTarget.style.backgroundColor = isDestructive ? 'rgba(231, 76, 60, 0.08)' : 'var(--accent-soft)';
         e.currentTarget.style.color = isDestructive ? '#e74c3c' : 'var(--accent)';
+        e.currentTarget.style.transform = 'scale(1.05)';
       }
     }}
     onMouseLeave={(e) => {
       if (!disabled && !isActive) {
         e.currentTarget.style.backgroundColor = 'transparent';
         e.currentTarget.style.color = isDestructive ? '#e74c3c' : 'var(--text-primary)';
+        e.currentTarget.style.transform = 'scale(1)';
       }
     }}
   >
@@ -237,11 +241,13 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({ onClick, icon, disabled, 
       {icon}
     </div>
     <span style={{ 
-      fontSize: '7px', 
+      fontSize: '6.5px', 
       fontWeight: 800, 
-      letterSpacing: '0.02em',
-      opacity: disabled ? 0.5 : (isActive ? 1 : 0.7),
-      color: isDestructive ? '#e74c3c' : 'inherit'
+      letterSpacing: '0.04em',
+      opacity: disabled ? 0.5 : (isActive ? 1 : 0.6),
+      color: isDestructive ? '#e74c3c' : 'inherit',
+      textAlign: 'center',
+      lineHeight: 1
     }}>
       {label}
     </span>

@@ -69,3 +69,18 @@ export interface ScenarioBgOption {
 export const AVAILABLE_SCENARIO_BGS: ScenarioBgOption[] = [
   { id: 'default', url: '/bg_scenario_default.jpg', name: 'Default' }
 ];
+
+export const sortLayersForMobile = (layers: Layer[]): Layer[] => {
+  return [...layers].sort((a, b) => {
+    const ay = typeof a.y === 'number' ? a.y : 0;
+    const by = typeof b.y === 'number' ? b.y : 0;
+    const ax = typeof a.x === 'number' ? a.x : 0;
+    const bx = typeof b.x === 'number' ? b.x : 0;
+    
+    // Se la differenza di Y è piccola (< 40px), considerali sulla stessa riga e ordina per X
+    if (Math.abs(ay - by) < 40) {
+      return ax - bx;
+    }
+    return ay - by;
+  });
+};

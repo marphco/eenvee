@@ -4,7 +4,7 @@ import {
   Palette, Image as ImageIcon, Move, Sparkles, Trash2, Mail, MailOpen, 
   Shapes, Type, ChevronUp, Minus, Plus, Circle, ArrowRight, 
   ArrowLeft, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, 
-  ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout
+  ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone
 } from 'lucide-react';
 import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
@@ -47,6 +47,8 @@ interface MobileToolbarProps {
   textureInputRef: React.RefObject<HTMLInputElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   pushToHistory: () => void;
+  previewMobile?: boolean;
+  setPreviewMobile?: (val: boolean) => void;
 }
 
 const MobileToolbar: React.FC<MobileToolbarProps> = ({
@@ -83,7 +85,9 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
   invitoBgInputRef,
   textureInputRef,
   fileInputRef,
-  pushToHistory
+  pushToHistory,
+  previewMobile,
+  setPreviewMobile
 }) => {
   return (
     <div className="mobile-toolbar-container">
@@ -728,7 +732,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
         )}
 
       <div className="mobile-toolbar">
-        {selectedLayer && editorMode === 'canvas' ? (
+        {selectedLayer && (editorMode === 'canvas' || editorMode === 'event_page') ? (
            <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', width: '100%', padding: '4px 0' }}>
              {(!selectedLayer.type || selectedLayer.type === 'text') ? (
                <>
@@ -786,10 +790,26 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                   ) : editorMode === 'event_page' ? (
                     <>
                       <MobileIconBtn 
-                        icon={Plus} 
-                        label="Aggiungi Sez." 
-                        onClick={() => alert("Moduli in arrivo!")} 
-                      />
+                         icon={Plus} 
+                         label="Sezione" 
+                         onClick={() => alert("Funzionalità in arrivo!")} 
+                       />
+                       <MobileIconBtn 
+                         icon={previewMobile ? Check : Layout} 
+                         label={previewMobile ? "Fine" : "Anteprima"} 
+                         variant={previewMobile ? 'primary' : 'ghost'}
+                         onClick={() => setPreviewMobile?.(!previewMobile)}
+                       />
+                       <MobileIconBtn 
+                         icon={Type} 
+                         label="Testo" 
+                         onClick={addTextLayer} 
+                       />
+                       <MobileIconBtn 
+                         icon={ImageIcon} 
+                         label="Foto" 
+                         onClick={() => fileInputRef.current?.click()} 
+                       />
                     </>
                   ) : (
                     <>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import type { Block } from '../../../types/editor';
+import type { Block, Layer } from '../../../types/editor';
 import SectionToolbar from './SectionToolbar';
+import { SectionCanvas } from './SectionCanvas';
 
 interface BuilderSectionProps {
   block: Block;
@@ -18,6 +19,16 @@ interface BuilderSectionProps {
   isMobile: boolean;
   onColorChange: (color: string) => void;
   bgColor: string;
+  layers: Layer[];
+  selectedLayerIds: string[];
+  setSelectedLayerIds: (ids: string[]) => void;
+  setLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
+  pushToHistory: () => void;
+  setIsDirty: (val: boolean) => void;
+  previewMobile: boolean;
+  editingLayerId: string | null;
+  setEditingLayerId: (id: string | null) => void;
+  editorScale: number; // Prop sincronizzata
 }
 
 const BuilderSection: React.FC<BuilderSectionProps> = ({ 
@@ -35,23 +46,35 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   isLast,
   isMobile,
   onColorChange,
-  bgColor
+  bgColor,
+  layers,
+  selectedLayerIds,
+  setSelectedLayerIds,
+  setLayers,
+  pushToHistory,
+  setIsDirty,
+  previewMobile,
+  editingLayerId,
+  setEditingLayerId,
+  editorScale
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isAnchorHovered, setIsAnchorHovered] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const target = e.currentTarget as HTMLElement;
-    target.setPointerCapture(e.pointerId); // Crucial for reliable dragging
+    target.setPointerCapture(e.pointerId); 
     
     const startY = e.clientY;
     const initHeight = block.height || 400;
 
     const handleMove = (moveEv: PointerEvent) => {
       const dy = moveEv.clientY - startY;
-      onHeightChange(Math.max(100, initHeight + dy));
+      // Adattiamo il delta y alla scala per un trascinamento naturale
+      onHeightChange(Math.max(100, initHeight + (dy / editorScale)));
     };
 
     const handleUp = (upEv: PointerEvent) => {
@@ -68,33 +91,68 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   };
 
   const currentZIndex = isSelected ? 10 : (isHovered ? 5 : 1);
+  
+  const LOGICAL_WIDTH = 1000; 
+  const currentScale = previewMobile ? 1 : editorScale;
+  const scaledHeight = (block.height || 400) * currentScale;
 
   return (
     <div 
       className={`builder-section-item ${isSelected ? 'selected' : ''}`}
+      data-block-id={block.id}
+      ref={containerRef}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
       style={{
-        width: '100%',
-        height: (block.height || 400) + 'px',
+        width: previewMobile ? '100%' : (currentScale * LOGICAL_WIDTH) + 'px', // Fluidità in anteprima, fisso in design libero
+        height: (previewMobile ? 'auto' : (scaledHeight + 'px')),
+        minHeight: previewMobile ? '200px' : 'auto',
         backgroundColor: bgColor || '#ffffff',
         position: 'relative',
         boxSizing: 'border-box',
         border: `2px solid ${isSelected || isHovered ? 'var(--accent)' : 'transparent'}`,
         transition: 'border-color 0.2s ease',
-        marginTop: index > 0 ? '-2px' : '0px', // elimina il doppio bordo tra blocchi
+        marginTop: index > 0 ? '-2px' : '0px', 
         zIndex: currentZIndex, 
         cursor: 'default',
-        overflow: 'visible'
+        overflow: 'visible',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Contenitore interno per futuri widget (Testi, Immagini) */}
-      <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
-        {/* Futura renderizzazione items */}
+      <div style={!previewMobile ? { 
+        width: LOGICAL_WIDTH + 'px', 
+        height: (block.height || 400) + 'px', 
+        position: 'relative', 
+        flexShrink: 0,
+        transform: `scale(${currentScale})`, 
+        transformOrigin: 'top left', // Crucial: scale from 0,0 to fill the centered parent
+        pointerEvents: 'auto',
+        zIndex: 1
+      } : { 
+        width: '100%', 
+        maxWidth: '100%',
+        height: '100%', 
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <SectionCanvas 
+          block={block}
+          layers={layers.filter(l => l.blockId === block.id)}
+          selectedLayerIds={selectedLayerIds}
+          setSelectedLayerIds={setSelectedLayerIds}
+          setLayers={setLayers}
+          onSelectBlock={onClick}
+          pushToHistory={pushToHistory}
+          setIsDirty={setIsDirty}
+          isMobile={isMobile}
+          previewMobile={previewMobile}
+          editingLayerId={editingLayerId}
+          setEditingLayerId={setEditingLayerId}
+          editorScale={editorScale}
+        />
       </div>
 
       {isSelected && (
@@ -107,7 +165,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
               position: 'absolute',
               bottom: '-7px',
               left: '0',
-              width: '100%',
+              right: '0',
               height: '14px',
               cursor: 'ns-resize',
               zIndex: 200,
@@ -115,20 +173,19 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
             }}
             onPointerDown={handlePointerDown}
           >
-            {/* Maniglia Visiva Pillola (Canva Style) */}
             <div 
               style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: '42px',
-                height: '8px',
+                width: '48px',
+                height: '6px',
                 backgroundColor: isAnchorHovered ? 'var(--accent)' : '#ffffff',
                 border: `1.5px solid var(--accent)`,
-                borderRadius: '10px',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-                transition: 'all 0.2s ease',
+                borderRadius: '20px',
+                boxShadow: isAnchorHovered ? '0 0 10px rgba(var(--accent-rgb), 0.5)' : '0 2px 8px rgba(0,0,0,0.12)',
+                transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                 pointerEvents: 'none' 
               }}
             />

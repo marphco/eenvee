@@ -18,6 +18,7 @@ const blockSchema = new Schema(
 const layerSchema = new Schema(
   {
     id: { type: String, required: true },
+    blockId: { type: String, default: undefined },
     type: { type: String, required: true, default: "text" }, // "text", "image"
     text: { type: String, default: "" },
     src: { type: String, default: "" }, // Per i layer immagine

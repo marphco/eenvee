@@ -1,16 +1,19 @@
 import React, { useEffect, useState, useRef } from "react";
-import { loadGoogleFont } from "../../pages/Editor/components/EditorHelpers";
+import { loadGoogleFont, sortLayersForMobile } from "../../pages/Editor/components/EditorHelpers";
 import type { Layer, CanvasProps } from "../../types/editor";
 
 interface ReadOnlyCanvasProps {
   layers: Layer[];
   canvasProps: CanvasProps;
+  isMobile?: boolean;
+  isBlock?: boolean;
 }
 
-const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps }) => {
+const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps, isMobile, isBlock }) => {
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const [bgNaturalSize, setBgNaturalSize] = useState({ w: 0, h: 0 });
+  const [fontLoaded, setFontLoaded] = useState(false);
 
   // Load Google Fonts for all layers
   useEffect(() => {
@@ -77,6 +80,63 @@ const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps }) 
     };
   })();
 
+  if (isMobile && isBlock) {
+    const sortedLayers = sortLayersForMobile(layers);
+    return (
+      <div 
+        ref={containerRef} 
+        style={{ 
+          width: '100%', 
+          height: 'auto',
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '24px', 
+          padding: '20px 0',
+          boxSizing: 'border-box'
+        }}
+      >
+        {sortedLayers.map(layer => {
+          const isText = layer.type === 'text' || !layer.type;
+          return (
+            <div 
+              key={layer.id} 
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: isText ? 'none' : (layer.w ? layer.w + 'px' : '300px'),
+                margin: '0 auto',
+                fontSize: (layer.fontSize || 24) + 'px',
+                fontFamily: layer.fontFamily,
+                fontWeight: layer.fontWeight || "normal",
+                fontStyle: layer.fontStyle || "normal",
+                textDecoration: layer.textDecoration || "none",
+                letterSpacing: (layer.letterSpacing || 0) + 'px',
+                lineHeight: layer.lineHeight || 1.2,
+                color: layer.color,
+                textAlign: (layer.textAlign || 'center') as any,
+                zIndex: layer.z || 1,
+                display: 'block'
+              }}
+            >
+              {isText ? (
+                <div 
+                  style={{ outline: 'none', whiteSpace: 'pre-wrap', paddingBottom: '0.15em' }}
+                  dangerouslySetInnerHTML={{ __html: layer.text || "" }} 
+                />
+              ) : (
+                <img 
+                  src={layer.src} 
+                  style={{ width: '100%', height: 'auto', objectFit: 'contain', display: 'block' }} 
+                  alt="" 
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
        <div style={{
@@ -116,7 +176,7 @@ const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps }) 
           )}
 
           {/* Rendering dei Layer (Sincronizzato con EditorStage) */}
-          {layers.map(layer => {
+          {layers.filter(l => !l.blockId).map(layer => {
             const isText = layer.type === 'text' || !layer.type;
             const lx = layer.x === 'center' || isNaN(layer.x as number) ? '50%' : (layer.x + 'px');
             const ly = layer.y === 'center' || isNaN(layer.y as number) ? '50%' : (layer.y + 'px');

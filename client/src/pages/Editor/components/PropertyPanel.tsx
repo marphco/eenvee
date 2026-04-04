@@ -1,9 +1,11 @@
 import React from 'react';
+import { apiFetch } from "../../../utils/apiFetch";
 import { Surface, Button } from "../../../ui";
 import { 
   Type, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, 
   AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, 
-  AlignVerticalJustifyEnd, Trash2, Plus, Minus, Bold, Italic, Underline, Palette 
+  AlignVerticalJustifyEnd, Trash2, Plus, Minus, Bold, Italic, Underline, Palette,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify
 } from "lucide-react";
 import CustomColorPicker from "./CustomColorPicker";
 import CustomFontSelect from "./CustomFontSelect";
@@ -11,6 +13,7 @@ import { decodeHtml, AVAILABLE_FONTS, loadGoogleFont } from "./EditorHelpers";
 import type { Layer } from "../../../types/editor";
 
 interface PropertyPanelProps {
+  slug: string;
   selectedLayer: Layer | undefined;
   selectedLayerIds: string[];
   layers: Layer[];
@@ -29,6 +32,7 @@ interface PropertyPanelProps {
 }
 
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
+  slug,
   selectedLayer,
   selectedLayerIds,
   layers,
@@ -45,7 +49,35 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   displayColorPicker,
   setDisplayColorPicker,
 }) => {
+  const replaceFileInputRef = React.useRef<HTMLInputElement>(null);
+
   if (!selectedLayer) return null;
+
+  const handleReplaceImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+       try {
+         const formData = new FormData();
+         formData.append("images", file);
+         
+         const res = await apiFetch(`/api/uploads?slug=${slug}`, {
+           method: "POST",
+           body: formData,
+         });
+
+         if (res.ok) {
+           const data = await res.json();
+           const r2Url = data.urls[0];
+           updateSelectedLayer({ src: r2Url });
+         } else {
+           alert("Errore durante il caricamento dell'immagine.");
+         }
+       } catch (err) {
+         console.error("Replace image error:", err);
+         alert("Errore durante il caricamento.");
+       }
+    }
+  };
 
   return (
     <Surface variant="soft" className="panel-section property-panel">
@@ -238,6 +270,32 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </div>
           </div>
 
+          <label style={{marginTop: '1.2rem', marginBottom: '8px', display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-soft)'}}>Allineamento Testo</label>
+          <div style={{display: 'flex', gap: '0.25rem', background: 'var(--surface-light)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)'}}>
+            {(['left', 'center', 'right', 'justify'] as const).map(align => {
+               const Icon = align === 'left' ? AlignLeft : align === 'center' ? AlignCenter : align === 'right' ? AlignRight : AlignJustify;
+               return (
+                 <Button 
+                   key={align}
+                   variant="ghost" 
+                   onClick={() => updateSelectedLayer({textAlign: align})}
+                   style={{
+                     flex: 1,
+                     padding: '6px', 
+                     borderRadius: '6px', 
+                     justifyContent: 'center', 
+                     background: selectedLayer.textAlign === align ? 'var(--accent)' : 'transparent', 
+                     color: selectedLayer.textAlign === align ? '#ffffff' : 'var(--text-soft)', 
+                     border: 'none',
+                     transition: 'all 0.2s'
+                   }}
+                 >
+                   <Icon size={16}/>
+                 </Button>
+               );
+            })}
+          </div>
+
             <div className="prop-row" style={{alignItems: 'center', marginTop: '1.2rem', marginBottom: '8px', display: 'flex'}}>
                <label style={{margin: 0, flex: 1, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-soft)'}}>Colore</label>
                <div 
@@ -300,6 +358,24 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
        </>
       ) : (
         <div style={{ marginBottom: '1rem' }}>
+          <Button 
+            variant="subtle" 
+            onClick={() => replaceFileInputRef.current?.click()} 
+            style={{ 
+              width: '100%', 
+              justifyContent: 'center', 
+              marginBottom: '16px', 
+              fontSize: '12px',
+              padding: '10px 12px',
+              background: 'rgba(60, 79, 118, 0.05)',
+              borderRadius: '100px'
+            }}
+          >
+            <ImageIcon size={18} style={{marginRight: 8, opacity: 0.7}}/> 
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Sostituisci Immagine</span>
+          </Button>
+          <input type="file" accept="image/*" ref={replaceFileInputRef} onChange={handleReplaceImage} style={{display: 'none'}} />
+          
           <div className="prop-row" style={{ alignItems: 'center', marginBottom: '8px', display: 'flex', gap: '8px' }}>
             <Palette size={14} color="var(--text-soft)" />
             <label style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--text-soft)' }}>Opacità Immagine</label>

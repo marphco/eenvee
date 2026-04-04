@@ -189,3 +189,42 @@
     columns: 1;
   }
 }
+
+/* 
+  ADJUSTMENTS FOR PUBLIC VIEW (DESKTOP)
+  Lowering buttons to avoid overlap with square envelope
+*/
+/* 
+  PUBLIC VIEW BUTTONS CALIBRATION (DESKTOP)
+  - Default: Centered layout (Approved "EUREKA" state for Square)
+  - Overrides: Side layout ONLY for Rectangular (Vertical/Horizontal) to avoid overlap
+*/
+@media (min-width: 769px) {
+  /* Restoring overall container to visible to allow side buttons to exit */
+  .event-public-page .hero-card {
+    overflow: visible !important;
+  }
+
+  /* Default: Centered state as approved */
+  .event-public-page .envelope-action-btn {
+    left: 50% !important;
+    bottom: -160px !important;
+    transform: translateX(-50%) !important;
+  }
+  .event-public-page .envelope-replay-btn {
+    left: 50% !important;
+    right: auto !important;
+    bottom: -260px !important;
+    transform: translateX(-50%) !important;
+    z-index: 300 !important;
+  }
+
+  /* Side Position: Only for Rectangular formats - Pushed OUTSIDE the card */
+  .event-public-page .env-vertical ~ .envelope-replay-btn,
+  .event-public-page .env-horizontal ~ .envelope-replay-btn {
+    left: auto !important;
+    right: -180px !important; /* Riportato un po' più vicino alla card (-5%) */
+    bottom: 20px !important;
+    transform: none !important;
+  }
+}

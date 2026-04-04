@@ -1,5 +1,6 @@
 export interface Layer {
   id: string;
+  blockId?: string;
   type?: 'text' | 'image';
   x: number | 'center';
   y: number | 'center';
@@ -18,7 +19,7 @@ export interface Layer {
   letterSpacing?: number;
   lineHeight?: number;
   color?: string;
-  textAlign?: 'left' | 'center' | 'right';
+  textAlign?: 'left' | 'center' | 'right' | 'justify';
   opacity?: number;
 }
 

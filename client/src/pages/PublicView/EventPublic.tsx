@@ -27,6 +27,13 @@ export default function EventPublic() {
   const [editLink, setEditLink] = useState("");
   const [rsvpWasUpdated, setRsvpWasUpdated] = useState(false);
   const [isInvitationOpened, setIsInvitationOpened] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageScale, setStageScale] = useState(1);
@@ -263,7 +270,12 @@ export default function EventPublic() {
            position: 'relative',
            zIndex: 2,
            transform: `scale(${window.innerWidth <= 768 ? 0.6 : 0.88})`,
-           transformOrigin: 'center center'
+           transformOrigin: 'center center',
+           marginTop: !isMobile 
+            ? (event.theme?.envelopeFormat === 'vertical' 
+                ? '140px' 
+                : (Math.abs((event.canvas?.width || 0) - (event.canvas?.height || 0)) < 10 ? '80px' : '0'))
+            : '0'
          }}>
             <EnvelopeAnimation
               envelopeFormat={event.theme?.envelopeFormat || 'vertical'}
@@ -318,15 +330,18 @@ export default function EventPublic() {
             </Surface>
           ) : (
             <div 
-              className="page-canvas-area public-view"
+              className={`page-canvas-area public-view ${isMobile ? 'is-mobile' : ''}`}
               style={{
                 position: 'relative',
-                width: event.canvas?.width || 800,
-                height: Math.max(1200, Math.max(...orderedBlocks.map(b => ((b.y || 0) + (b.height || 400)))) + 200),
-                transform: `scale(${stageScale})`,
+                width: isMobile ? '100%' : (event.canvas?.width || 800),
+                height: isMobile ? 'auto' : Math.max(1200, Math.max(...orderedBlocks.map(b => ((b.y || 0) + (b.height || 400)))) + 200),
+                transform: isMobile ? 'none' : `scale(${stageScale})`,
                 transformOrigin: 'top center',
                 margin: '0 auto',
-                background: 'transparent'
+                background: 'transparent',
+                display: isMobile ? 'flex' : 'block',
+                flexDirection: 'column',
+                gap: isMobile ? '20px' : '0'
               }}
             >
               {orderedBlocks.map((block) => {
@@ -335,8 +350,18 @@ export default function EventPublic() {
                 return (
                   <div 
                     key={block.id || block._id}
-                    className={`page-block-wrapper event-section block-type-${block.type} layout-${layoutPreset}`}
-                    style={{
+                    className={`page-block-wrapper event-section block-type-${block.type || 'canvas'} layout-${layoutPreset}`}
+                    style={isMobile ? {
+                       position: 'relative',
+                       width: '100%',
+                       height: 'auto',
+                       minHeight: (block.height ? block.height * 0.5 : 200) + 'px',
+                       background: block.props?.bgColor || (['map', 'rsvp'].includes(block.type) ? 'var(--surface)' : 'transparent'),
+                       borderRadius: ['map', 'rsvp'].includes(block.type) ? '12px' : '0',
+                       padding: ['map', 'rsvp'].includes(block.type) ? '20px' : '0',
+                       boxShadow: ['map', 'rsvp'].includes(block.type) ? '0 4px 15px rgba(0,0,0,0.05)' : 'none',
+                       marginBottom: '20px'
+                    } : {
                        position: 'absolute',
                        left: block.x || ((event.canvas?.width || 800) / 2),
                        top: block.y || 0,
@@ -350,6 +375,15 @@ export default function EventPublic() {
                        border: ['map', 'rsvp'].includes(block.type) ? '1px solid var(--border)' : 'none' 
                     } as React.CSSProperties}
                   >
+                    {/* FLUID ENGINE LAYERS RENDERING */}
+                    {event.layers && event.canvas && (
+                      <ReadOnlyCanvas 
+                        layers={event.layers.filter(l => l.blockId === (block.id || block._id))} 
+                        canvasProps={{...event.canvas, height: block.height || 400}} 
+                        isMobile={isMobile}
+                        isBlock={true}
+                      />
+                    )}
                     {block.type === "text" && (
                       <>
                         {block.props.heading && <h2 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '12px', fontFamily: pageTheme.fonts.heading, color: 'var(--text-main)' }}>{block.props.heading}</h2>}
