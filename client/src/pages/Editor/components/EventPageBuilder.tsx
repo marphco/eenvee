@@ -11,7 +11,7 @@ interface EventPageBuilderProps {
   layers: Layer[];
   isMobile: boolean;
   scenarioScale: number;
-  updateTheme: (updates: any) => void;
+  updateTheme: (updates: any, pushToHistory?: () => void) => void;
   blocks: Block[];
   setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
   pushToHistory: () => void;
@@ -78,11 +78,19 @@ export function EventPageBuilder({
   };
 
   const deleteBlock = (index: number) => {
-    if (!window.confirm('Sei sicuro di voler eliminare questa sezione?')) return;
     const newBlocks = blocks.filter((_, i) => i !== index);
     setBlocks(newBlocks);
     updateTheme({ blocks: newBlocks });
     pushToHistory();
+  };
+
+  const handleBlockColorChange = (index: number, newColor: string) => {
+    const newBlocks = [...blocks];
+    const targetBlock = { ...newBlocks[index] };
+    const targetProps = { ...targetBlock.props, bgColor: newColor };
+    newBlocks[index] = { ...targetBlock, props: targetProps } as any;
+    setBlocks(newBlocks);
+    updateTheme({ blocks: newBlocks }, pushToHistory);
   };
 
   return (
@@ -205,9 +213,11 @@ export function EventPageBuilder({
             onMoveDown={() => moveBlock(idx, 'down')}
             onDuplicate={() => duplicateBlock(idx)}
             onDelete={() => deleteBlock(idx)}
+            onColorChange={(color) => handleBlockColorChange(idx, color)}
             isFirst={idx === 0}
             isLast={idx === blocks.length - 1}
             isMobile={isMobile}
+            bgColor={block.props?.bgColor || '#ffffff'}
           />
         ))}
       </div>

@@ -9,6 +9,7 @@ const blockSchema = new Schema(
     y: { type: Schema.Types.Mixed },
     width: { type: Schema.Types.Mixed },
     height: { type: Schema.Types.Mixed },
+    bgColor: { type: String, default: '#ffffff' },
     props: { type: Schema.Types.Mixed, default: {} },
   },
   { _id: false }

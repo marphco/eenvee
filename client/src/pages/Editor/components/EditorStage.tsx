@@ -29,7 +29,7 @@ interface EditorStageProps {
   setActiveMobileTab: (tab: string | null) => void;
   setDisplayColorPicker: React.Dispatch<React.SetStateAction<'font' | 'bg' | false>>;
   event: any;
-  updateTheme: (updates: any) => void;
+  updateTheme: (updates: any, pushToHistory?: () => void) => void;
   isEnvelopeOpen: boolean;
   setIsEnvelopeOpen: (open: boolean) => void;
   envelopeScale: number;

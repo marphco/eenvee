@@ -69,8 +69,29 @@ const CustomColorPicker: React.FC<CustomColorPickerProps> = ({ color, onChange }
       gap: '12px',
       border: '1px solid #ddd'
     }} onClick={(e) => e.stopPropagation()}>
+      <style>{`
+        .custom-color-picker-container .react-colorful {
+          width: 100% !important;
+          height: 200px !important;
+        }
+        @media (max-width: 768px) {
+          .custom-color-picker-container .react-colorful {
+            height: 100px !important;
+          }
+          .custom-color-picker-container .react-colorful__saturation {
+            border-radius: 4px 4px 0 0 !important;
+          }
+        }
+      `}</style>
       <div className="custom-colorful-override">
-        <HexColorPicker color={color} onChange={onChange} style={{ width: '100%' }} />
+        <HexColorPicker 
+          color={color} 
+          onChange={(newColor) => {
+            setHexInput(newColor);
+            onChange(newColor);
+          }} 
+          style={{ width: '100%' }} 
+        />
       </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '6px', padding: '0 8px', height: '34px', boxSizing: 'border-box', gap: '8px', background: '#fff' }}>

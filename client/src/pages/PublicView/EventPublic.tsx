@@ -343,7 +343,7 @@ export default function EventPublic() {
                        width: block.width || ((event.canvas?.width || 800) - 40),
                        height: block.height || 'auto',
                        transform: 'translateX(-50%)',
-                       background: ['map', 'rsvp'].includes(block.type) ? 'var(--surface)' : 'transparent',
+                       background: block.props?.bgColor || (['map', 'rsvp'].includes(block.type) ? 'var(--surface)' : 'transparent'),
                        borderRadius: ['map', 'rsvp'].includes(block.type) ? '16px' : '0',
                        padding: ['map', 'rsvp'].includes(block.type) ? '30px' : '0',
                        boxShadow: ['map', 'rsvp'].includes(block.type) ? '0 4px 20px rgba(0,0,0,0.1)' : 'none',

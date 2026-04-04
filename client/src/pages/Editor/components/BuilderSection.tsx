@@ -16,6 +16,8 @@ interface BuilderSectionProps {
   isFirst: boolean;
   isLast: boolean;
   isMobile: boolean;
+  onColorChange: (color: string) => void;
+  bgColor: string;
 }
 
 const BuilderSection: React.FC<BuilderSectionProps> = ({ 
@@ -31,7 +33,9 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   onDelete,
   isFirst,
   isLast,
-  isMobile
+  isMobile,
+  onColorChange,
+  bgColor
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isAnchorHovered, setIsAnchorHovered] = useState(false);
@@ -75,7 +79,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
       style={{
         width: '100%',
         height: (block.height || 400) + 'px',
-        backgroundColor: block.bgColor || '#ffffff',
+        backgroundColor: bgColor || '#ffffff',
         position: 'relative',
         boxSizing: 'border-box',
         border: `2px solid ${isSelected || isHovered ? 'var(--accent)' : 'transparent'}`,
@@ -134,6 +138,8 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
             onMoveDown={onMoveDown}
             onDuplicate={onDuplicate}
             onDelete={onDelete}
+            onColorChange={onColorChange}
+            bgColor={bgColor}
             isFirst={isFirst}
             isLast={isLast}
             layout={isMobile ? 'horizontal' : 'vertical'}
