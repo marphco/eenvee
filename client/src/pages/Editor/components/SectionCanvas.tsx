@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import type { Layer, CanvasProps, Block } from '../../../types/editor';
 import EditableText from './EditableText';
 import { sortLayersForMobile } from './EditorHelpers';
+import MapWidget from './widgets/MapWidget';
 
 interface SectionCanvasProps {
   block: Block;
@@ -18,7 +19,8 @@ interface SectionCanvasProps {
   previewMobile?: boolean;
   editingLayerId: string | null;
   setEditingLayerId: (id: string | null) => void;
-  editorScale?: number; // Prop per la compensazione del movimento
+  editorScale?: number;
+  onMoveLayer?: ((layerId: string, direction: 'up' | 'down') => void) | undefined;
 }
 
 export const SectionCanvas: React.FC<SectionCanvasProps> = ({
@@ -31,6 +33,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   const lastClickRef = useRef({ id: null as string | null, time: 0 });
 
   const handleResizePointerDown = (e: React.PointerEvent, layer: Layer, position: string) => {
+    if (previewMobile) return; // Protezione binari: no resize in vista mobile
     e.stopPropagation();
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
@@ -121,27 +124,35 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent, layer: Layer) => {
-    e.stopPropagation();
-    const target = e.currentTarget as HTMLElement;
-    target.setPointerCapture(e.pointerId);
+    e.stopPropagation(); // BLOCCA SUBITO: impedisce al wrapper di deselezionare
     
-    if (onSelectBlock) onSelectBlock();
-    
-    // Gestione manuale doppio clic (per coerenza con editor invito e robustezza con pointer capture)
+    // Gestione manuale doppio clic (PRIMA del return mobile!)
     const now = Date.now();
-    const isDoubleClick = lastClickRef.current.id === layer.id && (now - lastClickRef.current.time < 300);
+    const isDoubleClick = lastClickRef.current.id === layer.id && (now - lastClickRef.current.time < 350);
     lastClickRef.current = { id: layer.id, time: now };
 
     if (isDoubleClick && (layer.type === 'text' || !layer.type)) {
       setEditingLayerId(layer.id);
-      return; 
+      return; // Entra in modalità editing e ferma tutto il resto
     }
 
     if (editingLayerId !== layer.id) {
        setEditingLayerId(null);
     }
-    
+
+    // Desktop Selection Sync: Se siamo su computer e selezioniamo un elemento,
+    // selezioniamo automaticamente anche la sezione per mostrare la toolbar a destra.
+    if (!previewMobile) {
+      if (onSelectBlock) onSelectBlock();
+    }
+
+    // Selezione istantanea layer:
     setSelectedLayerIds([layer.id]);
+
+    if (previewMobile) return; // Da qui in poi solo logica DRAG (disabilitata in mobile)
+    
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
     
     const startX = e.clientX;
     const startY = e.clientY;
@@ -311,240 +322,281 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
     const sortedLayers = sortLayersForMobile(layers);
     return (
       <div 
-        ref={containerRef} 
+        className="section-canvas"
+        ref={containerRef}
+        onPointerDown={(e) => {
+          // Se clicchiamo il canvas VUOTO (non un layer), selezioniamo la sezione
+          if (e.target === e.currentTarget) {
+            if (onSelectBlock) onSelectBlock();
+            setSelectedLayerIds([]);
+          }
+        }}
         style={{ 
           width: '100%', 
           height: 'auto', 
-          minHeight: '100%',
+          minHeight: (block.height || 400) + 'px', 
+          position: 'relative', 
+          backgroundColor: (block as any).props?.bgColor || 'transparent',
           display: 'flex', 
           flexDirection: 'column', 
           gap: '30px', 
           padding: '40px 20px',
           boxSizing: 'border-box',
-          backgroundColor: block.props?.bgColor || 'transparent'
+          overflow: 'visible',
+          cursor: 'default',
+          touchAction: 'pan-y'
         }}
-        onClick={() => setSelectedLayerIds([])}
       >
-        {sortedLayers.map(layer => {
+        {block.type === 'map' ? (
+          <MapWidget 
+            address={block.widgetProps?.address} 
+            zoom={block.widgetProps?.zoom}
+            previewMobile={true}
+          />
+        ) : (
+          sortedLayers.map(layer => {
+            const isSelected = selectedLayerIds.includes(layer.id);
+            const isText = layer.type === 'text' || !layer.type;
+            
+            return (
+              <div 
+                key={layer.id}
+                id={`layer-${layer.id}`}
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: '600px', // Limite ragionevole per non spanciare su tablet in verticale
+                  margin: '0 auto',
+                  fontSize: Math.round((layer.fontSize || 24) * 1.25) + 'px', // Ingrandimento testi Canva-style
+                  fontFamily: layer.fontFamily,
+                  fontWeight: layer.fontWeight || "normal",
+                  fontStyle: layer.fontStyle || "normal",
+                  textDecoration: layer.textDecoration || "none",
+                  letterSpacing: (layer.letterSpacing || 0) + 'px',
+                  lineHeight: (layer.lineHeight || 1.3) > 5 ? (layer.lineHeight! / 100) : (layer.lineHeight || 1.3),
+                  color: layer.color,
+                  textAlign: layer.textAlign || 'center',
+                  zIndex: isSelected ? 10 : layer.z || 1,
+                  opacity: layer.opacity !== undefined ? layer.opacity : 1,
+                  border: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+                  borderRadius: '4px',
+                  padding: '4px',
+                  touchAction: previewMobile ? 'pan-y' : 'none'
+                }}
+                onPointerDown={(e) => handlePointerDown(e, layer)}
+              >
+                {isText ? (
+                  <EditableText
+                    id={`layer-content-${layer.id}`}
+                    className="layer-content"
+                    text={layer.text || ""}
+                    isEditing={editingLayerId === layer.id}
+                    onSync={(newHtml) => {
+                      setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, text: newHtml } : l));
+                      setIsDirty(true);
+                    }}
+                    onBlur={(newHtml) => {
+                      pushToHistory();
+                    }}
+                    onFocus={() => {
+                      setEditingLayerId(layer.id);
+                      setSelectedLayerIds([layer.id]);
+                    }}
+                  />
+                ) : (
+                  <img 
+                    src={layer.src} 
+                    alt="" 
+                    style={{ 
+                      width: '100%', 
+                      height: 'auto', 
+                      display: 'block', 
+                      objectFit: 'contain',
+                      borderRadius: '8px' // Un tocco più moderno per le immagini a tutto schermo
+                    }} 
+                  />
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }} onPointerDown={(e) => {
+      // Chrome Fix: Use onPointerDown for instant selection/deselection
+      if (e.target === e.currentTarget) {
+        e.stopPropagation();
+        setSelectedLayerIds([]);
+        if (onSelectBlock) onSelectBlock();
+      }
+    }}>
+      {block.type === 'map' ? (
+        <MapWidget 
+          address={block.widgetProps?.address} 
+          zoom={block.widgetProps?.zoom}
+          previewMobile={false}
+        />
+      ) : (
+        (previewMobile 
+          ? [...layers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0))
+          : layers
+        )
+          .filter(layer => {
+            if (previewMobile) return !layer.hiddenMobile;
+            return !layer.hiddenDesktop;
+          })
+          .map(layer => {
           const isSelected = selectedLayerIds.includes(layer.id);
           const isText = layer.type === 'text' || !layer.type;
-          
+          const lx = typeof layer.x === 'number' ? layer.x + 'px' : '50%';
+          const ly = typeof layer.y === 'number' ? layer.y + 'px' : '50%';
+  
           return (
             <div 
               key={layer.id}
               id={`layer-${layer.id}`}
               style={{
-                position: 'relative',
-                width: '100%',
-                maxWidth: '600px', // Limite ragionevole per non spanciare su tablet in verticale
-                margin: '0 auto',
-                fontSize: Math.round((layer.fontSize || 24) * 1.25) + 'px', // Ingrandimento testi Canva-style
+                position: 'absolute',
+                left: lx,
+                top: ly,
+                transform: 'translate(-50%, -50%)',
+                width: layer.w ? layer.w + 'px' : 'max-content',
+                fontSize: (layer.fontSize || 32) + 'px',
                 fontFamily: layer.fontFamily,
                 fontWeight: layer.fontWeight || "normal",
                 fontStyle: layer.fontStyle || "normal",
                 textDecoration: layer.textDecoration || "none",
                 letterSpacing: (layer.letterSpacing || 0) + 'px',
-                lineHeight: (layer.lineHeight || 1.3) > 5 ? (layer.lineHeight! / 100) : (layer.lineHeight || 1.3),
+                lineHeight: (layer.lineHeight || 1.2) > 5 ? (layer.lineHeight! / 100) : (layer.lineHeight || 1.2),
                 color: layer.color,
-                textAlign: layer.textAlign || 'center',
-                zIndex: isSelected ? 10 : layer.z || 1,
+                textAlign: layer.textAlign,
+                zIndex: hoveredLayerId === layer.id ? 1000 : (isSelected ? 10 : layer.z || 1),
+                padding: '2px 4px',
                 opacity: layer.opacity !== undefined ? layer.opacity : 1,
-                border: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
-                borderRadius: '4px',
-                padding: '4px',
+                userSelect: editingLayerId === layer.id ? 'auto' : 'none',
                 touchAction: 'none'
               }}
-              onPointerDown={(e) => handlePointerDown(e, layer)}
+              onPointerDown={(e) => {
+                // Chrome Fix: instant selection
+                handlePointerDown(e, layer);
+              }}
               onClick={(e) => e.stopPropagation()}
+              onMouseEnter={() => setHoveredLayerId && setHoveredLayerId(layer.id)}
+              onMouseLeave={() => setHoveredLayerId && setHoveredLayerId(null)}
             >
+              {hoveredLayerId === layer.id && <div className="layer-hover-outline" />}
+              
               {isText ? (
                 <EditableText
                   id={`layer-content-${layer.id}`}
                   className="layer-content"
                   text={layer.text || ""}
                   isEditing={editingLayerId === layer.id}
-                  onSync={(newHtml) => {
-                    setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, text: newHtml } : l));
+                  onSync={(val) => {
+                    setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, text: val } : l));
                     setIsDirty(true);
                   }}
-                  onBlur={(newHtml) => {
-                    pushToHistory();
+                  onBlur={(val) => {
+                    let updatedText = val;
+                    if (!updatedText || updatedText === "<br>") updatedText = "Testo Vuoto";
+                    setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, text: updatedText } : l));
+                    setIsDirty(true);
+                    setEditingLayerId(null);
                   }}
-                  onFocus={() => {
+                  onFocus={() => pushToHistory()}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
                     setEditingLayerId(layer.id);
-                    setSelectedLayerIds([layer.id]);
+                  }}
+                  onPointerDown={(e) => {
+                    if (editingLayerId === layer.id) e.stopPropagation();
+                  }}
+                  style={{
+                    outline: "none",
+                    minWidth: "20px",
+                    minHeight: "1em",
+                    cursor: editingLayerId === layer.id ? "text" : (isSelected ? "grab" : "pointer"),
+                    userSelect: editingLayerId === layer.id ? "auto" : "none",
+                    whiteSpace: "pre-wrap",
+                    width: '100%',
+                    wordBreak: 'break-word',
+                    paddingBottom: "0.15em",
+                    padding: "8px"
                   }}
                 />
               ) : (
-                <img 
-                  src={layer.src} 
-                  alt="" 
-                  style={{ 
-                    width: '100%', 
-                    height: 'auto', 
-                    display: 'block', 
-                    objectFit: 'contain',
-                    borderRadius: '8px' // Un tocco più moderno per le immagini a tutto schermo
-                  }} 
-                />
+                <img src={layer.src} style={{ width: '100%', height: '100%', pointerEvents: 'none' }} alt="" />
+              )}
+              
+              {isSelected && (
+                 <>
+                   <div className="layer-outline" style={{ 
+                      border: '1.5px solid var(--accent)', 
+                      position: 'absolute', 
+                      inset: '-4px', 
+                      pointerEvents: 'none',
+                      borderRadius: '4px',
+                      boxShadow: '0 0 10px rgba(var(--accent-rgb), 0.2)'
+                   }}></div>
+                   
+                   {/* Maniglie Angolari */}
+                   {['NW', 'NE', 'SW', 'SE'].map(pos => (
+                      <div 
+                        key={pos} 
+                        onPointerDown={(e) => handleResizePointerDown(e, layer, pos.toLowerCase())} 
+                        className={isMobileEffective ? `mobile-handle-corner ${pos.toLowerCase()}` : ""}
+                        style={!isMobileEffective ? { 
+                          position: 'absolute', 
+                          width: '12px', 
+                          height: '12px', 
+                          background: '#fff', 
+                          border: '1.5px solid var(--accent)', 
+                          borderRadius: '50%', 
+                          top: pos.includes('N') ? '-10px' : 'auto', 
+                          bottom: pos.includes('S') ? '-10px' : 'auto', 
+                          left: pos.includes('W') ? '-10px' : 'auto', 
+                          right: pos.includes('E') ? '-10px' : 'auto', 
+                          cursor: pos === 'NW' || pos === 'SE' ? 'nwse-resize' : 'nesw-resize', 
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        } : {}} 
+                      />
+                   ))}
+  
+                    {/* Maniglie Laterali e Verticali (Pillole o Barre a sbalzo) */}
+                    {isText && ["E", "W", "N", "S"].map(pos => (
+                       <div 
+                         key={pos} 
+                         onPointerDown={(e) => handleResizePointerDown(e, layer, pos.toLowerCase())} 
+                         className={isMobileEffective ? `mobile-handle-side ${pos === 'E' || pos === 'W' ? 'v' : 'h'} ${pos.toLowerCase()}` : ""}
+                         style={!isMobileEffective ? { 
+                           position: "absolute", 
+                           width: (pos === "E" || pos === "W") ? "6px" : "18px", 
+                           height: (pos === "E" || pos === "W") ? "18px" : "6px", 
+                           background: "#fff", 
+                           border: "1.5px solid var(--accent)", 
+                           borderRadius: "10px", 
+                           top: pos === "N" ? "-7px" : (pos === "S" ? "auto" : "50%"),
+                           bottom: pos === "S" ? "-7px" : "auto",
+                           left: pos === "W" ? "-7px" : (pos === "E" ? "auto" : "50%"),
+                           right: pos === "E" ? "-7px" : "auto",
+                           transform: (pos === "E" || pos === "W") ? "translateY(-50%)" : "translateX(-50%)",
+                           cursor: (pos === "E" || pos === "W") ? "ew-resize" : "ns-resize", 
+                           zIndex: 10,
+                           boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                           pointerEvents: "auto"
+                         } : {}} 
+                       />
+                    ))}
+                 </>
               )}
             </div>
           );
-        })}
-      </div>
-    );
-  }
-
-  return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }} onClick={(e) => {
-      // Click on empty space inside section - let it bubble up to Select the Block
-      setSelectedLayerIds([]);
-    }}>
-      {layers.map(layer => {
-        const isSelected = selectedLayerIds.includes(layer.id);
-        const isText = layer.type === 'text' || !layer.type;
-        const lx = typeof layer.x === 'number' ? layer.x + 'px' : '50%';
-        const ly = typeof layer.y === 'number' ? layer.y + 'px' : '50%';
-
-        return (
-          <div 
-            key={layer.id}
-            id={`layer-${layer.id}`}
-            style={{
-              position: 'absolute',
-              left: lx,
-              top: ly,
-              transform: 'translate(-50%, -50%)',
-              width: layer.w ? layer.w + 'px' : 'max-content',
-              fontSize: (layer.fontSize || 32) + 'px',
-              fontFamily: layer.fontFamily,
-              fontWeight: layer.fontWeight || "normal",
-              fontStyle: layer.fontStyle || "normal",
-              textDecoration: layer.textDecoration || "none",
-              letterSpacing: (layer.letterSpacing || 0) + 'px',
-              lineHeight: (layer.lineHeight || 1.2) > 5 ? (layer.lineHeight! / 100) : (layer.lineHeight || 1.2),
-              color: layer.color,
-              textAlign: layer.textAlign,
-              zIndex: hoveredLayerId === layer.id ? 1000 : (isSelected ? 10 : layer.z || 1),
-              padding: '2px 4px',
-              opacity: layer.opacity !== undefined ? layer.opacity : 1,
-              userSelect: editingLayerId === layer.id ? 'auto' : 'none',
-              touchAction: 'none'
-            }}
-            onPointerDown={(e) => handlePointerDown(e, layer)}
-            onClick={(e) => e.stopPropagation()}
-            onMouseEnter={() => setHoveredLayerId && setHoveredLayerId(layer.id)}
-            onMouseLeave={() => setHoveredLayerId && setHoveredLayerId(null)}
-          >
-            {hoveredLayerId === layer.id && <div className="layer-hover-outline" />}
-            
-            {isText ? (
-              <EditableText
-                id={`layer-content-${layer.id}`}
-                className="layer-content"
-                text={layer.text || ""}
-                isEditing={editingLayerId === layer.id}
-                onSync={(val) => {
-                  setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, text: val } : l));
-                  setIsDirty(true);
-                }}
-                onBlur={(val) => {
-                  let updatedText = val;
-                  if (!updatedText || updatedText === "<br>") updatedText = "Testo Vuoto";
-                  setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, text: updatedText } : l));
-                  setIsDirty(true);
-                  setEditingLayerId(null);
-                }}
-                onFocus={() => pushToHistory()}
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  setEditingLayerId(layer.id);
-                }}
-                onPointerDown={(e) => {
-                  if (editingLayerId === layer.id) e.stopPropagation();
-                }}
-                style={{
-                  outline: "none",
-                  minWidth: "20px",
-                  minHeight: "1em",
-                  cursor: editingLayerId === layer.id ? "text" : (isSelected ? "grab" : "pointer"),
-                  userSelect: editingLayerId === layer.id ? "auto" : "none",
-                  whiteSpace: "pre-wrap",
-                  width: '100%',
-                  wordBreak: 'break-word',
-                  paddingBottom: "0.15em",
-                  padding: "8px"
-                }}
-              />
-            ) : (
-              <img src={layer.src} style={{ width: '100%', height: '100%', pointerEvents: 'none' }} alt="" />
-            )}
-            
-            {isSelected && (
-               <>
-                 <div className="layer-outline" style={{ 
-                    border: '1.5px solid var(--accent)', 
-                    position: 'absolute', 
-                    inset: '-4px', 
-                    pointerEvents: 'none',
-                    borderRadius: '4px',
-                    boxShadow: '0 0 10px rgba(var(--accent-rgb), 0.2)'
-                 }}></div>
-                 
-                 {/* Maniglie Angolari */}
-                 {['NW', 'NE', 'SW', 'SE'].map(pos => (
-                    <div 
-                      key={pos} 
-                      onPointerDown={(e) => handleResizePointerDown(e, layer, pos.toLowerCase())} 
-                      className={isMobileEffective ? `mobile-handle-corner ${pos.toLowerCase()}` : ""}
-                      style={!isMobileEffective ? { 
-                        position: 'absolute', 
-                        width: '12px', 
-                        height: '12px', 
-                        background: '#fff', 
-                        border: '1.5px solid var(--accent)', 
-                        borderRadius: '50%', 
-                        top: pos.includes('N') ? '-10px' : 'auto', 
-                        bottom: pos.includes('S') ? '-10px' : 'auto', 
-                        left: pos.includes('W') ? '-10px' : 'auto', 
-                        right: pos.includes('E') ? '-10px' : 'auto', 
-                        cursor: pos === 'NW' || pos === 'SE' ? 'nwse-resize' : 'nesw-resize', 
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      } : {}} 
-                    />
-                 ))}
-
-                  {/* Maniglie Laterali e Verticali (Pillole o Barre a sbalzo) */}
-                  {isText && ["E", "W", "N", "S"].map(pos => (
-                     <div 
-                       key={pos} 
-                       onPointerDown={(e) => handleResizePointerDown(e, layer, pos.toLowerCase())} 
-                       className={isMobileEffective ? `mobile-handle-side ${pos === 'E' || pos === 'W' ? 'v' : 'h'} ${pos.toLowerCase()}` : ""}
-                       style={!isMobileEffective ? { 
-                         position: "absolute", 
-                         width: (pos === "E" || pos === "W") ? "6px" : "18px", 
-                         height: (pos === "E" || pos === "W") ? "18px" : "6px", 
-                         background: "#fff", 
-                         border: "1.5px solid var(--accent)", 
-                         borderRadius: "10px", 
-                         top: pos === "N" ? "-7px" : (pos === "S" ? "auto" : "50%"),
-                         bottom: pos === "S" ? "-7px" : "auto",
-                         left: pos === "W" ? "-7px" : (pos === "E" ? "auto" : "50%"),
-                         right: pos === "E" ? "-7px" : "auto",
-                         transform: (pos === "E" || pos === "W") ? "translateY(-50%)" : "translateX(-50%)",
-                         cursor: (pos === "E" || pos === "W") ? "ew-resize" : "ns-resize", 
-                         zIndex: 10,
-                         boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                         pointerEvents: "auto"
-                       } : {}} 
-                     />
-                  ))}
-               </>
-            )}
-          </div>
-        );
-      })}
+        })
+      )}
       {snapGuides.map((guide, i) => {
         if (guide.axis === 'x') return <div key={`gx_${i}`} style={{position: 'absolute', top: 0, bottom: 0, left: guide.position + 'px', width: '1px', background: '#FF007F', zIndex: 99, pointerEvents: 'none'}} />;
         if (guide.axis === 'y') return <div key={`gy_${i}`} style={{position: 'absolute', left: 0, right: 0, top: guide.position + 'px', height: '1px', background: '#FF007F', zIndex: 99, pointerEvents: 'none'}} />;

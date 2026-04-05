@@ -95,6 +95,77 @@ export function EventPageBuilder({
     setBlocks(newBlocks);
     updateTheme({ blocks: newBlocks });
     pushToHistory();
+    setSelectedBlockId(current.id || null);
+  };
+
+  const moveBlockMobile = (index: number, direction: 'up' | 'down') => {
+    const currentBlocks = [...blocks];
+    // Se non hanno mobileOrder, inizializzali in base all'ordine attuale
+    const hasAnyMobileOrder = currentBlocks.some(b => b.mobileOrder !== undefined);
+    
+    let workingBlocks = [...currentBlocks];
+    if (!hasAnyMobileOrder) {
+      workingBlocks = workingBlocks.map((b, i) => ({ ...b, mobileOrder: i }));
+    }
+
+    // Ordina per mobileOrder per trovare i vicini reali in questa vista
+    const sorted = [...workingBlocks].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0));
+    const currentBlockInSorted = sorted[index];
+    const targetIdxInSorted = direction === 'up' ? index - 1 : index + 1;
+    
+    if (targetIdxInSorted < 0 || targetIdxInSorted >= sorted.length) return;
+    
+    const targetBlockInSorted = sorted[targetIdxInSorted];
+
+    // Scambia i mobileOrder
+    if (currentBlockInSorted && targetBlockInSorted) {
+      const tempOrder = currentBlockInSorted.mobileOrder;
+      currentBlockInSorted.mobileOrder = targetBlockInSorted.mobileOrder as number;
+      targetBlockInSorted.mobileOrder = tempOrder as number;
+
+      setBlocks(workingBlocks);
+      updateTheme({ blocks: workingBlocks });
+      pushToHistory();
+      setSelectedBlockId(currentBlockInSorted.id || null);
+    }
+  };
+
+  const moveLayerMobile = (layerId: string, direction: 'up' | 'down') => {
+    const currentLayers = [...layers];
+    const targetLayer = currentLayers.find(l => l.id === layerId);
+    if (!targetLayer) return;
+
+    // Filtriamo i layer dello stesso blocco visibili in mobile
+    const blockLayers = currentLayers
+      .filter(l => l.blockId === targetLayer.blockId && !l.hiddenMobile);
+    
+    // Inizializziamo mobileOrder se manca
+    const hasAnyMobileOrder = blockLayers.some(l => l.mobileOrder !== undefined);
+    if (!hasAnyMobileOrder) {
+      // Ordiniamo per Y attuale per dare un senso iniziale
+      blockLayers.sort((a, b) => ((a.y as number) || 0) - ((b.y as number) || 0));
+      blockLayers.forEach((l, i) => {
+        const originalLayer = currentLayers.find(ol => ol.id === l.id);
+        if (originalLayer) originalLayer.mobileOrder = i;
+      });
+    }
+
+    const sorted = [...blockLayers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0));
+    const idx = sorted.findIndex(l => l.id === layerId);
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+
+    if (targetIdx >= 0 && targetIdx < sorted.length) {
+      const otherLayer = sorted[targetIdx];
+      if (targetLayer && otherLayer) {
+        const tempOrder = targetLayer.mobileOrder;
+        targetLayer.mobileOrder = otherLayer.mobileOrder as number;
+        otherLayer.mobileOrder = tempOrder as number;
+
+        setLayers(currentLayers);
+        updateTheme({ layers: currentLayers });
+        pushToHistory();
+      }
+    }
   };
 
   const duplicateBlock = (index: number) => {
@@ -107,8 +178,8 @@ export function EventPageBuilder({
       id: newBlockId 
     };
 
-    // Deep copy of layers belonging to this block
-    const blockLayers = layers.filter(l => l.blockId === blockToDuplicate.id);
+    // Deep copy of layers belonging to this block - USANDO VARIABILI LOCALI PER ATOMICITÀ
+    const blockLayers = (layers || []).filter(l => l.blockId === blockToDuplicate.id);
     const newLayers = blockLayers.map(l => ({
       ...l,
       id: 'layer-' + Math.random().toString(36).substr(2, 9),
@@ -118,17 +189,59 @@ export function EventPageBuilder({
     const newBlocks = [...blocks];
     newBlocks.splice(index + 1, 0, newBlock);
     
+    const updatedLayers = [...layers, ...newLayers];
+
     setBlocks(newBlocks);
-    setLayers(prev => [...prev, ...newLayers]); // Aggiungi i nuovi layer clonati
-    updateTheme({ blocks: newBlocks, layers: [...layers, ...newLayers] });
+    setLayers(updatedLayers); // Aggiorna lo stato locale
+    
+    // Sincronizzazione ATOMICA: mandiamo sia i blocchi che i layer aggiornati al server in un colpo solo
+    updateTheme({ 
+      blocks: newBlocks, 
+      layers: updatedLayers 
+    });
+    
     pushToHistory();
+    setSelectedBlockId(newBlockId); // Seleziona automaticamente il nuovo blocco
   };
 
   const deleteBlock = (index: number) => {
+    const blockToDelete = blocks[index];
+    if (!blockToDelete) return;
     const newBlocks = blocks.filter((_, i) => i !== index);
+    const newLayers = layers.filter(l => l.blockId !== blockToDelete.id);
     setBlocks(newBlocks);
-    updateTheme({ blocks: newBlocks });
+    setLayers(newLayers);
+    updateTheme({ blocks: newBlocks, layers: newLayers });
     pushToHistory();
+  };
+
+  const deleteLayer = (layerId: string) => {
+    const newLayers = layers.filter(l => l.id !== layerId);
+    setLayers(newLayers);
+    updateTheme({ layers: newLayers });
+    pushToHistory();
+    setSelectedLayerIds([]);
+  };
+
+  const duplicateLayer = (layerId: string) => {
+    const layerToDuplicate = layers.find(l => l.id === layerId);
+    if (!layerToDuplicate) return;
+
+    const newLayer: Layer = {
+      ...layerToDuplicate,
+      id: 'layer-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      // Se siamo in mobile, lo mettiamo subito dopo nell'ordine mobile
+      mobileOrder: layerToDuplicate.mobileOrder !== undefined ? (layerToDuplicate.mobileOrder as number) + 0.5 : 0,
+      // Se siamo in desktop, lo spostiamo leggermente per farlo vedere
+      x: (layerToDuplicate.x as number || 0) + 20,
+      y: (layerToDuplicate.y as number || 0) + 20
+    } as any;
+
+    const newLayers = [...layers, newLayer];
+    setLayers(newLayers);
+    updateTheme({ layers: newLayers });
+    pushToHistory();
+    setSelectedLayerIds([newLayer.id]);
   };
 
   const handleBlockColorChange = (index: number, newColor: string) => {
@@ -144,7 +257,13 @@ export function EventPageBuilder({
     <div 
       className="event-page-builder-container custom-scrollbar" 
       ref={containerRef}
-      onClick={() => { setSelectedBlockId(null); setSelectedLayerIds([]); }}
+      onClick={(e) => { 
+        // Reset selection only if clicking EXACTLY on the empty background
+        if (e.target === e.currentTarget) {
+          setSelectedBlockId(null); 
+          setSelectedLayerIds([]); 
+        }
+      }}
       style={{ 
         width: '100%', 
         height: '100%', 
@@ -155,15 +274,27 @@ export function EventPageBuilder({
       }}
     >
       <div 
-        className="event-page-width-constraint"
-        style={{
+        className="event-page-builder-wrapper"
+        onPointerDown={(e) => {
+          // Deselezione globale: pulisce solo se NON abbiamo cliccato su una sezione o un elemento
+          const target = e.target as HTMLElement;
+          if (target.closest('.builder-section-item') || target.closest('.section-floating-toolbar')) {
+            return;
+          }
+          
+          setSelectedBlockId(null);
+          setSelectedLayerIds([]);
+        }}
+        style={{ 
           width: '100%',
+          minHeight: '100%',
+          cursor: 'default',
+          paddingBottom: '20vh', // Area extra in fondo per deselezione comoda
           maxWidth: previewMobile ? '1020px' : '100%', // Allineato alla larghezza della busta + padding
           margin: '0 auto', 
           // CANALE SICURO PER LA TOOLBAR: reserviamo 100px a destra
           paddingRight: isMobile ? '0' : '100px', 
           position: 'relative',
-          minHeight: '100%',
           zIndex: 5,
           overflow: 'visible',
           display: 'flex',
@@ -256,22 +387,25 @@ export function EventPageBuilder({
             DYNAMIC SECTIONS (Blocks)
             ======================= */}
         <div className="dynamic-sections-container" style={{ position: 'relative', overflow: 'visible', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {blocks.map((block, idx) => (
+        {(previewMobile 
+          ? [...blocks].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0))
+          : blocks
+        ).map((block, idx) => (
           <BuilderSection 
-            key={block.id || idx}
+            key={block.id}
             block={block}
             index={idx}
             isSelected={selectedBlockId === block.id}
             onClick={() => setSelectedBlockId(block.id || null)}
             onHeightChange={(h) => handleHeightChange(idx, h)}
             onHeightChangeComplete={handleHeightChangeComplete}
-            onMoveUp={() => moveBlock(idx, 'up')}
-            onMoveDown={() => moveBlock(idx, 'down')}
+            onMoveUp={() => previewMobile ? moveBlockMobile(idx, 'up') : moveBlock(idx, 'up')}
+            onMoveDown={() => previewMobile ? moveBlockMobile(idx, 'down') : moveBlock(idx, 'down')}
             onDuplicate={() => duplicateBlock(idx)}
             onDelete={() => deleteBlock(idx)}
             onColorChange={(color) => handleBlockColorChange(idx, color)}
             isFirst={idx === 0}
-            isLast={idx === blocks.length - 1}
+            isLast={idx === (blocks.length - 1)}
             isMobile={isMobile}
             bgColor={block.props?.bgColor || '#ffffff'}
             layers={layers}
@@ -283,7 +417,10 @@ export function EventPageBuilder({
             previewMobile={previewMobile}
             editingLayerId={editingLayerId}
             setEditingLayerId={setEditingLayerId}
-            editorScale={editorScale} // Passiamo la scala calcolata
+            editorScale={editorScale} 
+            onMoveLayer={moveLayerMobile}
+            onDuplicateLayer={duplicateLayer}
+            onDeleteLayer={deleteLayer}
           />
         ))}
       </div>

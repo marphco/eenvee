@@ -367,6 +367,7 @@ export default function EventEditor() {
            pushToHistory={pushToHistory}
            previewMobile={previewMobile}
            setPreviewMobile={setPreviewMobile}
+           editingLayerId={editingLayerId}
          />
         <EditorStage 
           stageRef={stageRef} canvasRef={canvasRef} editorMode={editorMode} isMobile={isMobile}

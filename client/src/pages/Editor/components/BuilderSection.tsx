@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import type { Block, Layer } from '../../../types/editor';
 import SectionToolbar from './SectionToolbar';
 import { SectionCanvas } from './SectionCanvas';
@@ -28,7 +29,10 @@ interface BuilderSectionProps {
   previewMobile: boolean;
   editingLayerId: string | null;
   setEditingLayerId: (id: string | null) => void;
-  editorScale: number; // Prop sincronizzata
+  editorScale: number;
+  onMoveLayer?: (layerId: string, direction: 'up' | 'down') => void;
+  onDuplicateLayer?: (layerId: string) => void;
+  onDeleteLayer?: (layerId: string) => void;
 }
 
 const BuilderSection: React.FC<BuilderSectionProps> = ({ 
@@ -56,7 +60,10 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   previewMobile,
   editingLayerId,
   setEditingLayerId,
-  editorScale
+  editorScale,
+  onMoveLayer,
+  onDuplicateLayer,
+  onDeleteLayer
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isAnchorHovered, setIsAnchorHovered] = useState(false);
@@ -101,9 +108,18 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
       className={`builder-section-item ${isSelected ? 'selected' : ''}`}
       data-block-id={block.id}
       ref={containerRef}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
+      onPointerDown={(e) => {
+        // FIX SELEZIONE: Se clicchi sul canvas o sulla toolbar, ignora
+        if ((e.target as HTMLElement).closest('.section-canvas-container') || 
+            (e.target as HTMLElement).closest('.section-floating-toolbar')) {
+          return;
+        }
+
+        // Chrome Fix: Use onPointerDown for instant selection
+        if (!(e.target as HTMLElement).closest('.section-resize-hitbox')) {
+           e.stopPropagation(); // Evita deselezione globale
+           onClick();
+        }
       }}
       style={{
         width: previewMobile ? '100%' : (currentScale * LOGICAL_WIDTH) + 'px', // Fluidità in anteprima, fisso in design libero
@@ -118,11 +134,22 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
         zIndex: currentZIndex, 
         cursor: 'default',
         overflow: 'visible',
+        // Area di selezione migliorata sui bordi
+        padding: previewMobile ? '0' : '4px'
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div style={!previewMobile ? { 
+      <div 
+        className="section-canvas-container"
+        onClick={(e) => {
+          // GHOST CLICK FIX: Su mobile, il browser emette un 'click' sintetico dopo il tocco.
+          // Lo blocchiamo qui per evitare che risalga alla BuilderSection e selezioni la sezione intera.
+          if (isMobile) {
+            e.stopPropagation();
+          }
+        }}
+        style={!previewMobile ? { 
         width: LOGICAL_WIDTH + 'px', 
         height: (block.height || 400) + 'px', 
         position: 'relative', 
@@ -152,54 +179,102 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
           editingLayerId={editingLayerId}
           setEditingLayerId={setEditingLayerId}
           editorScale={editorScale}
+          onMoveLayer={onMoveLayer}
         />
       </div>
 
-      {isSelected && (
+      {/* Selezione facilitata: un bordino trasparente interno che cattura il clic se non si clicca su un layer */}
+      {!previewMobile && isSelected && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            border: '8px solid transparent',
+            pointerEvents: 'none',
+            zIndex: 0
+          }}
+        />
+      )}
+
+      {/* Toolbar Sezione / Elemento: appare se la sezione è selezionata O se c'è un elemento interno selezionato */}
+      {(isSelected || (selectedLayerIds.length > 0 && layers.some(l => selectedLayerIds.includes(l.id) && l.blockId === block.id))) && (
         <>
-          <div 
-            className="section-resize-hitbox"
-            onMouseEnter={(e: React.MouseEvent) => { e.stopPropagation(); setIsAnchorHovered(true); }}
-            onMouseLeave={(e: React.MouseEvent) => { e.stopPropagation(); setIsAnchorHovered(false); }}
-            style={{
-              position: 'absolute',
-              bottom: '-7px',
-              left: '0',
-              right: '0',
-              height: '14px',
-              cursor: 'ns-resize',
-              zIndex: 200,
-              touchAction: 'none'
-            }}
-            onPointerDown={handlePointerDown}
-          >
+          {!previewMobile && (
             <div 
+              className="section-resize-hitbox"
+              onMouseEnter={(e: React.MouseEvent) => { e.stopPropagation(); setIsAnchorHovered(true); }}
+              onMouseLeave={(e: React.MouseEvent) => { e.stopPropagation(); setIsAnchorHovered(false); }}
               style={{
                 position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '48px',
-                height: '6px',
-                backgroundColor: isAnchorHovered ? 'var(--accent)' : '#ffffff',
-                border: `1.5px solid var(--accent)`,
-                borderRadius: '20px',
-                boxShadow: isAnchorHovered ? '0 0 10px rgba(var(--accent-rgb), 0.5)' : '0 2px 8px rgba(0,0,0,0.12)',
-                transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                pointerEvents: 'none' 
+                bottom: '-7px',
+                left: '0',
+                right: '0',
+                height: '14px',
+                cursor: 'ns-resize',
+                zIndex: 200,
+                touchAction: 'none'
               }}
-            />
-          </div>
+              onPointerDown={handlePointerDown}
+            >
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '48px',
+                  height: '6px',
+                  backgroundColor: isAnchorHovered ? 'var(--accent)' : '#ffffff',
+                  border: `1.5px solid var(--accent)`,
+                  borderRadius: '20px',
+                  boxShadow: isAnchorHovered ? '0 0 10px rgba(var(--accent-rgb), 0.5)' : '0 2px 8px rgba(0,0,0,0.12)',
+                  transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  pointerEvents: 'none' 
+                }}
+              />
+            </div>
+          )}
           <SectionToolbar 
             onMoveUp={onMoveUp}
             onMoveDown={onMoveDown}
             onDuplicate={onDuplicate}
             onDelete={onDelete}
+            onUpdateBlockProps={(props: any) => {
+              if (props.bgColor) onColorChange(props.bgColor);
+            }}
             onColorChange={onColorChange}
             bgColor={bgColor}
             isFirst={isFirst}
             isLast={isLast}
             layout={isMobile ? 'horizontal' : 'vertical'}
+            previewMobile={previewMobile}
+            isMobileDevice={isMobile}
+            editingLayerId={editingLayerId}
+            selectedLayerId={selectedLayerIds.length === 1 ? selectedLayerIds[0] : null}
+            onMoveLayer={onMoveLayer}
+            onDuplicateLayer={onDuplicateLayer}
+            onDeleteLayer={onDeleteLayer}
+            isFirstLayer={(() => {
+              if (selectedLayerIds.length !== 1) return false;
+              const blockLayers = layers.filter(l => l.blockId === block.id && !l.hiddenMobile);
+              const sorted = [...blockLayers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0));
+              return sorted[0]?.id === selectedLayerIds[0];
+            })()}
+            isLastLayer={(() => {
+              if (selectedLayerIds.length !== 1) return false;
+              const blockLayers = layers.filter(l => l.blockId === block.id && !l.hiddenMobile);
+              const sorted = [...blockLayers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0));
+              return sorted[sorted.length - 1]?.id === selectedLayerIds[0];
+            })()}
+            contextLabel={(() => {
+              if (selectedLayerIds.length === 1) {
+                const layer = layers.find(l => l.id === selectedLayerIds[0]);
+                if (layer?.type === 'image') return 'Immagine';
+                if (layer?.type === 'text' || !layer?.type) return 'Testo';
+                return 'Elemento';
+              }
+              return 'Sezione';
+            })()}
           />
         </>
       )}

@@ -3,7 +3,7 @@ import { Surface, Button } from "../../../ui";
 import { 
   Type, Image as ImageIcon, PaintBucket, Move, Mail, MailOpen, ArrowLeft, 
   ArrowRight, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, ArrowDownRight, 
-  ArrowDownLeft, Plus, Circle, Sparkles, Smartphone, Layout
+  ArrowDownLeft, Plus, Circle, Sparkles, Smartphone, Layout, Monitor, Trash2
 } from "lucide-react";
 import PropertyPanel from "./PropertyPanel";
 import CustomColorPicker from "./CustomColorPicker";
@@ -105,6 +105,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   previewMobile,
   setPreviewMobile
 }) => {
+  const selectedBlock = blocks?.find(b => b.id === selectedBlockId);
   return (
     <div className="editor-sidebar left-sidebar">
        {/* SWITCHER DESKTOP */}
@@ -668,52 +669,41 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {editorMode === "event_page" && (
           <>
             <div style={{ marginBottom: '24px' }}>
-              <Button
-                variant={previewMobile ? "primary" : "subtle"}
-                onClick={() => setPreviewMobile?.(!previewMobile)}
-                style={{ 
-                  width: '100%', 
-                  justifyContent: 'center', 
-                  height: '42px',
-                  borderRadius: '100px',
-                  boxShadow: previewMobile ? '0 10px 20px rgba(var(--accent-rgb), 0.3)' : 'none',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  letterSpacing: '0.05em'
-                }}
-              >
-                {previewMobile ? <Layout size={18} style={{marginRight: 8}}/> : <Smartphone size={18} style={{marginRight: 8}}/>}
-                {previewMobile ? "FINE ANTEPRIMA" : "ANTEPRIMA MOBILE"}
-              </Button>
-            </div>
-
-            <div style={{ 
-              background: "rgba(var(--accent-rgb), 0.04)", 
-              borderRadius: "16px",
-              padding: "16px",
-              display: "flex",
-              gap: "12px",
-              marginBottom: "24px",
-              border: "1px solid rgba(var(--accent-rgb), 0.08)"
-            }}>
-              <div style={{ 
-                background: "var(--accent-soft)", 
-                width: "32px", 
-                height: "32px", 
-                borderRadius: "10px", 
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center",
-                color: "var(--accent)",
-                flexShrink: 0
-              }}><Sparkles size={16} /></div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-main)", textTransform: 'uppercase', letterSpacing: '0.05em' }}>Design Libero</span>
-                <p style={{ fontSize: "11px", color: "var(--text-soft)", lineHeight: "1.5", margin: 0 }}>
-                  Posiziona elementi dove vuoi in ogni sezione. <strong>eenvee</strong> li impilerà automaticamente per i tuoi ospiti su mobile.
-                </p>
+              <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-soft)', letterSpacing: '1px', marginBottom: '12px', textTransform: 'uppercase' }}>Visualizzazione Editor</div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                 <Button 
+                   variant={!previewMobile ? 'primary' : 'subtle'} 
+                   style={{ 
+                     flex: 1, 
+                     justifyContent: 'center', 
+                     fontSize: '11px', 
+                     fontWeight: 700,
+                     gap: '8px',
+                     borderRadius: '12px',
+                     ...( !previewMobile ? { boxShadow: '0 10px 20px rgba(var(--accent-rgb), 0.3)' } : {})
+                   }}
+                   onClick={() => setPreviewMobile?.(false)}
+                 >
+                   <Monitor size={14} /> Desktop
+                 </Button>
+                 <Button 
+                   variant={previewMobile ? 'primary' : 'subtle'} 
+                   style={{ 
+                     flex: 1, 
+                     justifyContent: 'center', 
+                     fontSize: '11px', 
+                     fontWeight: 700,
+                     gap: '8px',
+                     borderRadius: '12px',
+                     ...( previewMobile ? { boxShadow: '0 10px 20px rgba(var(--accent-rgb), 0.3)' } : {})
+                   }}
+                   onClick={() => setPreviewMobile?.(true)}
+                 >
+                   <Smartphone size={14} /> Mobile
+                 </Button>
               </div>
             </div>
+
 
             {selectedBlockId ? (
               <div key={selectedBlockId}>
@@ -735,20 +725,75 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                     setAlignmentReference={setAlignmentReference}
                     displayColorPicker={displayColorPicker === 'font' ? 'font' : false}
                     setDisplayColorPicker={(show) => setDisplayColorPicker(show)}
+                    previewMobile={previewMobile}
                  />
                )}
 
-               <Surface variant="soft" className="panel-section">
-                 <h3>Inserisci nel Blocco</h3>
-                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                   <Button variant="primary" style={{width: '100%', justifyContent: 'center'}} onClick={addTextLayer}>
-                     <Type size={18} style={{marginRight: 8}}/> Testo
-                   </Button>
-                   <Button variant="subtle" style={{width: '100%', justifyContent: 'center'}} onClick={() => fileInputRef.current?.click()}>
-                     <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
-                   </Button>
-                   <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{display: 'none'}} />
-                 </div>
+               <Surface variant="soft" className="panel-section" style={{ padding: '16px' }}>
+                   <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Inserisci nella Sezione</h3>
+                   <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                     <Button variant="primary" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }} onClick={addTextLayer}>
+                       <Type size={18} style={{marginRight: 8}}/> Testo
+                     </Button>
+                     <Button variant="subtle" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }} onClick={() => fileInputRef.current?.click()}>
+                       <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
+                     </Button>
+                     <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{display: 'none'}} />
+                   </div>
+
+                  {/* SETTINGS SPECIFICI PER WIDGET (es. MAPPA) */}
+                  {selectedBlock && selectedBlock.type === 'map' && (
+                    <div style={{ marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                      <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>
+                        Indirizzo Location 📍
+                      </label>
+                      <textarea 
+                        value={selectedBlock.widgetProps?.address || ""}
+                        onChange={(e) => {
+                          if (blocks && setBlocks) {
+                            const newBlocks = blocks.map(b => 
+                              b.id === selectedBlock.id 
+                                ? { ...b, widgetProps: { ...b.widgetProps, address: e.target.value } } 
+                                : b
+                            );
+                            setBlocks(newBlocks);
+                          }
+                        }}
+                        placeholder="Es: Piazza del Duomo, Milano"
+                        style={{ 
+                          width: '100%', 
+                          minHeight: '80px',
+                          background: 'rgba(255,255,255,0.03)', 
+                          border: '1px solid var(--border)', 
+                          borderRadius: '10px', 
+                          padding: '12px', 
+                          fontSize: '13px', 
+                          color: 'var(--text-main)',
+                          resize: 'vertical',
+                          outline: 'none',
+                          fontFamily: 'inherit',
+                          lineHeight: '1.4'
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '30px', borderTop: '1px solid rgba(255,0,0,0.1)', paddingTop: '20px' }}>
+                    <Button 
+                      variant="ghost" 
+                      style={{ width: '100%', color: 'var(--error)', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}
+                      onClick={() => {
+                        if (blocks && setBlocks && selectedBlockId) {
+                          if (confirm("Sei sicuro di voler eliminare questa intera sezione e tutti i suoi elementi?")) {
+                            setBlocks(blocks.filter(b => b.id !== selectedBlockId));
+                            pushToHistory();
+                          }
+                        }
+                      }}
+                    >
+                      <Trash2 size={16} style={{ marginRight: 8 }} /> ELIMINA SEZIONE
+                    </Button>
+                  </div>
                </Surface>
               </div>
             ) : (
@@ -764,7 +809,24 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                       pushToHistory();
                     }
                   }}>
-                    <Plus size={18} style={{marginRight: 8}}/> Aggiungi Sezione Vuota
+                    <Plus size={18} style={{marginRight: 8}}/> Sezione Libera
+                  </Button>
+                  
+                   <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                    if (blocks && setBlocks) {
+                      const newBlockId = 'block-map-' + Date.now();
+                      setBlocks([...blocks, { 
+                        id: newBlockId, 
+                        type: 'map', 
+                        y: 0, 
+                        height: 400, 
+                        bgColor: '#f9f9f9',
+                        widgetProps: { address: 'Piazza del Duomo, Milano', zoom: 15 }
+                      }]);
+                      pushToHistory();
+                    }
+                  }}>
+                    <Monitor size={18} style={{marginRight: 8}}/> Sezione Mappa (Location)
                   </Button>
                 </div>
               </Surface>

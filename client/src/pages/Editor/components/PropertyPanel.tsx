@@ -5,7 +5,7 @@ import {
   Type, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, 
   AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, 
   AlignVerticalJustifyEnd, Trash2, Plus, Minus, Bold, Italic, Underline, Palette,
-  AlignLeft, AlignCenter, AlignRight, AlignJustify
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, Eye, EyeOff, ArrowUp, ArrowDown
 } from "lucide-react";
 import CustomColorPicker from "./CustomColorPicker";
 import CustomFontSelect from "./CustomFontSelect";
@@ -29,6 +29,7 @@ interface PropertyPanelProps {
   setAlignmentReference: (ref: string) => void;
   displayColorPicker: 'font' | 'bg' | false;
   setDisplayColorPicker: (show: 'font' | 'bg' | false) => void;
+  previewMobile?: boolean | undefined; 
 }
 
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -48,6 +49,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   setAlignmentReference,
   displayColorPicker,
   setDisplayColorPicker,
+  previewMobile,
 }) => {
   const replaceFileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -403,13 +405,81 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
       )}
 
-      {selectedLayerIds.length === 1 && (
-        <div className="prop-row" style={{ marginTop: '1rem' }}>
-          <Button variant="ghost" onClick={deleteSelectedLayers} style={{color: 'salmon', width: '100%', justifyContent: 'center'}}>
-            <Trash2 size={16} style={{marginRight: 6}}/> {selectedLayer.type === 'image' ? 'Elimina Immagine' : 'Elimina Livello'}
+      <div className="visibility-binary-controls" style={{ borderTop: '1px solid var(--border)', marginTop: '1.2rem', paddingTop: '1.2rem' }}>
+        <h3 style={{ fontSize: '10px', fontWeight: 750, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Visibilità & Ordine</h3>
+        
+        {/* Toggle Visibilità */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: (previewMobile && !selectedLayer.hiddenMobile) ? '12px' : '0' }}>
+          <Button 
+            variant={selectedLayer.hiddenMobile ? "ghost" : "subtle"}
+            onClick={() => updateSelectedLayer({ hiddenMobile: !selectedLayer.hiddenMobile })}
+            style={{ 
+              flex: 1, justifyContent: 'center', fontSize: '10px', fontWeight: 700,
+              background: selectedLayer.hiddenMobile ? 'rgba(255, 99, 71, 0.05)' : 'rgba(var(--accent-rgb), 0.08)',
+              color: selectedLayer.hiddenMobile ? '#ff6347' : 'var(--text-main)',
+              border: `1px solid ${selectedLayer.hiddenMobile ? 'rgba(255, 99, 71, 0.1)' : 'transparent'}`,
+              borderRadius: '10px',
+              padding: '10px'
+            }}
+          >
+            {selectedLayer.hiddenMobile ? <EyeOff size={14} /> : <Eye size={14} />}
+            <span style={{ marginLeft: '8px' }}>MOBILE</span>
+          </Button>
+
+          <Button 
+            variant={selectedLayer.hiddenDesktop ? "ghost" : "subtle"}
+            onClick={() => updateSelectedLayer({ hiddenDesktop: !selectedLayer.hiddenDesktop })}
+            style={{ 
+              flex: 1, justifyContent: 'center', fontSize: '10px', fontWeight: 700,
+              background: selectedLayer.hiddenDesktop ? 'rgba(255, 99, 71, 0.05)' : 'rgba(var(--accent-rgb), 0.08)',
+              color: selectedLayer.hiddenDesktop ? '#ff6347' : 'var(--text-main)',
+              border: `1px solid ${selectedLayer.hiddenDesktop ? 'rgba(255, 99, 71, 0.1)' : 'transparent'}`,
+              borderRadius: '10px',
+              padding: '10px'
+            }}
+          >
+            {selectedLayer.hiddenDesktop ? <EyeOff size={14} /> : <Eye size={14} />}
+            <span style={{ marginLeft: '8px' }}>DESKTOP</span>
           </Button>
         </div>
-      )}
+
+        {/* Controlli Ordine Mobile (Solo se in modalità Mobile) */}
+        {previewMobile && !selectedLayer.hiddenMobile && (
+          <div style={{ background: 'var(--surface-light)', borderRadius: '16px', padding: '12px', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', flex: 1 }}>SPOSTA ORDINE</div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <Button 
+                  variant="subtle" 
+                  onClick={() => {
+                    const currentOrder = selectedLayer.mobileOrder ?? 0;
+                    updateSelectedLayer({ mobileOrder: Math.max(0, currentOrder - 1) });
+                  }}
+                  style={{ width: '36px', height: '36px', borderRadius: '10px', padding: 0, justifyContent: 'center' }}
+                >
+                  <ArrowUp size={18} />
+                </Button>
+                <Button 
+                  variant="subtle" 
+                  onClick={() => {
+                    const currentOrder = selectedLayer.mobileOrder ?? 0;
+                    updateSelectedLayer({ mobileOrder: currentOrder + 1 });
+                  }}
+                  style={{ width: '36px', height: '36px', borderRadius: '10px', padding: 0, justifyContent: 'center' }}
+                >
+                  <ArrowDown size={18} />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="prop-row" style={{ marginTop: '1.2rem', borderTop: '1px solid var(--border)', paddingTop: '1.2rem' }}>
+        <Button variant="ghost" onClick={deleteSelectedLayers} style={{color: 'salmon', width: '100%', justifyContent: 'center'}}>
+          <Trash2 size={16} style={{marginRight: 6}}/> {selectedLayer.type === 'image' ? 'Elimina Immagine' : 'Elimina Livello'}
+        </Button>
+      </div>
     </Surface>
   );
 };

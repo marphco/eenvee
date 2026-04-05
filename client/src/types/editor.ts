@@ -21,6 +21,10 @@ export interface Layer {
   color?: string;
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   opacity?: number;
+  // Binari Separati (Mobile vs Desktop)
+  mobileOrder?: number;
+  hiddenMobile?: boolean;
+  hiddenDesktop?: boolean;
 }
 
 export interface CanvasProps {
@@ -55,8 +59,21 @@ export interface Block {
   width?: number;
   height?: number;
   order?: number;
+  mobileOrder?: number;
   props?: any;
   bgColor?: string;
+  // Widget Data
+  widgetProps?: {
+    address?: string;
+    zoom?: number;
+    mapStyle?: string;
+    formColors?: {
+      primary?: string;
+      text?: string;
+      background?: string;
+    };
+    [key: string]: any;
+  };
 }
 
 export interface EventTheme {

@@ -7,11 +7,22 @@ interface SectionToolbarProps {
   onMoveDown: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onUpdateBlockProps: (props: any) => void;
   onColorChange: (color: string) => void;
   bgColor: string;
   isFirst: boolean;
   isLast: boolean;
+  isFirstLayer?: boolean;
+  isLastLayer?: boolean;
   layout?: 'vertical' | 'horizontal';
+  previewMobile?: boolean;
+  selectedLayerId?: string | null | undefined;
+  onMoveLayer?: ((layerId: string, direction: 'up' | 'down') => void) | undefined;
+  onDuplicateLayer?: ((layerId: string) => void) | undefined;
+  onDeleteLayer?: ((layerId: string) => void) | undefined;
+  contextLabel?: string;
+  isMobileDevice?: boolean;
+  editingLayerId?: string | null;
 }
 
 const SectionToolbar: React.FC<SectionToolbarProps> = ({ 
@@ -19,11 +30,22 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
   onMoveDown, 
   onDuplicate, 
   onDelete,
+  onUpdateBlockProps,
   onColorChange,
   bgColor,
   isFirst,
   isLast,
-  layout = 'vertical'
+  isFirstLayer,
+  isLastLayer,
+  layout = 'vertical',
+  previewMobile,
+  selectedLayerId,
+  onMoveLayer,
+  onDuplicateLayer,
+  onDeleteLayer,
+  contextLabel,
+  isMobileDevice,
+  editingLayerId
 }) => {
   const isHorizontal = layout === 'horizontal';
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -37,155 +59,218 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
     }
   }, [isConfirmingDelete]);
 
+  // MODALITÀ FOCUS: Nascondi tutto se stiamo scrivendo un testo (editingLayerId != null)
+  if (editingLayerId) {
+    return null;
+  }
+
   const handleDeleteClick = () => {
     if (isConfirmingDelete) {
-      onDelete();
+      if (selectedLayerId && onDeleteLayer) {
+        onDeleteLayer(selectedLayerId);
+      } else {
+        onDelete();
+      }
       setIsConfirmingDelete(false);
     } else {
       setIsConfirmingDelete(true);
     }
   };
+  const isMobileLayout = !!isMobileDevice; // Solo se è un dispositivo fisico mobile
+  
+  // Eccezione per Smartphone reale in visualizzazione Desktop della pagina:
+  // Mostriamo sempre la toolbar della Sezione, ignorando l'elemento selezionato.
+  const isLayerToolbar = !!selectedLayerId && (isMobileLayout || previewMobile) && !(isMobileDevice && !previewMobile);
 
   return (
     <div 
-      className={`section-floating-toolbar ${layout}`}
+      className={`section-floating-toolbar ${isMobileLayout ? 'horizontal' : 'vertical'}`}
       style={{
-        position: 'absolute',
-        top: isHorizontal ? '-42px' : '0', 
-        right: isHorizontal ? 'auto' : '-75px',
-        left: isHorizontal ? '50%' : 'auto',
-        transform: isHorizontal ? 'translateX(-50%)' : 'none',
+        position: isMobileLayout ? 'fixed' : 'absolute',
+        top: isMobileLayout ? 'auto' : '0', 
+        bottom: isMobileLayout ? '110px' : 'auto', 
+        right: isMobileLayout ? 'auto' : '-82px', 
+        left: isMobileLayout ? '50%' : 'auto',
+        transform: isMobileLayout ? 'translateX(-50%)' : 'none',
         display: 'flex',
-        flexDirection: isHorizontal ? 'row' : 'column',
+        flexDirection: isMobileLayout ? 'row' : 'column',
         alignItems: 'center',
-        gap: isHorizontal ? '4px' : '6px',
-        padding: isHorizontal ? '6px 8px' : '8px 6px',
+        gap: isMobileLayout ? '8px' : '4px',
+        padding: isMobileLayout ? '8px 12px' : '10px 4px',
         backgroundColor: 'var(--bg-surface)',
         borderRadius: '100px',
-        border: '1.5px solid var(--accent)',
-        boxShadow: isHorizontal 
-          ? '0 12px 35px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.12)' 
-          : '0 10px 30px rgba(60, 79, 118, 0.12)',
-        zIndex: 1000,
+        border: `1.5px solid var(--accent)`,
+        boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
+        zIndex: 10000,
         pointerEvents: 'auto',
-        minWidth: isHorizontal ? '240px' : '56px',
-        justifyContent: 'center',
-        backdropFilter: 'blur(10px)'
+        minWidth: isMobileLayout ? '300px' : '58px',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
       }}
-      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
     >
-      <ToolbarButton 
-        onClick={onMoveUp} 
-        disabled={isFirst} 
-        icon={<ChevronUp size={isHorizontal ? 16 : 18} />} 
-        label="SPOSTA SU"
-        title="Sposta Su" 
-      />
-      <ToolbarButton 
-        onClick={onMoveDown} 
-        disabled={isLast} 
-        icon={<ChevronDown size={isHorizontal ? 16 : 18} />} 
-        label="SPOSTA GIÙ"
-        title="Sposta Giù" 
-      />
-      
-      {/* Separator */}
-      <div style={{ 
-        width: isHorizontal ? '1.5px' : '70%', 
-        height: isHorizontal ? '22px' : '1.5px', 
-        background: 'var(--accent)', 
-        opacity: 0.25,
-        margin: isHorizontal ? '0 4px' : '2px 0' 
-      }} />
-      
-      {/* Color Swatch Button */}
-      <div style={{ position: 'relative' }}>
-        <ToolbarButton 
-          onClick={() => setShowColorPicker(!showColorPicker)} 
-            icon={
-              <div style={{ 
-                width: '18px', 
-                height: '18px', 
-                backgroundColor: bgColor || '#ffffff', 
-                borderRadius: '50%', // Rendi lo swatch circolare
-                border: '1.5px solid #fff',
-                boxShadow: '0 0 0 1px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }} />
-            } 
-          label="COLORE"
-          title="Colore Sfondo" 
-          isActive={showColorPicker}
-        />
-        
-        {/* Sub-Popover for Color Picker (Flipped to left on desktop to avoid clipping) */}
-        {showColorPicker && (
-          <div style={{
-            position: 'absolute',
-            bottom: isHorizontal ? '60px' : 'auto',
-            right: isHorizontal ? 'auto' : '65px', // Mostra a SINISTRA della toolbar su desktop
-            left: isHorizontal ? '50%' : 'auto',
-            top: isHorizontal ? 'auto' : '0',
-            transform: isHorizontal ? 'translateX(-50%)' : 'none',
-            zIndex: 2000,
-            pointerEvents: 'auto'
-          }}>
-             <div style={{ 
-               backgroundColor: 'var(--bg-surface)',
-               padding: '12px',
-               borderRadius: '12px',
-               border: '1.5px solid var(--accent)',
-               boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-               width: '260px'
-             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                   <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.05em' }}>COLORE SEZIONE</span>
-                   <button 
-                     onClick={() => setShowColorPicker(false)}
-                     style={{ background: 'var(--accent-soft)', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '10px', fontWeight: 800, padding: '4px 10px', borderRadius: '20px' }}
-                   >
-                     OK
-                   </button>
-                </div>
-                <CustomColorPicker color={bgColor} onChange={onColorChange} />
-             </div>
-          </div>
-        )}
+      {/* Badge Etichetta Originale - Mini & Raffinato */}
+      <div style={{
+        backgroundColor: 'var(--accent)',
+        color: '#fff',
+        fontSize: '7.5px',
+        fontWeight: 900,
+        padding: '1.5px 7px',
+        borderRadius: '20px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        position: 'absolute',
+        top: isMobileLayout ? 'auto' : '-22px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        marginRight: isMobileLayout ? '12px' : '0',
+        whiteSpace: 'nowrap',
+        zIndex: 10,
+        boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+        display: isMobileLayout ? 'none' : 'block'
+      }}>
+        {isLayerToolbar ? contextLabel : 'SEZIONE'}
       </div>
 
+      {isMobileLayout && (
+        <span style={{ 
+          fontSize: '8px', 
+          fontWeight: 900, 
+          color: 'var(--accent)', 
+          textTransform: 'uppercase',
+          marginRight: '10px'
+        }}>
+          {isLayerToolbar ? contextLabel : 'SEZIONE'}
+        </span>
+      )}
+
       <ToolbarButton 
-        onClick={onDuplicate} 
-        icon={<Copy size={isHorizontal ? 14 : 16} />} 
-        label="DUPLICA"
-        title="Duplica" 
+        icon={<ChevronUp size={isMobileLayout ? 16 : 18} />} 
+        label="SPOSTA SU" 
+        title={isLayerToolbar ? "Porta Avanti" : "Sposta Sezione Su"}
+        onClick={() => {
+          if (isLayerToolbar && selectedLayerId && onMoveLayer) {
+            onMoveLayer(selectedLayerId, 'up');
+          } else {
+            onMoveUp();
+          }
+        }} 
+        disabled={isLayerToolbar ? !!isFirstLayer : isFirst}
+        isHorizontal={isMobileLayout}
       />
+      
       <ToolbarButton 
-        onClick={handleDeleteClick} 
-        icon={<Trash2 size={isHorizontal ? 14 : 16} />} 
+        icon={<ChevronDown size={isMobileLayout ? 16 : 18} />} 
+        label="SPOSTA GIÙ" 
+        title={isLayerToolbar ? "Porta Indietro" : "Sposta Sezione Giù"}
+        onClick={() => {
+          if (isLayerToolbar && selectedLayerId && onMoveLayer) {
+            onMoveLayer(selectedLayerId, 'down');
+          } else {
+            onMoveDown();
+          }
+        }} 
+        disabled={isLayerToolbar ? !!isLastLayer : isLast}
+        isHorizontal={isMobileLayout}
+      />
+      
+      <div style={{ 
+        width: isMobileDevice ? '1.5px' : '30px', 
+        height: isMobileDevice ? '20px' : '1.5px', 
+        backgroundColor: 'var(--accent)',
+        opacity: 0.25,
+        margin: isMobileDevice ? '0 4px' : '4px 0'
+      }} />
+
+      {!isLayerToolbar && (
+        <>
+          <div style={{ position: 'relative' }}>
+            <ToolbarButton 
+              icon={
+                <div style={{ 
+                  width: '18px', 
+                  height: '18px', 
+                  backgroundColor: bgColor || '#fff',
+                  borderRadius: '50%',
+                  border: '1.5px solid #fff',
+                  boxShadow: '0 0 0 1px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05)'
+                }} />
+              } 
+              label="COLORE"
+              title="Colore Sfondo Sezione"
+              onClick={() => setShowColorPicker(!showColorPicker)} 
+              isActive={showColorPicker}
+              isHorizontal={isMobileDevice || false}
+            />
+            
+            {showColorPicker && (
+              <div style={{
+                position: 'absolute',
+                top: isMobileDevice ? 'auto' : '0',
+                bottom: isMobileDevice ? '100%' : 'auto',
+                right: isMobileDevice ? 'auto' : '100%',
+                left: isMobileDevice ? '50%' : 'auto',
+                transform: isMobileDevice ? 'translateX(-50%)' : 'none',
+                marginBottom: isMobileDevice ? '15px' : '0',
+                marginRight: isMobileDevice ? '0' : '15px',
+                zIndex: 10001
+              }}>
+                  <div style={{ 
+                  backgroundColor: 'var(--bg-surface)',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: '1.5px solid var(--accent)',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                  width: '260px'
+                }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.05em' }}>COLORE SEZIONE</span>
+                      <button 
+                        onPointerDown={(e) => { e.stopPropagation(); setShowColorPicker(false); }}
+                        style={{ background: 'var(--accent-soft)', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '10px', fontWeight: 800, padding: '4px 10px', borderRadius: '20px' }}
+                      >
+                        OK
+                      </button>
+                   </div>
+                   <CustomColorPicker color={bgColor} onChange={onColorChange} />
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ 
+            width: isMobileDevice ? '1.5px' : '30px', 
+            height: isMobileDevice ? '20px' : '1.5px', 
+            backgroundColor: 'var(--accent)',
+            opacity: 0.25,
+            margin: isMobileDevice ? '0 4px' : '4px 0'
+          }} />
+        </>
+      )}
+
+      <ToolbarButton 
+        icon={<Copy size={isMobileDevice ? 14 : 16} />} 
+        label="DUPLICA" 
+        title={selectedLayerId ? (isLayerToolbar ? "Duplica Elemento" : "Duplica Elemento") : "Duplica Sezione"}
+        onClick={() => {
+          if (selectedLayerId && onDuplicateLayer) {
+            onDuplicateLayer(selectedLayerId);
+          } else {
+            onDuplicate();
+          }
+        }} 
+        isHorizontal={isMobileDevice || false}
+      />
+      
+      <ToolbarButton 
+        icon={<Trash2 size={isMobileDevice ? 16 : 18} />} 
         label={isConfirmingDelete ? "SICURO?" : "ELIMINA"}
-        title="Elimina" 
+        title={selectedLayerId ? (isLayerToolbar ? "Elimina Elemento" : "Elimina Elemento") : "Elimina Sezione"}
         isDestructive 
         isActive={isConfirmingDelete}
+        onClick={() => {
+          handleDeleteClick();
+        }} 
+        isHorizontal={isMobileDevice || false}
       />
-
-      {/* Puntatore di ancoraggio (Solo mobile/horizontal) */}
-      {isHorizontal && (
-        <div style={{
-          position: 'absolute',
-          bottom: '-7.5px', 
-          left: '50%',
-          transform: 'translateX(-50%) rotate(45deg)',
-          width: '12px',
-          height: '12px',
-          backgroundColor: 'var(--bg-surface)',
-          borderRight: '1.5px solid var(--accent)',
-          borderBottom: '1.5px solid var(--accent)',
-          zIndex: 2, 
-          boxShadow: '2px 2px 5px rgba(0,0,0,0.05)'
-        }} />
-      )}
     </div>
   );
 };
@@ -198,28 +283,31 @@ interface ToolbarButtonProps {
   label: string;
   isDestructive?: boolean;
   isActive?: boolean;
+  isHorizontal?: boolean;
 }
 
-const ToolbarButton: React.FC<ToolbarButtonProps> = ({ onClick, icon, disabled, title, label, isDestructive, isActive }) => (
+const ToolbarButton: React.FC<ToolbarButtonProps> = ({ onClick, icon, disabled, title, label, isDestructive, isActive, isHorizontal }) => (
   <button
     onClick={(e) => { e.stopPropagation(); if (!disabled) onClick(); }}
+    onPointerDown={(e) => e.stopPropagation()}
+    onMouseDown={(e) => e.stopPropagation()}
     disabled={disabled}
     title={title}
     style={{
-      width: '44px',
-      height: '44px',
+      width: isHorizontal ? '38px' : '44px',
+      height: isHorizontal ? '38px' : '44px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: '50%', // Rendi i pulsanti circolari
+      borderRadius: '50%', 
       backgroundColor: isActive ? (isDestructive ? 'rgba(231, 76, 60, 0.2)' : 'var(--accent-soft)') : 'transparent',
-      color: disabled ? 'var(--text-soft)' : (isDestructive ? '#e74c3c' : (isActive ? 'var(--accent)' : 'var(--text-primary)')),
+      color: disabled ? 'rgba(var(--accent-rgb), 0.2)' : (isDestructive ? '#e74c3c' : (isActive ? 'var(--accent)' : 'var(--text-primary)')),
       cursor: disabled ? 'not-allowed' : 'pointer',
       transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
       border: 'none',
-      opacity: disabled ? 0.4 : 1,
-      gap: '1px',
+      opacity: disabled ? 0.6 : 1,
+      gap: isHorizontal ? '0px' : '1px',
       boxShadow: isActive ? 'inset 0 0 0 1px rgba(var(--accent-rgb), 0.1)' : 'none'
     }}
     onMouseEnter={(e) => {

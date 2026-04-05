@@ -72,12 +72,20 @@ export const AVAILABLE_SCENARIO_BGS: ScenarioBgOption[] = [
 
 export const sortLayersForMobile = (layers: Layer[]): Layer[] => {
   return [...layers].sort((a, b) => {
+    // PRIORITÀ 1: ORDINE MANUALE (Binari Separati)
+    if (typeof a.mobileOrder === 'number' && typeof b.mobileOrder === 'number') {
+      return a.mobileOrder - b.mobileOrder;
+    }
+    // PRIORITÀ 2: Se solo uno ha ordine manuale, quello vince
+    if (typeof a.mobileOrder === 'number') return -1;
+    if (typeof b.mobileOrder === 'number') return 1;
+
+    // FALLBACK: ORDINAMENTO AUTOMATICO (Design Esistente) 
     const ay = typeof a.y === 'number' ? a.y : 0;
     const by = typeof b.y === 'number' ? b.y : 0;
-    const ax = typeof a.x === 'number' ? a.x : 0;
-    const bx = typeof b.x === 'number' ? b.x : 0;
+    const ax = typeof a.x === 'number' ? a.x : 200; // default center-ish
+    const bx = typeof b.x === 'number' ? b.x : 200;
     
-    // Se la differenza di Y è piccola (< 40px), considerali sulla stessa riga e ordina per X
     if (Math.abs(ay - by) < 40) {
       return ax - bx;
     }

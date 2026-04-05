@@ -4,7 +4,7 @@ import {
   Palette, Image as ImageIcon, Move, Sparkles, Trash2, Mail, MailOpen, 
   Shapes, Type, ChevronUp, Minus, Plus, Circle, ArrowRight, 
   ArrowLeft, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, 
-  ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone
+  ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone, Monitor
 } from 'lucide-react';
 import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
@@ -49,6 +49,7 @@ interface MobileToolbarProps {
   pushToHistory: () => void;
   previewMobile?: boolean;
   setPreviewMobile?: (val: boolean) => void;
+  editingLayerId?: string | null;
 }
 
 const MobileToolbar: React.FC<MobileToolbarProps> = ({
@@ -87,8 +88,14 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
   fileInputRef,
   pushToHistory,
   previewMobile,
-  setPreviewMobile
+  setPreviewMobile,
+  editingLayerId
 }) => {
+  // MODALITÀ FOCUS: Nascondi la barra strumenti fissa se stiamo scrivendo un testo
+  if (editingLayerId) {
+    return null;
+  }
+
   return (
     <div className="mobile-toolbar-container">
         {activeMobileTab && (
@@ -751,10 +758,9 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
         ) : !activeMobileTab && (
            <div style={{display: 'flex', flexDirection: 'column', width: '100%'}}>
               <div style={{ padding: '8px 10px 4px', fontSize: '10px', color: 'var(--text-soft)', textAlign: 'center' }}>
-                {editorMode === 'envelope' ? "Personalizza la tua busta" : 
-                 editorMode === 'background' ? "Personalizza lo scenario" : 
-                 editorMode === 'event_page' ? "Costruisci la landing page" :
-                 "Seleziona o aggiungi un elemento"}
+                {editorMode === 'envelope' ? "Personalizza la tua busta" :                  editorMode === 'background' ? "Personalizza lo scenario" : 
+                  editorMode === 'event_page' ? "Personalizza la tua pagina" :
+                  "Seleziona o aggiungi un elemento"}
               </div>
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', width: '100%', padding: '4px 0' }}>
                   {editorMode === 'envelope' ? (
@@ -794,12 +800,42 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                          label="Sezione" 
                          onClick={() => alert("Funzionalità in arrivo!")} 
                        />
-                       <MobileIconBtn 
-                         icon={previewMobile ? Check : Layout} 
-                         label={previewMobile ? "Fine" : "Anteprima"} 
-                         variant={previewMobile ? 'primary' : 'ghost'}
-                         onClick={() => setPreviewMobile?.(!previewMobile)}
-                       />
+                       <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '100px' }}>
+                         <button 
+                           onClick={() => setPreviewMobile?.(false)}
+                           style={{
+                             background: !previewMobile ? 'var(--accent)' : 'transparent',
+                             border: 'none',
+                             borderRadius: '100px',
+                             padding: '6px 12px',
+                             display: 'flex',
+                             alignItems: 'center',
+                             gap: '4px',
+                             color: !previewMobile ? '#000' : 'var(--text-soft)',
+                             fontSize: '11px',
+                             fontWeight: 700
+                           }}
+                         >
+                           <Monitor size={14} /> Desktop
+                         </button>
+                         <button 
+                           onClick={() => setPreviewMobile?.(true)}
+                           style={{
+                             background: previewMobile ? 'var(--accent)' : 'transparent',
+                             border: 'none',
+                             borderRadius: '100px',
+                             padding: '6px 12px',
+                             display: 'flex',
+                             alignItems: 'center',
+                             gap: '4px',
+                             color: previewMobile ? '#000' : 'var(--text-soft)',
+                             fontSize: '11px',
+                             fontWeight: 700
+                           }}
+                         >
+                           <Smartphone size={14} /> Mobile
+                         </button>
+                       </div>
                        <MobileIconBtn 
                          icon={Type} 
                          label="Testo" 
