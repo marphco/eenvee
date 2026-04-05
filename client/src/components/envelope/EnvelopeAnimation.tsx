@@ -27,6 +27,7 @@ interface EnvelopeAnimationProps {
   isEventPage?: boolean;
   isBuilder?: boolean;
   isMobile?: boolean;
+  useExternalScaleInBuilder?: boolean;
 }
 
 export default function EnvelopeAnimation(props: EnvelopeAnimationProps) {

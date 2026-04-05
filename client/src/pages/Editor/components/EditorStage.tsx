@@ -257,7 +257,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
       )}
 
       {editorMode === 'envelope' ? (
-        <div className="envelope-preview-container" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+        <div className="envelope-preview-container" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transform: isMobile ? 'translateY(30px)' : 'none' }}>
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EnvelopeAnimation 
                envelopeFormat={event.theme?.envelopeFormat || 'vertical'}
@@ -269,6 +269,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
                editMode={true}
                isBuilder={true}
                isMobile={isMobile}
+               useExternalScaleInBuilder={isMobile}
                manualPhase={isEnvelopeOpen ? 'extracted' : 'closed'}
                linerX={event.theme?.linerX || 0}
                linerY={event.theme?.linerY || 0}

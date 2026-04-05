@@ -25,6 +25,7 @@ interface EnvelopeSquareProps {
   scale?: number | null;
   isEventPage?: boolean;
   isBuilder?: boolean;
+  useExternalScaleInBuilder?: boolean;
 }
 
 type EnvelopePhase = 'closed' | 'flap_open' | 'extracting' | 'extracted';
@@ -42,7 +43,8 @@ export default function EnvelopeSquare({
   linerColor = null,
   scale: externalScale = null,
   isEventPage = false,
-  isBuilder = false
+  isBuilder = false,
+  useExternalScaleInBuilder = false
 }: EnvelopeSquareProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<EnvelopePhase>(preview ? "extracted" : "closed"); 
@@ -150,11 +152,19 @@ export default function EnvelopeSquare({
 
   const getSceneScale = () => {
     if (preview) return (externalScale || 1.0);
-    // Pagina pubblica: scala fissa per coerenza
+    
+    // Se siamo nel Builder (Editor), usiamo la scala esterna solo se esplicitamente richiesto
+    if (isBuilder && useExternalScaleInBuilder && externalScale !== null) {
+       return externalScale;
+    }
+
+    // Pagina pubblica/Editor: scala fissa per coerenza nel builder se non richiesto diversamente
     if (isBuilder) {
        if (windowDims.w <= 768) return 0.9;
        return 0.85; 
     }
+
+    if (externalScale !== null) return externalScale;
 
     if (isEventPage) {
        if (windowDims.w <= 768) return 1.0;
@@ -180,10 +190,12 @@ export default function EnvelopeSquare({
     }
   };
 
-  const getSceneY = (currentScale: number) => {
+  const currentScale = getSceneScale();
+
+  const getSceneY = (scaleVal: number) => {
     if (preview || isBuilder) return 0;
     if (isEventPage) {
-       return phase === "extracted" ? (400 * 0.05 * currentScale) : 0;
+       return phase === "extracted" ? (400 * 0.05 * scaleVal) : 0;
     }
     const baseDim = 500;
     const topLimit = 80;
@@ -195,7 +207,7 @@ export default function EnvelopeSquare({
     const isFullShow = phase !== "closed";
     if (isFullShow) {
        const shiftFactor = phase === "extracted" ? 0.35 : 0.45;
-       y += (shiftFactor * baseDim) * currentScale;
+       y += (shiftFactor * baseDim) * scaleVal;
     }
     return y;
   };
@@ -207,7 +219,7 @@ export default function EnvelopeSquare({
     }
   };
 
-  const currentScale = getSceneScale();
+  const currentLinerSrc = (pocketLinerImg === "none" || linerImg === "none") ? null : (pocketLinerImg || linerImg);
 
   return (
     <div className={`paperless-wrapper ${phase}`}>
@@ -295,79 +307,98 @@ export default function EnvelopeSquare({
                 style={{
                   position: 'absolute',
                   inset: '-1000px', 
-                  zIndex: 40,
+                  zIndex: 140, // Sopra tutto durante l'interazione
                   cursor: 'move',
                   touchAction: 'none'
                 }}
               />
             )}
-                       {/* GHOST LINER (X-RAY VISION) + EDIT UI */}
-            {isEditingLiner && (
+           {/* GHOST LINER (X-RAY VISION) + EDIT UI */}
+           {isEditingLiner && (
                <>
-                 {window.innerWidth > 768 && (
-                   <motion.div 
-                     className="liner-edit-banner"
-                     initial={{ opacity: 0, y: 20, x: "-50%", z: 100 }}
-                     animate={{ opacity: 1, y: 0, x: "-50%", z: 100 }}
-                     exit={{ opacity: 0, y: 20, x: "-50%", z: 100 } as any}
-                     style={window.innerWidth <= 768 ? {
-                       bottom: 'auto',
-                       top: '20px',
-                       padding: '6px 14px',
-                       background: 'rgba(0, 0, 0, 0.85)',
-                       backdropFilter: 'blur(8px)',
-                       border: '1px solid rgba(255, 255, 255, 0.1)',
-                       borderRadius: '30px',
-                       boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-                     } as any : {}}
-                   >
-                     <div style={{ background: 'var(--accent)', width: window.innerWidth <= 768 ? '24px' : '32px', height: window.innerWidth <= 768 ? '24px' : '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', flexShrink: 0 }}>
-                       <Sparkles size={window.innerWidth <= 768 ? 14 : 18}/>
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                       <span style={{ fontSize: window.innerWidth <= 768 ? '11px' : '13px', fontWeight: 700, color: window.innerWidth <= 768 ? '#fff' : '#000' }}>
-                         {window.innerWidth <= 768 ? "Regolazione" : "Regolazione Interno Busta"}
-                       </span>
-                       <span style={{ fontSize: window.innerWidth <= 768 ? '9px' : '10px', color: window.innerWidth <= 768 ? 'rgba(255,255,255,0.7)' : '#666' }}>
-                         {window.innerWidth <= 768 
-                           ? "Trascina per spostare • Pizzica per zoomare" 
-                           : "Trascina • Rotella zoom • Frecce tastiera (precisione)"}
-                       </span>
-                     </div>
-    
-                     {window.innerWidth > 768 && (
-                       <>
-                         <div style={{ width: '1px', height: '30px', background: 'rgba(0,0,0,0.1)', margin: '0 8px' }}></div>
-                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                           <span style={{ fontSize: '10px', fontWeight: 600, color: '#666' }}>Opacità</span>
-                           <input 
-                             type="range" 
-                             className="custom-slider"
-                             min="0" max="1" step="0.01" 
-                             value={linerOpacity} 
-                             onChange={(e) => onLinerChange({ opacity: parseFloat(e.target.value) })}
-                             onPointerDown={(e) => e.stopPropagation()}
-                             style={{ 
-                                width: '80px', 
-                                background: `linear-gradient(to right, var(--accent) ${Math.round(linerOpacity * 100)}%, rgba(255,255,255,0.1) ${Math.round(linerOpacity * 100)}%)`,
-                                cursor: 'pointer', 
-                                pointerEvents: 'auto' 
-                              } as any}
-                           />
-                           <span style={{ fontSize: '10px', fontWeight: 700, minWidth: '25px', color: '#000' }}>{Math.round(linerOpacity * 100)}%</span>
-                         </div>
-                       </>
-                     )}
-                   </motion.div>
-                 )}
+                 <motion.div 
+                   className="liner-edit-banner"
+                   initial={{ opacity: 0, y: 20, x: "-50%", z: 200 }}
+                   animate={{ opacity: 1, y: 0, x: "-50%", z: 200 }}
+                   exit={{ opacity: 0, y: 20, x: "-50%", z: 200 } as any}
+                   style={{ zIndex: 300 }}
+                 >
+                   <div style={{ background: 'var(--accent)', width: window.innerWidth <= 768 ? '24px' : '32px', height: window.innerWidth <= 768 ? '24px' : '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', flexShrink: 0 }}>
+                     <Sparkles size={window.innerWidth <= 768 ? 14 : 18}/>
+                   </div>
+                   <div style={{ display: 'flex', flexDirection: 'column' }}>
+                     <span style={{ fontSize: window.innerWidth <= 768 ? '11px' : '13px', fontWeight: 700, color: window.innerWidth <= 768 ? '#fff' : '#000' }}>
+                       {window.innerWidth <= 768 ? "Regolazione" : "Regolazione Interno Busta"}
+                     </span>
+                     <span style={{ fontSize: window.innerWidth <= 768 ? '9px' : '10px', color: window.innerWidth <= 768 ? 'rgba(255,255,255,0.7)' : '#666' }}>
+                       {window.innerWidth <= 768 
+                         ? "Trascina • Pizzica per zoomare" 
+                         : "Trascina • Rotella zoom • Frecce tastiera (precisione)"}
+                     </span>
+                   </div>
   
-                 <div 
-                   className="envelope-liner-ghost" 
-                   style={{ 
-                     backgroundImage: (pocketLinerImg === "none" || linerImg === "none") ? "none" : `url(${pocketLinerImg || linerImg})`,
-                     pointerEvents: 'none'
-                   }} 
-                 />
+                   {window.innerWidth > 768 && (
+                     <>
+                       <div style={{ width: '1px', height: '30px', background: 'rgba(0,0,0,0.1)', margin: '0 8px' }}></div>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                         <span style={{ fontSize: '10px', fontWeight: 600, color: '#666' }}>Opacità</span>
+                         <input 
+                           type="range" 
+                           className="custom-slider"
+                           min="0" max="1" step="0.01" 
+                           value={linerOpacity} 
+                           onChange={(e) => onLinerChange({ opacity: parseFloat(e.target.value) })}
+                           onPointerDown={(e) => e.stopPropagation()}
+                           style={{ 
+                              width: '80px', 
+                              background: `linear-gradient(to right, var(--accent) ${Math.round(linerOpacity * 100)}%, rgba(255,255,255,0.1) ${Math.round(linerOpacity * 100)}%)`,
+                              cursor: 'pointer', 
+                              pointerEvents: 'auto' 
+                            } as any}
+                         />
+                         <span style={{ fontSize: '10px', fontWeight: 700, minWidth: '25px', color: '#000' }}>{Math.round(linerOpacity * 100)}%</span>
+                       </div>
+                     </>
+                   )}
+                 </motion.div>
+                 
+                 {/* UI DAVANTI: Solo gli angoli (Foreground UI) */}
+                 <div className="envelope-liner-foreground">
+                    <div className="liner-image-wrapper" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                       {/* Un img invisibile ma con le stesse dimensioni per far agganciare la boundary box in primo piano */}
+                       {currentLinerSrc && (
+                         <img 
+                           src={currentLinerSrc} 
+                           alt=""
+                           style={{ height: '100%', width: 'auto', opacity: 0, pointerEvents: 'none' }}
+                         />
+                       )}
+                       <div className="liner-boundary-box">
+                         <div className="liner-corner top-left" />
+                         <div className="liner-corner top-right" />
+                         <div className="liner-corner bottom-left" />
+                         <div className="liner-corner bottom-right" />
+                       </div>
+                    </div>
+                 </div>
+   
+                 {/* GHOST DIETRO: Solo l'immagine fantasma (Background UI) con translateZ(-50px) nativo */}
+                  <div className="envelope-liner-ghost">
+                    <div className="liner-image-wrapper" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {currentLinerSrc && (
+                        <img 
+                          src={currentLinerSrc} 
+                          alt="Liner Preview"
+                          style={{ 
+                            height: '100%', 
+                            width: 'auto',
+                            opacity: 0.3,
+                            display: 'block'
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
                </>
              )}
 
@@ -392,7 +423,7 @@ export default function EnvelopeSquare({
                 className="envelope-dynamic-shadow"
                 initial={{ opacity: 0, scaleY: 0 }}
                 animate={{ 
-                  opacity: phase === "flap_open" ? 0.35 : (phase === "closed" ? 0 : 0.08),
+                  opacity: phase === "flap_open" ? 0.35 : (phase === "closed" ? 0 : (phase === "extracted" ? 0.08 : 0)),
                   scaleY: phase === "flap_open" ? 1 : 0.4
                 }}
                 transition={{ duration: 0.8, ease: "easeInOut" }}

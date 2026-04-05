@@ -279,10 +279,11 @@ export default function EventEditor() {
          const baseH = isPortrait ? (600 / 1.4) : 500;
          const envW = baseW;
          const envH = isEnvelopeOpen ? baseH * 1.6 : baseH;
-         const padding = 10;
+         const padding = isMobile ? 60 : 10;
          const divW = stageRef.current.clientWidth;
          const divH = stageRef.current.clientHeight;
-         setEnvelopeScale(Math.min((divW - padding) / envW, (divH - padding) / envH));
+         const maxScale = isMobile ? 0.75 : 1.0;
+          setEnvelopeScale(Math.min((divW - padding) / envW, (divH - padding) / envH, maxScale));
 
          // Scenario Scale
          const sScaleX = stageRef.current.clientWidth / (canvasProps.width * 2.6);
