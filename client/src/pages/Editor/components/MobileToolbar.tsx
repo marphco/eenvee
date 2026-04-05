@@ -757,11 +757,11 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
            </div>
         ) : !activeMobileTab && (
            <div style={{display: 'flex', flexDirection: 'column', width: '100%'}}>
-              <div style={{ padding: '8px 10px 4px', fontSize: '10px', color: 'var(--text-soft)', textAlign: 'center' }}>
-                {editorMode === 'envelope' ? "Personalizza la tua busta" :                  editorMode === 'background' ? "Personalizza lo scenario" : 
-                  editorMode === 'event_page' ? "Personalizza la tua pagina" :
-                  "Seleziona o aggiungi un elemento"}
-              </div>
+              {editorMode !== 'event_page' && (
+                <div style={{ padding: '8px 10px 4px', fontSize: '10px', color: 'var(--text-soft)', textAlign: 'center' }}>
+                  {editorMode === 'envelope' ? "Personalizza la tua busta" : "Personalizza lo scenario"}
+                </div>
+              )}
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', width: '100%', padding: '4px 0' }}>
                   {editorMode === 'envelope' ? (
                     <>
@@ -794,59 +794,98 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                       />
                     </>
                   ) : editorMode === 'event_page' ? (
-                    <>
-                      <MobileIconBtn 
-                         icon={Plus} 
-                         label="Sezione" 
-                         onClick={() => alert("Funzionalità in arrivo!")} 
-                       />
-                       <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '100px' }}>
-                         <button 
-                           onClick={() => setPreviewMobile?.(false)}
-                           style={{
-                             background: !previewMobile ? 'var(--accent)' : 'transparent',
-                             border: 'none',
-                             borderRadius: '100px',
-                             padding: '6px 12px',
-                             display: 'flex',
-                             alignItems: 'center',
-                             gap: '4px',
-                             color: !previewMobile ? '#000' : 'var(--text-soft)',
-                             fontSize: '11px',
-                             fontWeight: 700
-                           }}
-                         >
-                           <Monitor size={14} /> Desktop
-                         </button>
-                         <button 
-                           onClick={() => setPreviewMobile?.(true)}
-                           style={{
-                             background: previewMobile ? 'var(--accent)' : 'transparent',
-                             border: 'none',
-                             borderRadius: '100px',
-                             padding: '6px 12px',
-                             display: 'flex',
-                             alignItems: 'center',
-                             gap: '4px',
-                             color: previewMobile ? '#000' : 'var(--text-soft)',
-                             fontSize: '11px',
-                             fontWeight: 700
-                           }}
-                         >
-                           <Smartphone size={14} /> Mobile
-                         </button>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      width: '100%', 
+                      padding: '12px 14px 8px 14px',
+                      borderTop: '1px solid rgba(255,255,255,0.15)',
+                      marginTop: '-2px'
+                    }}>
+                       {/* RIGA INTESTAZIONI UNIFICATA */}
+                       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '6px', padding: '0 4px' }}>
+                         <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 1 }}>Aggiungi</span>
+                         <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 1, width: '150px' }}>Visualizza su</span>
                        </div>
-                       <MobileIconBtn 
-                         icon={Type} 
-                         label="Testo" 
-                         onClick={addTextLayer} 
-                       />
-                       <MobileIconBtn 
-                         icon={ImageIcon} 
-                         label="Foto" 
-                         onClick={() => fileInputRef.current?.click()} 
-                       />
-                    </>
+
+                       {/* RIGA CONTROLLI */}
+                       <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
+                         
+                         {/* BLOCCO AZIONI (Sinistra) */}
+                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1 }}>
+                            <MobileIconBtn 
+                              icon={Plus} 
+                              label="Sezione" 
+                              onClick={() => alert("Funzionalità in arrivo!")} 
+                            />
+                            <MobileIconBtn 
+                              icon={Type} 
+                              label="Testo" 
+                              onClick={addTextLayer} 
+                            />
+                            <MobileIconBtn 
+                              icon={ImageIcon} 
+                              label="Foto" 
+                              onClick={() => fileInputRef.current?.click()} 
+                            />
+                         </div>
+
+                         {/* DIVISORE VERTICALE */}
+                         <div style={{ width: '1.5px', height: '30px', background: 'rgba(255,255,255,0.15)', margin: '0 12px' }} />
+
+                         {/* BLOCCO VISTA (Destra) */}
+                         <div style={{ 
+                           display: 'flex', 
+                           background: 'rgba(0,0,0,0.2)', 
+                           padding: '2px', 
+                           borderRadius: '100px',
+                           border: '1px solid rgba(255,255,255,0.08)',
+                           width: '150px',
+                           flexShrink: 0
+                         }}>
+                           <button 
+                             onClick={() => setPreviewMobile?.(true)}
+                             style={{
+                               flex: 1,
+                               background: previewMobile ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                               border: 'none',
+                               borderRadius: '100px',
+                               padding: '7px 0',
+                               display: 'flex',
+                               alignItems: 'center',
+                               justifyContent: 'center',
+                               gap: '5px',
+                               color: previewMobile ? '#000' : 'rgba(255,255,255,0.75)',
+                               transition: 'all 0.2s',
+                               cursor: 'pointer'
+                             }}
+                           >
+                             <Smartphone size={14} style={{ opacity: previewMobile ? 1 : 0.8 }} />
+                             <span style={{ fontSize: '10px', fontWeight: 900 }}>MOBILE</span>
+                           </button>
+                           <button 
+                             onClick={() => setPreviewMobile?.(false)}
+                             style={{
+                               flex: 1,
+                               background: !previewMobile ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                               border: 'none',
+                               borderRadius: '100px',
+                               padding: '7px 0',
+                               display: 'flex',
+                               alignItems: 'center',
+                               justifyContent: 'center',
+                               gap: '5px',
+                               color: !previewMobile ? '#000' : 'rgba(255,255,255,0.75)',
+                               transition: 'all 0.2s',
+                               cursor: 'pointer'
+                             }}
+                           >
+                             <Monitor size={14} style={{ opacity: !previewMobile ? 1 : 0.8 }} />
+                             <span style={{ fontSize: '10px', fontWeight: 900 }}>DESKTOP</span>
+                           </button>
+                         </div>
+                       </div>
+                    </div>
                   ) : (
                     <>
                       <MobileIconBtn icon={Shapes} label="Sfondo" onClick={() => setActiveMobileTab("bg_invito")} />

@@ -677,10 +677,11 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                      flex: 1, 
                      justifyContent: 'center', 
                      fontSize: '11px', 
-                     fontWeight: 700,
+                     fontWeight: 800,
                      gap: '8px',
-                     borderRadius: '12px',
-                     ...( !previewMobile ? { boxShadow: '0 10px 20px rgba(var(--accent-rgb), 0.3)' } : {})
+                     borderRadius: '100px',
+                     height: '42px',
+                     ...( !previewMobile ? { boxShadow: '0 4px 12px rgba(var(--accent-rgb), 0.25)' } : { opacity: 0.8 })
                    }}
                    onClick={() => setPreviewMobile?.(false)}
                  >
@@ -692,10 +693,11 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                      flex: 1, 
                      justifyContent: 'center', 
                      fontSize: '11px', 
-                     fontWeight: 700,
+                     fontWeight: 800,
                      gap: '8px',
-                     borderRadius: '12px',
-                     ...( previewMobile ? { boxShadow: '0 10px 20px rgba(var(--accent-rgb), 0.3)' } : {})
+                     borderRadius: '100px',
+                     height: '42px',
+                     ...( previewMobile ? { boxShadow: '0 4px 12px rgba(var(--accent-rgb), 0.25)' } : { opacity: 0.8 })
                    }}
                    onClick={() => setPreviewMobile?.(true)}
                  >

@@ -132,15 +132,24 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
       </div>
 
       {isMobileLayout && (
-        <span style={{ 
-          fontSize: '8px', 
+        <div style={{ 
+          backgroundColor: 'var(--accent)',
+          color: '#fff',
+          fontSize: '9px', 
           fontWeight: 900, 
-          color: 'var(--accent)', 
           textTransform: 'uppercase',
-          marginRight: '10px'
+          padding: '4px 12px',
+          borderRadius: '100px',
+          marginRight: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(var(--accent-rgb), 0.2)',
+          whiteSpace: 'nowrap',
+          letterSpacing: '0.05em'
         }}>
           {isLayerToolbar ? contextLabel : 'SEZIONE'}
-        </span>
+        </div>
       )}
 
       <ToolbarButton 
