@@ -152,6 +152,8 @@ export function useEditorInteractions({
             startLY: (typeof layer.y === 'number' ? layer.y : currentY) as number,
             position: handlePostion
         };
+        // Blocco scroll durante il ridimensionamento
+        document.body.style.overflow = 'hidden';
     }
   };
 
@@ -172,21 +174,30 @@ export function useEditorInteractions({
           setSelectionBox({ ...selectionBoxRef.current }); return;
       }
       const pointers = window._elementPointers ? Array.from(window._elementPointers.values()) : [];
-      if (pointers.length >= 2 && draggingLayerId.current) {
+      const targetLayerId = draggingLayerId.current || (selectedLayerIds.length === 1 ? selectedLayerIds[0] : null);
+      
+      if (pointers.length >= 2 && targetLayerId) {
          const p0 = pointers[0]!;
          const p1 = pointers[1]!;
          const dist = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2));
          if (!pinchStartRef.current) {
-            const layer = layers.find(l => l.id === draggingLayerId.current);
-            if (layer) pinchStartRef.current = { initialDist: dist, startSize: layer.type === 'text' || !layer.type ? (layer.fontSize || 32) : null, startW: layer.type === 'image' ? (layer.w || 100) : null, startH: layer.type === 'image' ? (layer.h || 100) : null };
+            const layer = layers.find(l => l.id === targetLayerId);
+            if (layer) {
+               if (layer.type === 'text' || !layer.type) return; // Disattiva pinch per testi
+               const widthVal = typeof layer.width === 'number' ? layer.width : (typeof layer.w === 'number' ? layer.w : 200);
+               pinchStartRef.current = { initialDist: dist, startSize: layer.fontSize || 32, startW: widthVal, startH: layer.h || 100 };
+            }
             return;
          }
          const scaleFactor = dist / pinchStartRef.current.initialDist;
          setLayers(prev => prev.map(l => {
-           if (l.id === draggingLayerId.current) {
+           if (l.id === targetLayerId) {
                if (!l.type || l.type === 'text') {
-                 let newSize = Math.max(12, Math.min((pinchStartRef.current!.startSize || 32) * scaleFactor, 300));
-                 return { ...l, fontSize: Math.round(newSize) };
+                 const startSize = pinchStartRef.current!.startSize || 32;
+                 const startW = pinchStartRef.current!.startW || 200;
+                 let newSize = Math.max(12, Math.min(startSize * scaleFactor, 300));
+                 let newWidth = Math.max(40, startW * (newSize / startSize));
+                 return { ...l, fontSize: Math.round(newSize), width: Math.round(newWidth) };
                } else if (l.type === 'image') {
                  let newW = Math.max(20, Math.min((pinchStartRef.current!.startW || 100) * scaleFactor, canvasProps.width * 2));
                  return { ...l, w: Math.round(newW), h: Math.round(newW * ((pinchStartRef.current!.startH || 100) / (pinchStartRef.current!.startW || 100))) };
@@ -230,7 +241,9 @@ export function useEditorInteractions({
                     
                     const ratio = finalLH / baseLH;
                     const actualYShift = (resizeStart.current.startH * ratio - resizeStart.current.startH) / 2;
+                    const newY = resizeStart.current.startLY + (handle === 'S' ? actualYShift : -actualYShift);
                     
+                    return { ...l, lineHeight: finalLH, y: newY };
                   }
 
                  // Se stiamo usando le maniglie ANGOLARI (NW, NE, SW, SE), ridimensionamento PROPORZIONALE (Font + Area)
@@ -345,6 +358,8 @@ export function useEditorInteractions({
           selectionBoxRef.current = null; setSelectionBox(null);
       }
       draggingLayerId.current = null; resizingLayerId.current = null; pinchStartRef.current = null; setSnapGuides([]);
+      // Ripristino scroll
+      document.body.style.overflow = '';
     };
 
     window.addEventListener("pointermove", handlePointerMove);

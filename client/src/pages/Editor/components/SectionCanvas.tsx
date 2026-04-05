@@ -25,6 +25,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   block, layers, selectedLayerIds, setSelectedLayerIds, setLayers, pushToHistory, setIsDirty, hoveredLayerId, setHoveredLayerId, onSelectBlock, isMobile, previewMobile, editingLayerId, setEditingLayerId,
   editorScale = 1
 }) => {
+  const isMobileEffective = isMobile;
   const containerRef = useRef<HTMLDivElement>(null);
   const [snapGuides, setSnapGuides] = useState<{axis: string, position: number}[]>([]);
   const lastClickRef = useRef({ id: null as string | null, time: 0 });
@@ -110,6 +111,8 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
       target.releasePointerCapture(upEv.pointerId);
       window.removeEventListener('pointermove', handleResizeMove);
       window.removeEventListener('pointerup', handleResizeUp);
+      // Ripristino scroll
+      document.body.style.overflow = '';
       pushToHistory();
     };
 
@@ -259,6 +262,9 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
       
+      // Ripristino scroll
+      document.body.style.overflow = '';
+      
       if (ghostEl) {
          ghostEl.remove();
          ghostEl = null;
@@ -294,6 +300,9 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
       pushToHistory();
     };
 
+    // Blocco scroll durante il drag
+    document.body.style.overflow = 'hidden';
+    
     window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', handleUp);
   };
@@ -427,7 +436,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
             onMouseEnter={() => setHoveredLayerId && setHoveredLayerId(layer.id)}
             onMouseLeave={() => setHoveredLayerId && setHoveredLayerId(null)}
           >
-            {hoveredLayerId === layer.id && <div style={{ position: 'absolute', inset: -4, border: '2px solid #FF007F', pointerEvents: 'none', zIndex: 101, borderRadius: '4px', boxShadow: '0 0 10px rgba(255, 0, 127, 0.3)' }} />}
+            {hoveredLayerId === layer.id && <div className="layer-hover-outline" />}
             
             {isText ? (
               <EditableText
@@ -482,12 +491,13 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                     boxShadow: '0 0 10px rgba(var(--accent-rgb), 0.2)'
                  }}></div>
                  
-                 {/* Maniglie Angolari (Cerchi) */}
+                 {/* Maniglie Angolari */}
                  {['NW', 'NE', 'SW', 'SE'].map(pos => (
                     <div 
                       key={pos} 
                       onPointerDown={(e) => handleResizePointerDown(e, layer, pos.toLowerCase())} 
-                      style={{ 
+                      className={isMobileEffective ? `mobile-handle-corner ${pos.toLowerCase()}` : ""}
+                      style={!isMobileEffective ? { 
                         position: 'absolute', 
                         width: '12px', 
                         height: '12px', 
@@ -501,16 +511,17 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                         cursor: pos === 'NW' || pos === 'SE' ? 'nwse-resize' : 'nesw-resize', 
                         zIndex: 10,
                         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }} 
+                      } : {}} 
                     />
                  ))}
 
-                  {/* Maniglie Laterali e Verticali (Pillole) per il wrapping e lineHeight */}
+                  {/* Maniglie Laterali e Verticali (Pillole o Barre a sbalzo) */}
                   {isText && ["E", "W", "N", "S"].map(pos => (
                      <div 
                        key={pos} 
                        onPointerDown={(e) => handleResizePointerDown(e, layer, pos.toLowerCase())} 
-                       style={{ 
+                       className={isMobileEffective ? `mobile-handle-side ${pos === 'E' || pos === 'W' ? 'v' : 'h'} ${pos.toLowerCase()}` : ""}
+                       style={!isMobileEffective ? { 
                          position: "absolute", 
                          width: (pos === "E" || pos === "W") ? "6px" : "18px", 
                          height: (pos === "E" || pos === "W") ? "18px" : "6px", 
@@ -526,7 +537,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                          zIndex: 10,
                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                          pointerEvents: "auto"
-                       }} 
+                       } : {}} 
                      />
                   ))}
                </>

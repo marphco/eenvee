@@ -135,4 +135,83 @@ body::after {
   background: var(--accent); /* Visual feedback on hover */
 }
 
+/* Cornice di selezione per Hover - Attiva solo su Desktop/Mouse */
+.layer-hover-outline {
+  position: absolute;
+  inset: -4px;
+  border: 2px solid #FF007F;
+  pointer-events: none;
+  z-index: 101;
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 0, 127, 0.3);
+}
+
+@media (hover: none) {
+  .layer-hover-outline {
+    display: none;
+  }
+}
+
+/* Maniglie Mobile a Sbalzo (Cantilevered) */
+.mobile-handle-corner {
+  position: absolute;
+  width: 50px; /* Area di tocco molto grande */
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.mobile-handle-corner::after {
+  content: '';
+  width: 18px;
+  height: 18px;
+  border-color: var(--accent);
+  border-style: solid;
+  border-width: 0;
+}
+
+.mobile-handle-corner.nw { top: -35px; left: -35px; }
+.mobile-handle-corner.nw::after { border-top-width: 3.5px; border-left-width: 3.5px; }
+
+.mobile-handle-corner.ne { top: -35px; right: -35px; }
+.mobile-handle-corner.ne::after { border-top-width: 3.5px; border-right-width: 3.5px; }
+
+.mobile-handle-corner.sw { bottom: -35px; left: -35px; }
+.mobile-handle-corner.sw::after { border-bottom-width: 3.5px; border-left-width: 3.5px; }
+
+.mobile-handle-corner.se { bottom: -35px; right: -35px; }
+.mobile-handle-corner.se::after { border-bottom-width: 3.5px; border-right-width: 3.5px; }
+
+/* Maniglie Laterali Distaccate */
+.mobile-handle-side {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.mobile-handle-side.v { width: 40px; height: 60px; } /* Hit area verticale */
+.mobile-handle-side.h { width: 60px; height: 40px; } /* Hit area orizzontale */
+
+.mobile-handle-side::after {
+  content: '';
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.mobile-handle-side.v::after { width: 4.5px; height: 28px; }
+.mobile-handle-side.h::after { width: 28px; height: 4.5px; }
+
+.mobile-handle-side.e { right: -35px; top: 50%; transform: translateY(-50%); }
+.mobile-handle-side.w { left: -35px; top: 50%; transform: translateY(-50%); }
+.mobile-handle-side.n { top: -35px; left: 50%; transform: translateX(-50%); }
+.mobile-handle-side.s { bottom: -35px; left: 50%; transform: translateX(-50%); }
+
 

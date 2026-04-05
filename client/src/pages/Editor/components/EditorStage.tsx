@@ -111,7 +111,39 @@ const EditorStage: React.FC<EditorStageProps> = ({
         position: 'relative'
       }}
       onPointerDown={(e) => {
-         if (window.innerWidth <= 768 && !isEditingBackground) return;
+         // Registrazione globale del pointer per pinch-to-zoom (permette di toccare anche lo stage)
+         if (!window._elementPointers) window._elementPointers = new Map();
+         window._elementPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+         const onStageMove = (moveEv: PointerEvent) => {
+            if (window._elementPointers && window._elementPointers.has(moveEv.pointerId)) {
+               window._elementPointers.set(moveEv.pointerId, { x: moveEv.clientX, y: moveEv.clientY });
+            }
+         };
+         const onStageUp = (upEv: PointerEvent) => {
+            if (window._elementPointers) {
+               window._elementPointers.delete(upEv.pointerId);
+               if (window._elementPointers.size === 0) window._elementPointers = null;
+            }
+            window.removeEventListener('pointermove', onStageMove);
+            window.removeEventListener('pointerup', onStageUp);
+            window.removeEventListener('pointercancel', onStageUp);
+         };
+         window.addEventListener('pointermove', onStageMove);
+         window.addEventListener('pointerup', onStageUp);
+         window.addEventListener('pointercancel', onStageUp);
+
+         if (window.innerWidth <= 768 && !isEditingBackground) {
+             if ((e.target as HTMLElement).classList.contains('editor-canvas-stage')) {
+                 setSelectedLayerIds([]);
+                 setEditingLayerId(null);
+                 setActiveMobileTab(null);
+                 setDisplayColorPicker(false);
+                 setIsFontExpanded(false);
+             }
+             return;
+         }
          if (window.innerWidth > 768 && editorMode !== 'canvas') return;
          
          if (isEditingBackground) {
@@ -417,7 +449,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
                   {isEditingBackground && (
                     <>
                       {[ { pos: 'NW', top: -10, left: -10 }, { pos: 'NE', top: -10, right: -10 }, { pos: 'SW', bottom: -10, left: -10 }, { pos: 'SE', bottom: -10, right: -10 } ].map(h => (
-                        <div key={h.pos} style={{ position: 'absolute', width: '20px', height: '20px', background: '#fff', border: '2px solid var(--accent)', borderRadius: '50%', cursor: h.pos === 'NW' || h.pos === 'SE' ? 'nwse-resize' : 'nesw-resize', top: h.pos.includes('N') ? h.top : 'auto', bottom: h.pos.includes('S') ? h.bottom : 'auto', left: h.pos.includes('W') ? h.left : 'auto', right: h.pos.includes('E') ? h.right : 'auto', zIndex: 10, pointerEvents: 'auto' }}
+                        <div key={h.pos} className={`mobile-handle-corner ${h.pos.toLowerCase()}`} style={{ zIndex: 10, pointerEvents: 'auto' }}
                           onPointerDown={(e) => {
                             e.stopPropagation(); const startX = e.clientX; const startY = e.clientY; const initScale = canvasProps.bgScale || 1; const initX = canvasProps.bgX || 0; const initY = canvasProps.bgY || 0; const initW = bgNaturalSize.w * initScale; const initH = bgNaturalSize.h * initScale;
                             const handleResize = (moveEvent: PointerEvent) => {
@@ -483,14 +515,36 @@ const EditorStage: React.FC<EditorStageProps> = ({
                    onMouseEnter={() => setHoveredLayerId && setHoveredLayerId(layer.id)}
                    onMouseLeave={() => setHoveredLayerId && setHoveredLayerId(null)}
                   >
-                    {isHovered && <div style={{ position: 'absolute', inset: -4, border: '2px solid #FF007F', pointerEvents: 'none', zIndex: 101, borderRadius: '4px', boxShadow: '0 0 10px rgba(255, 0, 127, 0.3)' }} />}
+                    {/* Cornice di hover: visibile solo su desktop o dispositivi con puntatore */}
+                    {isHovered && !isMobile && (
+                      <div className="layer-hover-outline" />
+                    )}
                    {isSelected && (
                       <>
                         <div className="layer-outline" style={{ border: '1.5px solid var(--accent)', position: 'absolute', inset: '-4px', pointerEvents: 'none', borderRadius: '4px' }}></div>
                         
-                        {/* Maniglie Angolari (Scaling) */}
+                        {/* Maniglie Angolari */}
                         {['NW', 'NE', 'SW', 'SE'].map(pos => (
-                           <div key={pos} onPointerDown={(e) => handleResizePointerDown(e, layer, pos)} style={{ position: 'absolute', width: '10px', height: '10px', background: '#fff', border: '1.5px solid var(--accent)', borderRadius: '50%', top: pos.includes('N') ? '-10px' : 'auto', bottom: pos.includes('S') ? '-10px' : 'auto', left: pos.includes('W') ? '-10px' : 'auto', right: pos.includes('E') ? '-10px' : 'auto', cursor: pos === 'NW' || pos === 'SE' ? 'nwse-resize' : 'nesw-resize', zIndex: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />
+                           <div 
+                             key={pos} 
+                             onPointerDown={(e) => handleResizePointerDown(e, layer, pos)} 
+                             className={isMobile ? `mobile-handle-corner ${pos.toLowerCase()}` : ""}
+                             style={!isMobile ? { 
+                               position: 'absolute', 
+                               width: '10px', 
+                               height: '10px', 
+                               background: '#fff', 
+                               border: '1.5px solid var(--accent)', 
+                               borderRadius: '50%', 
+                               top: pos.includes('N') ? '-10px' : 'auto', 
+                               bottom: pos.includes('S') ? '-10px' : 'auto', 
+                               left: pos.includes('W') ? '-10px' : 'auto', 
+                               right: pos.includes('E') ? '-10px' : 'auto', 
+                               cursor: pos === 'NW' || pos === 'SE' ? 'nwse-resize' : 'nesw-resize', 
+                               zIndex: 10, 
+                               boxShadow: '0 2px 4px rgba(0,0,0,0.1)' 
+                             } : {}} 
+                           />
                         ))}
 
                         {/* Maniglie Laterali e Verticali (Wrapping & LineHeight) - Solo per Testo */}
@@ -498,7 +552,8 @@ const EditorStage: React.FC<EditorStageProps> = ({
                            <div 
                              key={pos} 
                              onPointerDown={(e) => handleResizePointerDown(e, layer, pos)} 
-                             style={{ 
+                             className={isMobile ? `mobile-handle-side ${pos === 'E' || pos === 'W' ? 'v' : 'h'} ${pos.toLowerCase()}` : ""}
+                             style={!isMobile ? { 
                                position: 'absolute', 
                                width: (pos === 'E' || pos === 'W') ? '6px' : '18px', 
                                height: (pos === 'E' || pos === 'W') ? '18px' : '6px', 
@@ -513,7 +568,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
                                cursor: (pos === 'E' || pos === 'W') ? 'ew-resize' : 'ns-resize', 
                                zIndex: 10,
                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                             }} 
+                             } : {}} 
                            />
                         ))}
                       </>
