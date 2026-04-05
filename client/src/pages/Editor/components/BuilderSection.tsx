@@ -167,7 +167,10 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
       }}>
         <SectionCanvas 
           block={block}
-          layers={layers.filter(l => l.blockId === block.id)}
+          layers={layers
+            .filter(l => l.blockId === block.id)
+            .sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0))
+          }
           selectedLayerIds={selectedLayerIds}
           setSelectedLayerIds={setSelectedLayerIds}
           setLayers={setLayers}

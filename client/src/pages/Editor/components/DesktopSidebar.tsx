@@ -3,7 +3,7 @@ import { Surface, Button } from "../../../ui";
 import { 
   Type, Image as ImageIcon, PaintBucket, Move, Mail, MailOpen, ArrowLeft, 
   ArrowRight, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, ArrowDownRight, 
-  ArrowDownLeft, Plus, Circle, Sparkles, Smartphone, Layout, Monitor, Trash2
+  ArrowDownLeft, Plus, Circle, Sparkles, Smartphone, Layout, Monitor, Trash2, MapPin
 } from "lucide-react";
 import PropertyPanel from "./PropertyPanel";
 import CustomColorPicker from "./CustomColorPicker";
@@ -707,9 +707,9 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             </div>
 
 
-            {selectedBlockId ? (
-              <div key={selectedBlockId}>
-               {selectedLayerIds.length > 0 && (
+            {/* PRIORITÀ 1: PROPRIETÀ ELEMENTO SELEZIONATO */}
+            {selectedLayerIds.length > 0 ? (
+               <div key={`layer-props-${selectedLayerIds.join(',')}`}>
                  <PropertyPanel 
                     slug={slug}
                     selectedLayer={selectedLayer}
@@ -729,8 +729,25 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                     setDisplayColorPicker={(show) => setDisplayColorPicker(show)}
                     previewMobile={previewMobile}
                  />
-               )}
-
+                 
+                 {/* Opzioni di inserimento se siamo comunque dentro un blocco */}
+                 {selectedBlockId && (
+                   <Surface variant="soft" className="panel-section" style={{ padding: '16px' }}>
+                     <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Inserisci nella Sezione</h3>
+                     <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                       <Button variant="primary" style={{ width: '100%', justifyContent: 'center' }} onClick={addTextLayer}>
+                         <Type size={18} style={{marginRight: 8}}/> Testo
+                       </Button>
+                       <Button variant="subtle" style={{ width: '100%', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
+                         <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
+                       </Button>
+                     </div>
+                   </Surface>
+                 )}
+               </div>
+            ) : selectedBlockId ? (
+              /* PRIORITÀ 2: OPZIONI SEZIONE (Se nessun elemento è selezionato) */
+              <div key={selectedBlockId}>
                <Surface variant="soft" className="panel-section" style={{ padding: '16px' }}>
                    <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Inserisci nella Sezione</h3>
                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
@@ -799,9 +816,10 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                </Surface>
               </div>
             ) : (
+              /* PRIORITÀ 3: GESTIONE GENERALE SEZIONI (Default) */
               <Surface variant="soft" className="panel-section">
                 <p style={{ fontSize: '11px', color: 'var(--text-soft)', marginBottom: '0', lineHeight: '1.6', padding: '12px', background: 'rgba(var(--accent-rgb), 0.03)', borderRadius: '12px', borderLeft: '3px solid var(--accent)' }}>
-                  Costruisci la tua landing page aggiungendo nuove sezioni. Ogni sezione è un foglio libero dove puoi muovere tutto come preferisci.
+                  Aggiungi contenuti alla tua pagina invito per raccontare meglio il tuo evento.
                 </p>
                 <h3 style={{ marginTop: '20px', marginBottom: '12px', fontSize: '11px', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.05em' }}>GESTIONE SEZIONI</h3>
                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
@@ -811,7 +829,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                       pushToHistory();
                     }
                   }}>
-                    <Plus size={18} style={{marginRight: 8}}/> Sezione Libera
+                    <Plus size={18} style={{marginRight: 8}}/> Sezione Vuota
                   </Button>
                   
                    <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
@@ -828,7 +846,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                       pushToHistory();
                     }
                   }}>
-                    <Monitor size={18} style={{marginRight: 8}}/> Sezione Mappa (Location)
+                    <MapPin size={18} style={{marginRight: 8}}/> Sezione Mappa
                   </Button>
                 </div>
               </Surface>

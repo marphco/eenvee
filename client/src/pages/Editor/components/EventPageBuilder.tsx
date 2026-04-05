@@ -3,6 +3,7 @@ import EnvelopeAnimation from "../../../components/envelope/EnvelopeAnimation";
 import ReadOnlyCanvas from "../../../components/canvas/ReadOnlyCanvas";
 import BuilderSection from "./BuilderSection";
 import { ScrollHint } from "../../../components/ui/ScrollHint";
+import { sortLayersForMobile } from './EditorHelpers';
 import type { Layer, CanvasProps, Block } from "../../../types/editor";
 
 interface EventPageBuilderProps {
@@ -227,19 +228,46 @@ export function EventPageBuilder({
     const layerToDuplicate = layers.find(l => l.id === layerId);
     if (!layerToDuplicate) return;
 
+    const blockId = layerToDuplicate.blockId;
+    
+    // 1. Isola i layer della sezione e ordinali usando la STESSA LOGICA del rendering
+    const blockLayers = sortLayersForMobile(layers.filter(l => l.blockId === blockId))
+      .map(l => ({ ...l })); // CLONE IMMUTABILE
+    
+    const localIndex = blockLayers.findIndex(l => l.id === layerId);
+    if (localIndex === -1) return;
+
+    // 2. Crea il duplicato
     const newLayer: Layer = {
       ...layerToDuplicate,
       id: 'layer-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
-      // Se siamo in mobile, lo mettiamo subito dopo nell'ordine mobile
-      mobileOrder: layerToDuplicate.mobileOrder !== undefined ? (layerToDuplicate.mobileOrder as number) + 0.5 : 0,
-      // Se siamo in desktop, lo spostiamo leggermente per farlo vedere
       x: (layerToDuplicate.x as number || 0) + 20,
-      y: (layerToDuplicate.y as number || 0) + 20
+      y: (layerToDuplicate.y as number || 0) + 20,
+      mobileOrder: 0 // Verrà normalizzato subito sotto
     } as any;
 
-    const newLayers = [...layers, newLayer];
-    setLayers(newLayers);
-    updateTheme({ layers: newLayers });
+    // 3. Inserimento nella lista ordinata e normalizzazione indici ATOMICA
+    const newSectionLayers = [...blockLayers];
+    newSectionLayers.splice(localIndex + 1, 0, newLayer);
+    
+    const normalizedSectionLayers = newSectionLayers.map((l, i) => ({
+      ...l,
+      mobileOrder: i
+    }));
+
+    // 4. Ricostruzione array globale IN-PLACE per preservare lo z-index e l'ordine globale
+    // Troviamo il primo layer di questo blocco nell'array originale per capire dove iniziare l'inserimento fisico
+    const firstLayerGlobalIdx = layers.findIndex(l => l.blockId === blockId);
+    
+    // Filtriamo via i vecchi layer del blocco dall'array globale
+    const otherLayers = layers.filter(l => l.blockId !== blockId);
+    
+    // Inseriamo i nuovi layer normalizzati esattamente dove c'era la sezione prima
+    const finalLayers = [...otherLayers];
+    finalLayers.splice(firstLayerGlobalIdx === -1 ? finalLayers.length : firstLayerGlobalIdx, 0, ...normalizedSectionLayers);
+
+    setLayers(finalLayers);
+    updateTheme({ layers: finalLayers });
     pushToHistory();
     setSelectedLayerIds([newLayer.id]);
   };
