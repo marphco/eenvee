@@ -129,7 +129,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                  padding: '8px 2px',
                  ...(editorMode === 'canvas' ? { boxShadow: '0 0 12px rgba(var(--accent-rgb), 0.4)' } : {})
                }}
-               onClick={() => setEditorMode('canvas')}
+               onClick={(e) => { e.stopPropagation(); setEditorMode('canvas'); }}
              >
                Invito
              </Button>
@@ -142,7 +142,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                  padding: '8px 2px',
                  ...(editorMode === 'envelope' ? { boxShadow: '0 0 12px rgba(var(--accent-rgb), 0.4)' } : {})
                }}
-               onClick={() => { setEditorMode('envelope'); setIsEnvelopeOpen(true); }}
+               onClick={(e) => { e.stopPropagation(); setEditorMode('envelope'); setIsEnvelopeOpen(true); }}
              >
                Busta
              </Button>
@@ -155,7 +155,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   padding: '8px 2px',
                   ...(editorMode === 'background' ? { boxShadow: '0 0 12px rgba(var(--accent-rgb), 0.4)' } : {})
                 }}
-                onClick={() => setEditorMode('background')}
+                onClick={(e) => { e.stopPropagation(); setEditorMode('background'); }}
               >
                  Scenario
                </Button>

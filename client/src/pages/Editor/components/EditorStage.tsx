@@ -111,10 +111,22 @@ const EditorStage: React.FC<EditorStageProps> = ({
         position: 'relative'
       }}
       onPointerDown={(e) => {
-         // Registrazione globale del pointer per pinch-to-zoom (permette di toccare anche lo stage)
-         if (!window._elementPointers) window._elementPointers = new Map();
-         window._elementPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          if (window.innerWidth <= 768 && !isEditingBackground) {
+              if ((e.target as HTMLElement).classList.contains('editor-canvas-stage')) {
+                  setSelectedLayerIds([]);
+                  setEditingLayerId(null);
+                  setActiveMobileTab(null);
+                  setDisplayColorPicker(false);
+                  setIsFontExpanded(false);
+              }
+              return;
+          }
+          if (window.innerWidth > 768 && editorMode !== 'canvas') return;
+
+          // Registrazione globale del pointer per pinch-to-zoom (permette di toccare anche lo stage)
+          if (!window._elementPointers) window._elementPointers = new Map();
+          window._elementPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
          const onStageMove = (moveEv: PointerEvent) => {
             if (window._elementPointers && window._elementPointers.has(moveEv.pointerId)) {
@@ -133,18 +145,6 @@ const EditorStage: React.FC<EditorStageProps> = ({
          window.addEventListener('pointermove', onStageMove);
          window.addEventListener('pointerup', onStageUp);
          window.addEventListener('pointercancel', onStageUp);
-
-         if (window.innerWidth <= 768 && !isEditingBackground) {
-             if ((e.target as HTMLElement).classList.contains('editor-canvas-stage')) {
-                 setSelectedLayerIds([]);
-                 setEditingLayerId(null);
-                 setActiveMobileTab(null);
-                 setDisplayColorPicker(false);
-                 setIsFontExpanded(false);
-             }
-             return;
-         }
-         if (window.innerWidth > 768 && editorMode !== 'canvas') return;
          
          if (isEditingBackground) {
            e.stopPropagation();
@@ -257,7 +257,23 @@ const EditorStage: React.FC<EditorStageProps> = ({
       )}
 
       {editorMode === 'envelope' ? (
-        <div className="envelope-preview-container" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transform: isMobile ? 'translateY(30px)' : 'none' }}>
+        <div 
+          className="envelope-preview-container" 
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsEnvelopeOpen(!isEnvelopeOpen);
+          }}
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            position: 'relative', 
+            transform: isMobile ? 'translateY(30px)' : 'none',
+            cursor: 'pointer'
+          }}
+        >
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EnvelopeAnimation 
                envelopeFormat={event.theme?.envelopeFormat || 'vertical'}

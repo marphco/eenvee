@@ -52,7 +52,10 @@ const EnvelopeSection: React.FC<EnvelopeSectionProps> = ({
           <Button 
             variant="primary" 
             style={{ width: '100%', justifyContent: 'center', marginBottom: '8px' }}
-            onClick={() => setIsEnvelopeOpen(!isEnvelopeOpen)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEnvelopeOpen(!isEnvelopeOpen);
+            }}
           >
             {isEnvelopeOpen ? <Mail size={18} style={{ marginRight: 8 }} /> : <MailOpen size={18} style={{ marginRight: 8 }} />} {isEnvelopeOpen ? 'Chiudi Busta' : 'Apri Busta'}
           </Button>
