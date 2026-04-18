@@ -1,0 +1,351 @@
+.don-page {
+  min-height: 100vh;
+  background: var(--bg, #f4f1ec);
+  padding: 2.5rem 1.25rem 5rem;
+}
+
+.don-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.don-topbar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.don-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.don-header h1 {
+  margin: 0.4rem 0 0.6rem;
+  font-family: var(--font-display, serif);
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.don-eyebrow {
+  margin: 0;
+  color: var(--accent, #3c4f76);
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  font-size: 0.72rem;
+}
+
+.don-subtitle {
+  margin: 0;
+  color: var(--text-muted, #6b6b6b);
+  max-width: 680px;
+  line-height: 1.5;
+}
+
+.don-header-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.don-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+}
+
+.don-view-switcher {
+  display: flex;
+  padding: 0.4rem !important;
+  gap: 0.3rem;
+  width: fit-content;
+}
+
+.don-view-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.don-view-tab:hover {
+  color: var(--text);
+}
+
+.don-view-tab.is-active {
+  background: var(--accent, #1a1a1a);
+  color: #fff;
+}
+
+.don-filters-card {
+  padding: 1rem 1.25rem !important;
+}
+
+.don-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.don-filters-chips {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.don-chip {
+  border: 1px solid var(--border, #e4ddd2);
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.don-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.don-chip.is-active {
+  background: var(--accent, #1a1a1a);
+  color: #fff;
+  border-color: var(--accent, #1a1a1a);
+}
+
+.don-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--border, #e4ddd2);
+  border-radius: 999px;
+  min-width: 240px;
+}
+
+.don-search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.don-empty {
+  text-align: center;
+  padding: 3rem 1.5rem !important;
+  color: var(--text-muted);
+}
+
+.don-empty h3 {
+  margin: 0.8rem 0 0.4rem;
+  font-family: var(--font-display, serif);
+  color: var(--text);
+  font-size: 1.4rem;
+}
+
+.don-empty p {
+  margin: 0;
+  max-width: 480px;
+  margin-inline: auto;
+  line-height: 1.5;
+}
+
+.don-table-card {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.don-table-wrapper {
+  overflow-x: auto;
+}
+
+.don-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.don-table thead th {
+  text-align: left;
+  padding: 0.9rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid var(--border, #e4ddd2);
+}
+
+.don-table thead th.num,
+.don-table tbody td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.don-table tbody td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--border, #ece6da);
+  font-size: 0.9rem;
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.don-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.don-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.don-cell-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.don-donor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.don-donor strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.don-donor span {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.don-cell-message {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.don-fee {
+  color: #b45309;
+}
+
+.don-net {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.don-info-card {
+  display: flex;
+  gap: 0.8rem;
+  padding: 1.1rem 1.25rem !important;
+  border: 1px dashed var(--border, #e4ddd2) !important;
+  color: var(--text-muted);
+  align-items: flex-start;
+}
+
+.don-info-card strong {
+  color: var(--text);
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.don-info-card p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.don-linklike {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.don-stripe-card {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.don-stripe-header {
+  display: flex;
+  gap: 0.8rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border, #e4ddd2);
+  align-items: flex-start;
+  color: var(--text-muted);
+}
+
+.don-stripe-header strong {
+  color: var(--text);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.don-stripe-header p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.don-stripe-embed {
+  padding: 1.5rem;
+  background: #fff;
+}
+
+@media (max-width: 720px) {
+  .don-page {
+    padding: 1.5rem 0.75rem 4rem;
+  }
+  .don-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .don-header-actions {
+    width: 100%;
+  }
+  .don-header-actions > * {
+    flex: 1;
+  }
+  .don-filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .don-search {
+    min-width: 0;
+  }
+  .don-cell-message {
+    max-width: 160px;
+  }
+}

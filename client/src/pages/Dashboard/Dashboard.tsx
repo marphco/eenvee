@@ -311,7 +311,7 @@ export default function Dashboard() {
                           variant="ghost" 
                           onClick={async () => {
                              try {
-                               const res = await apiFetch(`/api/payments/checkout`, {
+                               const res = await apiFetch(`/api/subscriptions/checkout`, {
                                  method: "POST",
                                  body: JSON.stringify({ eventSlug: ev.slug })
                                });

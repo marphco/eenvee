@@ -2,13 +2,15 @@ import React from 'react';
 import { Surface, Button } from "../../../../ui";
 import { 
   Type, Image as ImageIcon, MapPin, CheckSquare, Plus, Trash2, Monitor, Smartphone, Check, Pencil,
-  Images, Video as VideoIcon, Upload, GripVertical, Youtube
+  Images, Video as VideoIcon, Upload, GripVertical, Youtube, Gift
 } from "lucide-react";
 import PropertyPanel from "../PropertyPanel";
 import CustomColorPicker from "../CustomColorPicker";
+import PaymentSection from "./PaymentSection";
 import type { Layer, Block } from "../../../../types/editor";
 import { apiFetch } from "../../../../utils/apiFetch";
 import { parseVideoUrl } from "../widgets/VideoWidget";
+import { widgetLayerIdForBlock } from "../../../../utils/widgetLayerId";
 
 interface PageSectionProps {
   previewMobile: boolean;
@@ -256,7 +258,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                       sono sezioni widget-only, le immagini libere non hanno senso
                       (la galleria gestisce già le foto, il video ha il suo player,
                       la mappa e il form non accettano overlay immagine). */}
-                  {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && (
+                  {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && (
                     <Button variant="subtle" style={{ width: '100%', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
                       <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
                     </Button>
@@ -268,8 +270,10 @@ const PageSection: React.FC<PageSectionProps> = ({
        ) : selectedBlockId ? (
           /* PRIORITÀ 2: OPZIONI SEZIONE (Se nessun elemento è selezionato) */
           <div key={selectedBlockId}>
-           {!selectedLayerIds.includes('widget-rsvp') && (
-            <>
+           {/* Solo "Inserisci" si nasconde quando è selezionato il widget virtuale;
+               i pannelli Mappa/Galleria/Video/Payment devono restare visibili anche
+               con il widget selezionato (altrimenti sparisce PaymentSection). */}
+           {!(selectedBlock && selectedLayerIds.includes(widgetLayerIdForBlock(String(selectedBlock.id)))) && (
              <Surface variant="soft" className="panel-section" style={{ padding: '16px' }}>
                  <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Inserisci nella Sezione</h3>
                <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
@@ -277,7 +281,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                    <Type size={18} style={{marginRight: 8}}/> Testo
                  </Button>
                 {/* Stesso filtro sopra: niente immagine su rsvp/map/gallery/video. */}
-                {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && (
+                {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && (
                   <Button variant="subtle" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }} onClick={() => fileInputRef.current?.click()}>
                     <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
                   </Button>
@@ -285,6 +289,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{display: 'none'}} />
               </div>
             </Surface>
+            )}
 
             {/* SETTINGS SPECIFICI PER WIDGET MAPPA — panel dedicato, stesso pattern Jewelry
                 usato per RSVP / Testo / Immagine (header di contesto + controlli in un unico Surface) */}
@@ -986,11 +991,23 @@ const PageSection: React.FC<PageSectionProps> = ({
                 </Surface>
               );
             })()}
-            </>
-           )}
+
+            {/* SETTINGS SPECIFICI PER WIDGET PAYMENT (Regali in denaro) */}
+            {selectedBlock && selectedBlock.type === 'payment' && (
+              <PaymentSection
+                block={selectedBlock as Block}
+                displayColorPicker={displayColorPicker}
+                setDisplayColorPicker={setDisplayColorPicker}
+                setIsDirty={setIsDirty}
+                blocks={blocks}
+                setBlocks={setBlocks}
+                onUpdateBlock={onUpdateBlock}
+                slug={slug}
+              />
+            )}
 
             {/* SETTINGS SPECIFICI PER WIDGET RSVP */}
-            {selectedBlock && selectedBlock.type === 'rsvp' && selectedLayerIds.includes('widget-rsvp') && (
+            {selectedBlock && selectedBlock.type === 'rsvp' && selectedLayerIds.includes(widgetLayerIdForBlock(String(selectedBlock.id))) && (
               <Surface variant="soft" className="panel-section" style={{ marginTop: '20px' }}>
 
                   {/* HEADER DI CONTESTO — ora intestazione interna del Surface (non un box separato),
@@ -1340,7 +1357,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                   )}
                 </Surface>
               )}
-            {!selectedLayerIds.includes('widget-rsvp') && (
+            {!(selectedBlock && selectedLayerIds.includes(widgetLayerIdForBlock(String(selectedBlock.id)))) && (
               <div style={{ marginTop: '30px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
                   <Button 
                     variant="ghost" 
@@ -1573,6 +1590,52 @@ const PageSection: React.FC<PageSectionProps> = ({
                 }
               }}>
                 <VideoIcon size={18} style={{marginRight: 8}}/> Sezione Video
+              </Button>
+
+              <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                if (blocks && setBlocks && setLayers) {
+                  setIsDirty(true);
+                  const newBlockId = 'block-payment-' + Date.now();
+                  const paymentLayers = [
+                    ...layers,
+                    {
+                      id: 'layer-payment-title-' + newBlockId + '-' + Date.now(),
+                      blockId: newBlockId,
+                      type: 'text',
+                      text: 'BUSTA DIGITALE',
+                      x: 'center',
+                      y: 48,
+                      width: 600,
+                      fontSize: 28,
+                      fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
+                      textAlign: 'center',
+                      color: '#f4c46b'
+                    }
+                  ];
+                  setBlocks([...blocks, {
+                    id: newBlockId,
+                    type: 'payment',
+                    order: blocks.length,
+                    y: 0,
+                    height: 620,
+                    bgColor: '#1a1a1a',
+                    props: { bgColor: '#1a1a1a' },
+                    widgetProps: {
+                      paymentTitle: '',
+                      paymentDescription: '',
+                      paymentPresetAmounts: [25, 50, 100, 200],
+                      paymentMinAmount: 1,
+                      paymentMaxAmount: 5000,
+                      paymentShowProgress: false,
+                      paymentAccentColor: '#C9A961',
+                      paymentMode: 'gift',
+                    }
+                  } as any]);
+                  setLayers(paymentLayers as any);
+                  pushToHistory();
+                }
+              }}>
+                <Gift size={18} style={{marginRight: 8}}/> Sezione Regali
               </Button>
             </div>
           </Surface>

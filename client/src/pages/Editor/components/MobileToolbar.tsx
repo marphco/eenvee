@@ -5,11 +5,12 @@ import {
   Shapes, Type, ChevronUp, Minus, Plus, Circle, ArrowRight, 
   ArrowLeft, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, 
   ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone, Monitor, Upload,
-  AlignJustify
+  AlignJustify, CreditCard, Banknote
 } from 'lucide-react';
 import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
 import CustomColorPicker from "./CustomColorPicker";
+import PaymentSection from "./sidebar/PaymentSection";
 import { AVAILABLE_FONTS, getFontPreviewText, loadGoogleFont, AVAILABLE_LINERS, AVAILABLE_SCENARIO_BGS } from "./EditorHelpers";
 import type { Layer, CanvasProps, Block } from "../../../types/editor";
 import { apiFetch } from "../../../utils/apiFetch";
@@ -228,11 +229,12 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'widget_settings' ? (() => {
+                  {activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'widget_settings' ? (() => {
                     const t = blocks?.find(b => b.id === selectedBlockId)?.type;
                     if (t === 'gallery') return 'Galleria';
                     if (t === 'video') return 'Video';
                     if (t === 'map') return 'Mappa';
+                    if (t === 'payment') return 'Regali';
                     return 'Impostazioni';
                   })() : activeMobileTab }
                 </span>
@@ -1305,10 +1307,41 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                           </>
                         );
                       }
+
                       return null;
                     })()}
                   </div>
                 )}
+
+                {/* PAYMENT: 4 tab separati (setup / contenuto / importi / stile)
+                    per evitare il "mappazzone" unico che non entra nella viewport.
+                    Riusiamo PaymentSection in modalità compact + section per
+                    avere un'unica fonte di verità con il desktop. */}
+                {(['payment_setup', 'payment_content', 'payment_amounts', 'payment_style'] as const).includes(activeMobileTab as any) && selectedBlockId && blocks && (() => {
+                  const block = blocks.find(b => b.id === selectedBlockId);
+                  if (!block || block.type !== 'payment') return null;
+                  const sectionMap: Record<string, 'setup' | 'content' | 'amounts' | 'style'> = {
+                    payment_setup: 'setup',
+                    payment_content: 'content',
+                    payment_amounts: 'amounts',
+                    payment_style: 'style',
+                  };
+                  return (
+                    <div style={{ flex: 1, minWidth: 0, width: '100%', alignSelf: 'stretch' }}>
+                      <PaymentSection
+                        block={block as Block}
+                        displayColorPicker={displayColorPicker}
+                        setDisplayColorPicker={setDisplayColorPicker}
+                        setIsDirty={(v: boolean) => setIsDirty && setIsDirty(v)}
+                        blocks={blocks || undefined}
+                        setBlocks={setBlocks || undefined}
+                        slug={slug || ''}
+                        compact
+                        section={sectionMap[activeMobileTab as string]}
+                      />
+                    </div>
+                  );
+                })()}
             </div>
           </div>
         )}
@@ -1387,6 +1420,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                               if (t === 'gallery') return "Modifica Galleria";
                               if (t === 'video') return "Modifica Video";
                               if (t === 'map') return "Modifica Mappa";
+                              if (t === 'payment') return "Modifica Regali";
                               return "Modifica Sezione";
                             })()}
                          </span>
@@ -1445,6 +1479,53 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                 );
                               }
 
+                              // Payment widget: 4 tab dedicati invece di un unico
+                              // "Impostazioni", per dividere i campi in gruppi
+                              // leggibili (stesso pattern di RSVP con Stile/Campi).
+                              // 5° pulsante "+ Testo" per aggiungere didascalie/titoli
+                              // come sugli altri widget; il container scrolla
+                              // orizzontalmente su schermi molto stretti.
+                              if (block && block.type === 'payment') {
+                                const paymentTabs = ['payment_setup', 'payment_content', 'payment_amounts', 'payment_style'];
+                                const active = paymentTabs.includes(activeMobileTab as string);
+                                return (
+                                  <div
+                                    className="payment-mobile-tabs"
+                                    style={{ display: 'flex', gap: '2px', alignItems: 'center', flex: 1, overflowX: 'auto', minWidth: 0 }}
+                                  >
+                                    <MobileIconBtn
+                                      icon={CreditCard}
+                                      label="Setup"
+                                      variant={activeMobileTab === 'payment_setup' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'payment_setup' ? null : 'payment_setup')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={AlignJustify}
+                                      label="Contenuto"
+                                      variant={activeMobileTab === 'payment_content' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'payment_content' ? null : 'payment_content')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={Banknote}
+                                      label="Importi"
+                                      variant={activeMobileTab === 'payment_amounts' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'payment_amounts' ? null : 'payment_amounts')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={Palette}
+                                      label="Stile"
+                                      variant={activeMobileTab === 'payment_style' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'payment_style' ? null : 'payment_style')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={Type}
+                                      label="+ Testo"
+                                      onClick={addTextLayer}
+                                    />
+                                  </div>
+                                );
+                              }
+
                               return (
                                 <>
                                   <MobileIconBtn 
@@ -1460,7 +1541,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                   {/* Filtro coerente con sidebar desktop: niente "Foto"
                                       su widget-only (rsvp/map/gallery/video hanno già le
                                       loro sorgenti media specifiche). */}
-                                  {(!block || !['rsvp','map','gallery','video'].includes(block.type as string)) && (
+                                  {(!block || !['rsvp','map','gallery','video','payment'].includes(block.type as string)) && (
                                     <MobileIconBtn 
                                       icon={ImageIcon} 
                                       label="Foto" 

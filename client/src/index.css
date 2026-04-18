@@ -215,3 +215,16 @@ body::after {
 .mobile-handle-side.s { bottom: -35px; left: 50%; transform: translateX(-50%); }
 
 
+
+/* Rimuove le frecce native (spin buttons) da tutti gli input type="number"
+   in tutto il sito (editor, form RSVP, form donazione, importi sidebar, ecc.).
+   UX più pulita e consistente con il resto del design. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

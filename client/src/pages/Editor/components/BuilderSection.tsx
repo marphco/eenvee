@@ -3,6 +3,7 @@ import { ArrowUp, ArrowDown } from 'lucide-react';
 import type { Block, Layer, EventTheme } from '../../../types/editor';
 import SectionToolbar from './SectionToolbar';
 import { SectionCanvas } from './SectionCanvas';
+import { widgetLayerIdForBlock } from '../../../utils/widgetLayerId';
 
 interface BuilderSectionProps {
   block: Block;
@@ -287,10 +288,8 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
               if (selectedLayerIds.length !== 1) return { isFirstLayer: false, isLastLayer: false };
               const selId = selectedLayerIds[0]!;
               const blockLayers = layers.filter(l => l.blockId === block.id && !l.hiddenMobile);
-              const widgetId = block.type === 'rsvp' ? 'widget-rsvp'
-                : block.type === 'gallery' ? 'widget-gallery'
-                : block.type === 'video' ? 'widget-video'
-                : block.type === 'map' ? 'widget-map'
+              const widgetId = ['rsvp', 'gallery', 'video', 'map', 'payment'].includes(block.type)
+                ? widgetLayerIdForBlock(String(block.id))
                 : null;
               const items: { id: string; mobileOrder: number }[] = [
                 ...blockLayers.map(l => ({ id: l.id!, mobileOrder: (l.mobileOrder ?? 0) as number })),
@@ -316,6 +315,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
                   if (block.type === 'map') return 'Mappa';
                   if (block.type === 'gallery') return 'Galleria';
                   if (block.type === 'video') return 'Video';
+                  if (block.type === 'payment') return 'Regali Digitali';
                   return 'Widget';
                 }
                 const layer = layers.find(l => l.id === selId);

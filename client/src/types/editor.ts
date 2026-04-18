@@ -84,6 +84,23 @@ export interface Block {
       type: 'text' | 'checkbox';
       required?: boolean;
     }>;
+    // Payment widget (digital gifts)
+    paymentTitle?: string;
+    paymentDescription?: string;
+    paymentPresetAmounts?: number[];
+    paymentMinAmount?: number;
+    paymentMaxAmount?: number;
+    paymentTargetAmount?: number;
+    paymentShowProgress?: boolean;
+    paymentAccentColor?: string;
+    paymentMode?: 'gift' | 'donation';
+    paymentThankYouMessage?: string;
+    paymentCtaLabel?: string;
+    paymentAllowCustomAmount?: boolean;
+    // Positioning (shared with gallery/video)
+    widgetX?: number;
+    widgetY?: number;
+    mobileOrder?: number;
     [key: string]: any;
   };
 }

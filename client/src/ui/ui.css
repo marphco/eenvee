@@ -7,6 +7,12 @@
   position: relative;
 }
 
+.payment-custom-input::placeholder {
+  color: var(--ph-color, rgba(128, 128, 128, 0.6));
+  opacity: 1;
+  font-weight: 500;
+}
+
 .surface::after {
   content: "";
   position: absolute;

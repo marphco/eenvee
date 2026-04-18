@@ -10,8 +10,11 @@ import authRoutes from "./routes/authRoutes.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import rsvpRoutes from "./routes/rsvpRoutes.js";
 import inviteRoutes from "./routes/inviteRoutes.js";
-import paymentRoutes from "./routes/paymentRoutes.js";
+import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import uploadsRouter from "./routes/uploads.js";
+import stripeConnectRoutes from "./routes/stripeConnectRoutes.js";
+import donationRoutes from "./routes/donationRoutes.js";
+import stripeWebhookRoutes from "./routes/stripeWebhookRoutes.js";
 
 const app = express();
 
@@ -33,9 +36,25 @@ app.use(cors({
   credentials: true,
 }));
 
+// ⚠️ CRITICAL: the Stripe webhook MUST receive the raw body to verify the signature.
+// This route is mounted BEFORE express.json() so the body parser does not consume it.
+app.use(
+  "/api/stripe/webhooks",
+  express.raw({ type: "application/json" }),
+  stripeWebhookRoutes
+);
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
+
+// Minimal CSP-related headers for Stripe Embedded Components and Payment Element iframes.
+// Note: a stricter CSP is applied client-side via Vite/index.html when needed.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
 
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
@@ -46,7 +65,9 @@ app.use("/api/uploads", uploadsRouter);
 app.use("/api/events", eventRoutes);
 app.use("/api/events", inviteRoutes);
 app.use("/api/rsvps", rsvpRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/stripe/connect", stripeConnectRoutes);
+app.use("/api/donations", donationRoutes);
 
 app.get("/", (req: Request, res: Response) => res.json({ message: "eenvee API is running" }));
 

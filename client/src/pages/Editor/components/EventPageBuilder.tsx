@@ -5,6 +5,7 @@ import BuilderSection from "./BuilderSection";
 import { ScrollHint } from "../../../components/ui/ScrollHint";
 import { sortLayersForMobile } from './EditorHelpers';
 import type { Layer, CanvasProps, Block } from "../../../types/editor";
+import { widgetLayerIdForBlock } from "../../../utils/widgetLayerId";
 
 interface EventPageBuilderProps {
   event: any;
@@ -122,8 +123,9 @@ export function EventPageBuilder({
     // (layer reali + widget) e swappiamo l'ordine con il vicino.
     // [FIX] prima accettava solo rsvp/map → su gallery/video il move era no-op.
     if (layerId.startsWith('widget-')) {
-      const WIDGET_TYPES = ['rsvp', 'map', 'gallery', 'video'] as const;
-      const block = blocks?.find(b => WIDGET_TYPES.includes(b.type as any) && b.id === selectedBlockId);
+      const WIDGET_TYPES = ['rsvp', 'map', 'gallery', 'video', 'payment'] as const;
+      const wid = layerId.slice('widget-'.length);
+      const block = blocks?.find(b => b.id === wid && WIDGET_TYPES.includes(b.type as any));
       if (!block) return;
       const blockLayers = (layers || []).filter(l => l.blockId === block.id && !l.hiddenMobile);
       const hasAnyMobileOrder = blockLayers.some(l => l.mobileOrder !== undefined);
@@ -196,11 +198,10 @@ export function EventPageBuilder({
     // così lo "scambio" tra un layer reale e il widget funziona in entrambi i sensi.
     // [FIX] ora coperti tutti e 4 i tipi widget, non solo rsvp/map.
     const block = blocks?.find(b => b.id === targetLayer.blockId);
-    const widgetId = block?.type === 'rsvp' ? 'widget-rsvp'
-      : block?.type === 'map' ? 'widget-map'
-      : block?.type === 'gallery' ? 'widget-gallery'
-      : block?.type === 'video' ? 'widget-video'
-      : null;
+    const widgetId =
+      block && ['rsvp', 'map', 'gallery', 'video', 'payment'].includes(block.type)
+        ? widgetLayerIdForBlock(String(block.id))
+        : null;
     type StreamItem = { id: string; mobileOrder: number; isWidget: boolean };
     const stream: StreamItem[] = [
       ...blockLayers.map(l => ({ id: l.id!, mobileOrder: (l.mobileOrder ?? 0) as number, isWidget: false })),
@@ -298,8 +299,9 @@ export function EventPageBuilder({
     // Widget virtuale (form RSVP, mappa): non esiste un layer "vero" da rimuovere.
     // Eliminare il widget equivale a svuotare la sezione del suo contenuto principale,
     // quindi eliminiamo l'intero blocco (la doppia-tap "SICURO?" della toolbar è la safety net).
-    if (layerId.startsWith('widget-') && selectedBlockId) {
-      const idx = (blocks || []).findIndex(b => b.id === selectedBlockId);
+    if (layerId.startsWith('widget-')) {
+      const wid = layerId.slice('widget-'.length);
+      const idx = (blocks || []).findIndex(b => b.id === wid);
       if (idx >= 0) {
         deleteBlock(idx);
         setSelectedLayerIds([]);

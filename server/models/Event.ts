@@ -3,7 +3,7 @@ import mongoose, { Schema, InferSchemaType, Types } from "mongoose";
 const blockSchema = new Schema(
   {
     id: { type: String, required: true },
-    type: { type: String, required: true }, // es: "canvas", "map", "rsvp", "gallery", "video"
+    type: { type: String, required: true }, // es: "canvas", "map", "rsvp", "gallery", "video", "payment"
     order: { type: Number, default: 0 },
     x: { type: Schema.Types.Mixed },
     y: { type: Schema.Types.Mixed },

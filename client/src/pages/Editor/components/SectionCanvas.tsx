@@ -6,6 +6,8 @@ import MapWidget from './widgets/MapWidget';
 import { RSVPWidget } from './widgets/RSVPWidget';
 import GalleryWidget from './widgets/GalleryWidget';
 import VideoWidget from './widgets/VideoWidget';
+import PaymentWidget from './widgets/PaymentWidget';
+import { widgetLayerIdForBlock } from '../../../utils/widgetLayerId';
 
 interface SectionCanvasProps {
   block: Block;
@@ -32,6 +34,9 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   block, layers, selectedLayerIds, setSelectedLayerIds, setLayers, pushToHistory, setIsDirty, hoveredLayerId, setHoveredLayerId, onSelectBlock, isMobile, previewMobile, editingLayerId, setEditingLayerId,
   editorScale = 1, onUpdateBlock, theme
 }) => {
+  const blockIdStr = String(block.id || (block as { _id?: string })._id || '');
+  /** Selezione widget univoca per blocco (evita highlight su tutti i widget dello stesso tipo). */
+  const widgetSelId = blockIdStr ? widgetLayerIdForBlock(blockIdStr) : '';
   const isMobileEffective = isMobile;
   const containerRef = useRef<HTMLDivElement>(null);
   const [snapGuides, setSnapGuides] = useState<{axis: string, position: number}[]>([]);
@@ -415,7 +420,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
 
   // Back-compat: il form RSVP usa ancora la stessa API `onPointerDown={handleWidgetPointerDown}`.
   const handleWidgetPointerDown = (e: React.PointerEvent) => handleWidgetPointerDownGeneric(e, {
-    widgetId: 'widget-rsvp',
+    widgetId: widgetSelId,
     xKey: 'formX',
     yKey: 'formY',
     defaultX: 500,
@@ -443,7 +448,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           // Gli altri blocchi mantengono il minHeight per preservare lo spazio del
           // canvas autore (es. RSVP che ha form espandibile, testi liberi che fanno
           // riferimento a coordinate del canvas logico).
-          minHeight: (block.type === 'gallery' || block.type === 'video') ? 'auto' : ((block.height || 400) + 'px'), 
+          minHeight: (block.type === 'gallery' || block.type === 'video' || block.type === 'payment') ? 'auto' : ((block.height || 400) + 'px'), 
           position: 'relative', 
           backgroundColor: (block as any).props?.bgColor || 'transparent',
           display: 'flex', 
@@ -460,23 +465,21 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
             [FIX visibilità mobile] aggiunto filtro `!hiddenMobile` sui layer: prima
             mancava del tutto nel ramo mobile (il flag veniva salvato ma ignorato). */}
         {(() => {
-          // Id widget sincronizzato col desktop: ogni tipo ha il suo `widget-<type>`
-          // (escluso map, che resta fill-parent senza widget-layer selezionabile).
-          // Prima era hard-coded `widget-element` + `widget-rsvp` → gallery e video
-          // non erano selezionabili in mobile, SPOSTA GIÙ risultava disabilitato
-          // perché la toolbar non trovava il widget nello stream.
-          const widgetId = block.type === 'rsvp' ? 'widget-rsvp'
-            : block.type === 'gallery' ? 'widget-gallery'
-            : block.type === 'video' ? 'widget-video'
-            : null;
+          // Id widget = `widget-<blockId>` (univoco per blocco). Prima era `widget-rsvp`
+          // ecc. → due RSVP selezionavano entrambi.
+          const widgetId =
+            block.type === 'rsvp' || block.type === 'gallery' || block.type === 'video'
+            || block.type === 'payment' || block.type === 'map'
+              ? widgetSelId
+              : null;
 
           const blockLayers = sortedLayers
             .filter(layer => layer.blockId === block.id && !layer.hiddenMobile)
             .map(l => ({ ...l, isWidget: false }));
 
-          const widgetItem = (widgetId || block.type === 'map') ? {
+          const widgetItem = widgetId ? {
             isWidget: true,
-            id: widgetId || 'widget-map',
+            id: widgetId,
             mobileOrder: block.widgetProps?.mobileOrder ?? 5 // Valore default intermedio
           } : null;
 
@@ -555,6 +558,24 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                         controls={block.props?.controls !== false}
                         muted={block.props?.muted !== false}
                         accentColor={theme?.accent}
+                        sectionBg={block.props?.bgColor || block.bgColor}
+                        previewMobile={previewMobile}
+                        readOnly={true}
+                      />
+                    )}
+                    {block.type === 'payment' && (
+                      <PaymentWidget
+                        title={block.widgetProps?.paymentTitle}
+                        description={block.widgetProps?.paymentDescription}
+                        presetAmounts={block.widgetProps?.paymentPresetAmounts}
+                        minAmount={block.widgetProps?.paymentMinAmount}
+                        maxAmount={block.widgetProps?.paymentMaxAmount}
+                        targetAmount={block.widgetProps?.paymentTargetAmount}
+                        showProgress={block.widgetProps?.paymentShowProgress}
+                        accentColor={block.widgetProps?.paymentAccentColor || theme?.accent}
+                        mode={block.widgetProps?.paymentMode}
+                        ctaLabel={block.widgetProps?.paymentCtaLabel}
+                        allowCustomAmount={block.widgetProps?.paymentAllowCustomAmount !== false}
                         sectionBg={block.props?.bgColor || block.bgColor}
                         previewMobile={previewMobile}
                         readOnly={true}
@@ -691,12 +712,12 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
               width: 'min(940px, calc(100% - 40px))'
             }}
             onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
-              widgetId: 'widget-gallery', xKey: 'widgetX', yKey: 'widgetY',
+              widgetId: widgetSelId, xKey: 'widgetX', yKey: 'widgetY',
               defaultX: (containerRef.current?.clientWidth || 1000) / 2,
               defaultY: (block.height || 580) / 2,
             })}
           >
-            {selectedLayerIds.includes('widget-gallery') && (
+            {selectedLayerIds.includes(widgetSelId) && (
               <div style={{
                 position: 'absolute',
                 top: -8, bottom: -8, left: -8, right: -8,
@@ -744,12 +765,12 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
               width: 'min(940px, calc(100% - 40px))'
             }}
             onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
-              widgetId: 'widget-video', xKey: 'widgetX', yKey: 'widgetY',
+              widgetId: widgetSelId, xKey: 'widgetX', yKey: 'widgetY',
               defaultX: (containerRef.current?.clientWidth || 1000) / 2,
               defaultY: (block.height || 640) / 2,
             })}
           >
-            {selectedLayerIds.includes('widget-video') && (
+            {selectedLayerIds.includes(widgetSelId) && (
               <div style={{
                 position: 'absolute',
                 top: -8, bottom: -8, left: -8, right: -8,
@@ -776,6 +797,62 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           </div>
         );
       })()}
+      {block.type === 'payment' && (() => {
+        const wx = typeof block.widgetProps?.widgetX === 'number' && !isNaN(block.widgetProps.widgetX)
+          ? (block.widgetProps.widgetX as number) + 'px' : '50%';
+        const wy = typeof block.widgetProps?.widgetY === 'number' && !isNaN(block.widgetProps.widgetY)
+          ? (block.widgetProps.widgetY as number) + 'px' : '50%';
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              top: wy,
+              left: wx,
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'auto',
+              cursor: 'grab',
+              touchAction: 'none',
+              zIndex: 5,
+              width: 'min(620px, calc(100% - 40px))'
+            }}
+            onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
+              widgetId: widgetSelId, xKey: 'widgetX', yKey: 'widgetY',
+              defaultX: (containerRef.current?.clientWidth || 1000) / 2,
+              defaultY: (block.height || 620) / 2,
+            })}
+          >
+            {selectedLayerIds.includes(widgetSelId) && (
+              <div style={{
+                position: 'absolute',
+                top: -8, bottom: -8, left: -8, right: -8,
+                border: '2px solid var(--accent)',
+                borderRadius: '16px',
+                pointerEvents: 'none',
+                zIndex: 100
+              }} />
+            )}
+            <div style={{ pointerEvents: 'none', width: '100%' }}>
+              <PaymentWidget
+                title={block.widgetProps?.paymentTitle}
+                description={block.widgetProps?.paymentDescription}
+                presetAmounts={block.widgetProps?.paymentPresetAmounts}
+                minAmount={block.widgetProps?.paymentMinAmount}
+                maxAmount={block.widgetProps?.paymentMaxAmount}
+                targetAmount={block.widgetProps?.paymentTargetAmount}
+                showProgress={block.widgetProps?.paymentShowProgress}
+                accentColor={block.widgetProps?.paymentAccentColor || theme?.accent}
+                mode={block.widgetProps?.paymentMode}
+                ctaLabel={block.widgetProps?.paymentCtaLabel}
+                allowCustomAmount={block.widgetProps?.paymentAllowCustomAmount !== false}
+                sectionBg={block.props?.bgColor || block.bgColor}
+                previewMobile={false}
+                readOnly={true}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
       {block.type === 'rsvp' && (
         <div 
           style={{ 
@@ -791,7 +868,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           }}
           onPointerDown={handleWidgetPointerDown}
         >
-          {selectedLayerIds.includes('widget-rsvp') && (
+          {selectedLayerIds.includes(widgetSelId) && (
             <div style={{
               position: 'absolute',
               top: -8, bottom: -8, left: -8, right: -8,
