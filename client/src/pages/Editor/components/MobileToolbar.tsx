@@ -4,13 +4,15 @@ import {
   Palette, Image as ImageIcon, Move, Sparkles, Trash2, Mail, MailOpen, 
   Shapes, Type, ChevronUp, Minus, Plus, Circle, ArrowRight, 
   ArrowLeft, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, 
-  ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone, Monitor
+  ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone, Monitor, Upload,
+  AlignJustify
 } from 'lucide-react';
 import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
 import CustomColorPicker from "./CustomColorPicker";
 import { AVAILABLE_FONTS, getFontPreviewText, loadGoogleFont, AVAILABLE_LINERS, AVAILABLE_SCENARIO_BGS } from "./EditorHelpers";
 import type { Layer, CanvasProps, Block } from "../../../types/editor";
+import { apiFetch } from "../../../utils/apiFetch";
 
 interface MobileToolbarProps {
   activeMobileTab: string | null;
@@ -56,6 +58,7 @@ interface MobileToolbarProps {
   layers?: Layer[];
   setLayers?: React.Dispatch<React.SetStateAction<Layer[]>>;
   setIsDirty?: (val: boolean) => void;
+  slug?: string;
 }
 
 const MobileToolbar: React.FC<MobileToolbarProps> = ({
@@ -101,10 +104,108 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
   setBlocks,
   layers,
   setLayers,
-  setIsDirty
+  setIsDirty,
+  slug
 }) => {
-  // MODALITÀ FOCUS: Nascondi la barra strumenti fissa se stiamo scrivendo un testo
-  if (editingLayerId) {
+  const galleryInputRef = React.useRef<HTMLInputElement | null>(null);
+  const videoInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [galleryUploading, setGalleryUploading] = React.useState(false);
+  const [videoUploading, setVideoUploading] = React.useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = React.useState<number | null>(null);
+
+  const getRangeStyle = (progressPercent: number): React.CSSProperties => ({
+    width: '100%',
+    background: `linear-gradient(to right, var(--accent) ${progressPercent}%, rgba(60, 79, 118, 0.12) ${progressPercent}%)`
+  });
+
+  const patchSelectedBlock = React.useCallback((patch: { props?: Record<string, any>; widgetProps?: Record<string, any> }) => {
+    if (!selectedBlockId || !blocks || !setBlocks || !setIsDirty) return;
+    setIsDirty(true);
+    setBlocks(blocks.map(b => {
+      if (b.id !== selectedBlockId) return b;
+      return {
+        ...b,
+        ...(patch.props ? { props: { ...b.props, ...patch.props } } : {}),
+        ...(patch.widgetProps ? { widgetProps: { ...b.widgetProps, ...patch.widgetProps } } : {})
+      };
+    }));
+  }, [selectedBlockId, blocks, setBlocks, setIsDirty]);
+
+  const uploadGalleryFilesMobile = React.useCallback(async (files: File[]) => {
+    if (!files.length || !selectedBlockId || !slug || !blocks || !setBlocks || !setIsDirty) return;
+    setGalleryUploading(true);
+    try {
+      const formData = new FormData();
+      files.forEach(f => formData.append('images', f));
+      const res = await apiFetch(`/api/uploads?slug=${slug}&folder=gallery`, { method: 'POST', body: formData });
+      if (!res.ok) throw new Error('Upload fallito');
+      const data = await res.json();
+      const currentBlock = blocks.find(b => b.id === selectedBlockId);
+      const currentImages = currentBlock?.props?.images || [];
+      const newImages = (data.urls as string[]).map((url) => ({
+        id: `gallery-img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        url
+      }));
+      patchSelectedBlock({ props: { images: [...currentImages, ...newImages] } });
+      pushToHistory();
+    } catch (err) {
+      console.error('Gallery upload mobile error:', err);
+      alert('Errore durante il caricamento delle immagini.');
+    } finally {
+      setGalleryUploading(false);
+    }
+  }, [blocks, patchSelectedBlock, pushToHistory, selectedBlockId, setBlocks, setIsDirty, slug]);
+
+  const uploadVideoFileMobile = React.useCallback(async (file: File | undefined | null) => {
+    if (!file || !selectedBlockId || !slug) return;
+    if (!file.type.startsWith('video/')) {
+      alert('Formato non supportato. Carica un file video (mp4, webm, mov).');
+      return;
+    }
+    setVideoUploading(true);
+    setVideoUploadProgress(0);
+    try {
+      const url = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const params = new URLSearchParams({ slug, folder: 'video' });
+        xhr.open('POST', `/api/uploads/video?${params.toString()}`, true);
+        try {
+          const token = localStorage.getItem('token');
+          if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        } catch { /* noop */ }
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) setVideoUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+        };
+        xhr.onload = () => {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300 && data.url) resolve(data.url);
+            else reject(new Error(data.error || `Upload fallito (HTTP ${xhr.status})`));
+          } catch {
+            reject(new Error('Risposta server non valida'));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Errore di rete durante upload'));
+        const formData = new FormData();
+        formData.append('video', file);
+        xhr.send(formData);
+      });
+      patchSelectedBlock({ props: { videoUrl: url } });
+      pushToHistory();
+    } catch (err: any) {
+      console.error('Video upload mobile error:', err);
+      alert(err?.message || 'Errore durante il caricamento del video.');
+    } finally {
+      setVideoUploading(false);
+      setVideoUploadProgress(null);
+    }
+  }, [patchSelectedBlock, pushToHistory, selectedBlockId, slug]);
+
+  // MODALITÀ FOCUS: nascondiamo la toolbar solo mentre il layer in editing è
+  // ancora effettivamente selezionato. Se `editingLayerId` resta stale dopo un
+  // blur/deselect (race condition già vista su gallery/video), la toolbar deve
+  // comunque riapparire per evitare il bug "sparisce finché non refreshi".
+  if (editingLayerId && selectedLayerIds.includes(editingLayerId)) {
     return null;
   }
 
@@ -127,7 +228,13 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab }
+                  {activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'widget_settings' ? (() => {
+                    const t = blocks?.find(b => b.id === selectedBlockId)?.type;
+                    if (t === 'gallery') return 'Galleria';
+                    if (t === 'video') return 'Video';
+                    if (t === 'map') return 'Mappa';
+                    return 'Impostazioni';
+                  })() : activeMobileTab }
                 </span>
               )}
               <button className="mobile-tab-close" onClick={() => { 
@@ -239,6 +346,62 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                       } as React.CSSProperties}
                     />
                     <span style={{ fontSize: '18px', color: 'var(--text-soft)', fontWeight: 600 }}>A</span>
+                  </div>
+
+                  {/* Spaziatura Lettere — coerente con PropertyPanel desktop (-10..50) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '0 10px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Spaziatura Lettere
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text-soft)', fontWeight: 700, letterSpacing: '-0.5px' }}>AA</span>
+                      <input 
+                        type="range" 
+                        className="custom-slider"
+                        min="-10" 
+                        max="50" 
+                        step="1" 
+                        value={selectedLayer.letterSpacing || 0} 
+                        onPointerDown={() => pushToHistory()}
+                        onChange={(e) => updateSelectedLayer({ letterSpacing: parseFloat(e.target.value) })}
+                        style={{ 
+                          flex: 1, 
+                          background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.letterSpacing || 0) + 10) / 60 * 100)))}%, rgba(60, 79, 118, 0.1) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.letterSpacing || 0) + 10) / 60 * 100)))}%)`
+                        } as React.CSSProperties}
+                      />
+                      <span style={{ fontSize: '13px', color: 'var(--text-soft)', fontWeight: 700, letterSpacing: '3px' }}>A A</span>
+                      <span style={{ fontSize: '12px', width: '32px', textAlign: 'right', fontWeight: 700, color: 'var(--text-soft)' }}>
+                        {selectedLayer.letterSpacing || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Spaziatura Righe — coerente con PropertyPanel desktop (0.5..3) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '0 10px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Spaziatura Righe
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <AlignJustify size={14} color="var(--text-soft)" style={{ transform: 'scaleY(0.7)' }} />
+                      <input 
+                        type="range" 
+                        className="custom-slider"
+                        min="0.5" 
+                        max="3" 
+                        step="0.1" 
+                        value={selectedLayer.lineHeight || 1.2} 
+                        onPointerDown={() => pushToHistory()}
+                        onChange={(e) => updateSelectedLayer({ lineHeight: parseFloat(e.target.value) })}
+                        style={{ 
+                          flex: 1, 
+                          background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, ((selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100))}%, rgba(60, 79, 118, 0.1) ${Math.max(0, Math.min(100, ((selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100))}%)`
+                        } as React.CSSProperties}
+                      />
+                      <AlignJustify size={14} color="var(--text-soft)" style={{ transform: 'scaleY(1.4)' }} />
+                      <span style={{ fontSize: '12px', width: '32px', textAlign: 'right', fontWeight: 700, color: 'var(--text-soft)' }}>
+                        {(selectedLayer.lineHeight || 1.2).toFixed(1)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -755,65 +918,28 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                       if (!block) return null;
                       return (
                         <>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <Button 
-                              variant={displayColorPicker === 'formPrimary' ? 'primary' : 'subtle'}
-                              style={{ flex: 1, fontSize: '11px', justifyContent: 'space-between' }}
-                              onClick={() => setDisplayColorPicker(displayColorPicker === 'formPrimary' ? false : 'formPrimary')}
-                            >
-                              <span>Pulsante</span>
-                              <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: block.widgetProps?.formPrimaryColor || 'var(--accent)', border: '1px solid var(--border)' }} />
-                            </Button>
-                            <Button 
-                              variant={displayColorPicker === 'formText' ? 'primary' : 'subtle'}
-                              style={{ flex: 1, fontSize: '11px', justifyContent: 'space-between' }}
-                              onClick={() => setDisplayColorPicker(displayColorPicker === 'formText' ? false : 'formText')}
-                            >
-                              <span>Testi</span>
-                              <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: block.widgetProps?.formTextColor || '#ffffff', border: '1px solid var(--border)' }} />
-                            </Button>
-                          </div>
+                          {/* Info auto-contrast coerente con desktop */}
+                          <p style={{ fontSize: '10px', color: 'var(--text-soft)', lineHeight: '1.5', padding: '10px 12px', background: 'rgba(var(--accent-rgb), 0.05)', borderRadius: '10px', borderLeft: '3px solid var(--accent)', margin: 0 }}>
+                            I colori del form si adattano automaticamente allo sfondo della sezione.
+                          </p>
+
+                          <Button 
+                            variant={displayColorPicker === 'formPrimary' ? 'primary' : 'subtle'}
+                            style={{ width: '100%', fontSize: '11px', justifyContent: 'space-between', borderRadius: '100px', padding: '10px 12px' }}
+                            onClick={() => setDisplayColorPicker(displayColorPicker === 'formPrimary' ? false : 'formPrimary')}
+                          >
+                            <span style={{ fontWeight: 600 }}>Pulsante & Accenti</span>
+                            <div style={{ width: '18px', height: '18px', borderRadius: '4px', background: block.widgetProps?.formPrimaryColor || 'var(--accent)', border: '1px solid var(--border)' }} />
+                          </Button>
                           
                           {displayColorPicker === 'formPrimary' && (
-                            <div style={{ padding: '4px 0' }}>
+                            <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                               <CustomColorPicker 
                                 color={block.widgetProps?.formPrimaryColor || '#14b8a6'} 
                                 onChange={(color) => {
                                   if (setBlocks) {
+                                    if (setIsDirty) setIsDirty(true);
                                     setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, formPrimaryColor: color } } : b));
-                                  }
-                                }} 
-                              />
-                            </div>
-                          )}
-                          {displayColorPicker === 'formText' && (
-                            <div style={{ padding: '4px 0' }}>
-                              <CustomColorPicker 
-                                color={block.widgetProps?.formTextColor || '#ffffff'} 
-                                onChange={(color) => {
-                                  if (setBlocks) {
-                                    setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, formTextColor: color } } : b));
-                                  }
-                                }} 
-                              />
-                            </div>
-                          )}
-
-                          <Button 
-                            variant={displayColorPicker === 'formInput' ? 'primary' : 'subtle'}
-                            style={{ width: '100%', fontSize: '11px', justifyContent: 'space-between' }}
-                            onClick={() => setDisplayColorPicker(displayColorPicker === 'formInput' ? false : 'formInput')}
-                          >
-                            <span>Sfondo Input</span>
-                            <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: block.widgetProps?.formInputBg || 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }} />
-                          </Button>
-                          {displayColorPicker === 'formInput' && (
-                            <div style={{ padding: '4px 0' }}>
-                              <CustomColorPicker 
-                                color={block.widgetProps?.formInputBg || 'rgba(255,255,255,0.05)'} 
-                                onChange={(color) => {
-                                  if (setBlocks) {
-                                    setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, formInputBg: color } } : b));
                                   }
                                 }} 
                               />
@@ -831,6 +957,18 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                     {(() => {
                       const block = blocks.find(b => b.id === selectedBlockId);
                       if (!block) return null;
+                      const customFields = block.widgetProps?.customFields || [];
+                      const updateCustomField = (index: number, patch: Record<string, any>) => {
+                        const next = [...customFields];
+                        const currentField = next[index];
+                        if (!currentField) return;
+                        next[index] = { ...currentField, ...patch };
+                        patchSelectedBlock({ widgetProps: { customFields: next } });
+                      };
+                      const removeCustomField = (index: number) => {
+                        const next = customFields.filter((_: any, i: number) => i !== index);
+                        patchSelectedBlock({ widgetProps: { customFields: next } });
+                      };
                       return (
                         <>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -870,20 +1008,304 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                              <Button 
                                variant="ghost" 
                                onClick={() => {
-                                 if (setBlocks && setIsDirty) {
-                                   setIsDirty(true);
-                                   const currentFields = block.widgetProps?.customFields || [];
-                                   const newField = { id: 'field-' + Date.now(), label: 'Nuova Domanda', type: 'text' as const, required: false };
-                                   setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, customFields: [...currentFields, newField] } } : b));
-                                 }
+                                 const newField = { id: 'field-' + Date.now(), label: 'Nuova Domanda', type: 'text' as const, required: false };
+                                 patchSelectedBlock({ widgetProps: { customFields: [...customFields, newField] } });
                                }}
                                style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.05em' }}
                              >
                                + AGGIUNGI DOMANDA PERSONALIZZATA
                              </Button>
                           </div>
+
+                          {customFields.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                              {customFields.map((field: any, index: number) => (
+                                <div key={field.id || index} style={{ background: 'var(--surface-light)', border: '1px solid var(--border)', borderRadius: '12px', padding: '10px' }}>
+                                  <input
+                                    value={field.label || ''}
+                                    onChange={(e) => updateCustomField(index, { label: e.target.value })}
+                                    placeholder={`Domanda ${index + 1}`}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px 10px',
+                                      borderRadius: '8px',
+                                      border: '1px solid var(--border)',
+                                      background: 'var(--surface)',
+                                      color: 'var(--text-primary)',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      boxSizing: 'border-box'
+                                    }}
+                                  />
+                                  <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                                    <Button
+                                      variant={field.type === 'text' ? 'primary' : 'subtle'}
+                                      style={{ flex: 1, fontSize: '10px', borderRadius: '100px', padding: '6px 8px' }}
+                                      onClick={() => updateCustomField(index, { type: 'text' })}
+                                    >
+                                      Testo libero
+                                    </Button>
+                                    <Button
+                                      variant={field.type === 'checkbox' ? 'primary' : 'subtle'}
+                                      style={{ flex: 1, fontSize: '10px', borderRadius: '100px', padding: '6px 8px' }}
+                                      onClick={() => updateCustomField(index, { type: 'checkbox' })}
+                                    >
+                                      Sì / No
+                                    </Button>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                                    <Button
+                                      variant={field.required ? 'primary' : 'subtle'}
+                                      style={{ flex: 1, fontSize: '10px', borderRadius: '100px', padding: '6px 8px' }}
+                                      onClick={() => updateCustomField(index, { required: !field.required })}
+                                    >
+                                      {field.required ? 'Obbligatoria' : 'Facoltativa'}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      style={{ color: 'var(--error)', fontSize: '10px', borderRadius: '100px', padding: '6px 8px' }}
+                                      onClick={() => removeCustomField(index)}
+                                    >
+                                      <Trash2 size={12} style={{ marginRight: 4 }} /> Elimina
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </>
                       );
+                    })()}
+                  </div>
+                )}
+
+                {/* WIDGET SETTINGS TAB — mappa, galleria, video.
+                    Unica tab per i 3 tipi (switch interno sul block.type).
+                    Controlli = subset essenziale della sidebar desktop:
+                    - map: titolo, indirizzo, zoom, colore accento
+                    - gallery: layout, colonne, spazio (upload via desktop)
+                    - video: URL, controlli riproduzione, rimuovi
+                    Gli upload di file (foto gallery / video .mp4) restano sulla
+                    sidebar desktop per evitare la complessità di fetch/API
+                    nel MobileToolbar (richiederebbe `slug` e handler di upload
+                    duplicati). Su mobile l'utente può comunque incollare un
+                    link YouTube/Vimeo come sorgente video senza upload. */}
+                {activeMobileTab === 'widget_settings' && selectedBlockId && blocks && (
+                  <div style={{ flex: 1, minWidth: 0, maxWidth: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {(() => {
+                      const block = blocks.find(b => b.id === selectedBlockId);
+                      if (!block) return null;
+
+                      const patchProps = (patch: Record<string, any>) => patchSelectedBlock({ props: patch });
+                      const patchWidgetProps = (patch: Record<string, any>) => patchSelectedBlock({ widgetProps: patch });
+
+                      const inputStyle: React.CSSProperties = {
+                        width: '100%', padding: '10px 12px', fontSize: '12px',
+                        background: 'var(--surface-light)', color: 'var(--text-primary)',
+                        border: '1px solid var(--border)', borderRadius: '10px',
+                        boxSizing: 'border-box', outline: 'none'
+                      };
+                      const labelStyle: React.CSSProperties = {
+                        fontSize: '9px', fontWeight: 800, color: 'var(--accent)',
+                        textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '6px'
+                      };
+
+                      if (block.type === 'map') {
+                        return (
+                          <>
+                            <div>
+                              <label style={labelStyle}>Titolo sezione</label>
+                              <input style={inputStyle} value={block.props?.title || ''} placeholder="Come Arrivare"
+                                onChange={(e) => patchProps({ title: e.target.value })} />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Indirizzo</label>
+                              <input style={inputStyle} value={block.props?.address || ''} placeholder="Via, Città"
+                                onChange={(e) => patchProps({ address: e.target.value })} />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Zoom ({block.props?.zoom ?? 15})</label>
+                              <input type="range" min={10} max={19} step={1} value={block.props?.zoom ?? 15}
+                                onChange={(e) => patchProps({ zoom: parseInt(e.target.value, 10) })}
+                                className="custom-slider"
+                                style={getRangeStyle(Math.round((((block.props?.zoom ?? 15) - 10) / 9) * 100))} />
+                            </div>
+                            <Button variant={displayColorPicker === 'mapAccent' ? 'primary' : 'subtle'}
+                              style={{ width: '100%', fontSize: '11px', justifyContent: 'space-between', borderRadius: '100px', padding: '10px 12px' }}
+                              onClick={() => setDisplayColorPicker(displayColorPicker === 'mapAccent' ? false : 'mapAccent')}>
+                              <span style={{ fontWeight: 600 }}>Colore accento</span>
+                              <div style={{ width: '18px', height: '18px', borderRadius: '4px', background: block.widgetProps?.mapAccentColor || 'var(--accent)', border: '1px solid var(--border)' }} />
+                            </Button>
+                            {displayColorPicker === 'mapAccent' && (
+                              <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                                <CustomColorPicker color={(block.widgetProps?.mapAccentColor as string) || '#14b8a6'}
+                                  onChange={(color) => patchWidgetProps({ mapAccentColor: color })} />
+                              </div>
+                            )}
+                          </>
+                        );
+                      }
+
+                      if (block.type === 'gallery') {
+                        const images = block.props?.images || [];
+                        const layout = block.props?.layout || 'masonry';
+                        return (
+                          <>
+                            <p style={{ fontSize: '10px', color: 'var(--text-soft)', lineHeight: '1.5', padding: '10px 12px', background: 'rgba(var(--accent-rgb), 0.05)', borderRadius: '10px', borderLeft: '3px solid var(--accent)', margin: 0 }}>
+                              {images.length > 0
+                                ? `${images.length} foto caricate. Da qui puoi aggiungerne altre, poi regolare layout e spaziatura.`
+                                : 'Carica le foto direttamente qui sotto oppure regola layout e spaziatura.'}
+                            </p>
+                            <Button
+                              variant={galleryUploading ? 'primary' : 'subtle'}
+                              style={{ width: '100%', fontSize: '11px', justifyContent: 'center', borderRadius: '100px' }}
+                              onClick={() => galleryInputRef.current?.click()}
+                              disabled={galleryUploading}
+                            >
+                              <Upload size={14} style={{ marginRight: 6 }} />
+                              {galleryUploading ? 'Caricamento foto...' : 'Carica Foto'}
+                            </Button>
+                            <input
+                              ref={galleryInputRef}
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              style={{ display: 'none' }}
+                              onChange={async (e) => {
+                                const files = Array.from(e.target.files || []);
+                                await uploadGalleryFilesMobile(files);
+                                if (e.target) e.target.value = '';
+                              }}
+                            />
+                            {images.length > 0 && (
+                              <div style={{ width: '100%', minWidth: 0, maxWidth: '100%' }}>
+                                <label style={labelStyle}>Foto ({images.length})</label>
+                                <div style={{ width: '100%', minWidth: 0, maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+                                  <div style={{ display: 'inline-flex', flexWrap: 'nowrap', gap: '8px', paddingBottom: '4px' }}>
+                                    {images.map((img: any, idx: number) => {
+                                      const src = typeof img === 'string' ? img : (img?.url || img?.src || '');
+                                      const key = (img && img.id) || `${src}-${idx}`;
+                                      return (
+                                        <div key={key} style={{ position: 'relative', flex: '0 0 116px', width: '116px', height: '78px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface-light)' }}>
+                                          {src && (
+                                            <img
+                                              src={src}
+                                              alt=""
+                                              loading="lazy"
+                                              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                            />
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const next = images.filter((_: any, i: number) => i !== idx);
+                                              patchProps({ images: next });
+                                            }}
+                                            aria-label="Rimuovi foto"
+                                            style={{ position: 'absolute', top: '4px', right: '4px', width: '22px', height: '22px', border: 'none', borderRadius: '50%', background: 'rgba(0,0,0,0.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, zIndex: 1 }}
+                                          >
+                                            <Trash2 size={12} />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            <div>
+                              <label style={labelStyle}>Layout</label>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <Button variant={layout === 'masonry' ? 'primary' : 'subtle'} style={{ flex: 1, fontSize: '11px', borderRadius: '100px' }}
+                                  onClick={() => patchProps({ layout: 'masonry' })}>Masonry</Button>
+                                <Button variant={layout === 'grid' ? 'primary' : 'subtle'} style={{ flex: 1, fontSize: '11px', borderRadius: '100px' }}
+                                  onClick={() => patchProps({ layout: 'grid' })}>Griglia</Button>
+                              </div>
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Colonne ({block.props?.columns ?? 3})</label>
+                              <input type="range" min={1} max={5} step={1} value={block.props?.columns ?? 3}
+                                onChange={(e) => patchProps({ columns: parseInt(e.target.value, 10) })}
+                                className="custom-slider"
+                                style={getRangeStyle(Math.round((((block.props?.columns ?? 3) - 1) / 4) * 100))} />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Spaziatura ({block.props?.gap ?? 12}px)</label>
+                              <input type="range" min={0} max={40} step={2} value={block.props?.gap ?? 12}
+                                onChange={(e) => patchProps({ gap: parseInt(e.target.value, 10) })}
+                                className="custom-slider"
+                                style={getRangeStyle(Math.round(((block.props?.gap ?? 12) / 40) * 100))} />
+                            </div>
+                          </>
+                        );
+                      }
+
+                      if (block.type === 'video') {
+                        const url = block.props?.videoUrl || '';
+                        const hasVideo = Boolean(url);
+                        const ToggleRow = ({ label, value, onChange }: { label: string; value: boolean; onChange: () => void }) => (
+                          <Button variant="subtle" style={{ width: '100%', justifyContent: 'space-between', padding: '10px 14px' }} onClick={onChange}>
+                            <span style={{ fontSize: '11px', fontWeight: 600 }}>{label}</span>
+                            <div style={{ width: '16px', height: '16px', border: '1px solid var(--accent)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {value && <Check size={12} color="var(--accent)" />}
+                            </div>
+                          </Button>
+                        );
+                        return (
+                          <>
+                            <div>
+                              <label style={labelStyle}>Sorgente video</label>
+                              {hasVideo ? (
+                                <div style={{ flex: 1, background: 'rgba(var(--accent-rgb), 0.06)', border: '1px solid rgba(var(--accent-rgb), 0.2)', borderRadius: '10px', padding: '9px 10px', fontSize: '11px', color: 'var(--text-soft)', fontWeight: 600 }}>
+                                  Video caricato
+                                </div>
+                              ) : (
+                                <input style={inputStyle} value={url} placeholder="https://youtu.be/..."
+                                  onChange={(e) => patchProps({ videoUrl: e.target.value })}
+                                />
+                              )}
+                              <Button
+                                variant={videoUploading ? 'primary' : 'subtle'}
+                                style={{ width: '100%', fontSize: '11px', justifyContent: 'center', borderRadius: '100px', marginTop: '8px' }}
+                                onClick={() => videoInputRef.current?.click()}
+                                disabled={videoUploading}
+                              >
+                                <Upload size={14} style={{ marginRight: 6 }} />
+                                {videoUploading
+                                  ? (videoUploadProgress !== null ? `Caricamento ${videoUploadProgress}%` : 'Caricamento video...')
+                                  : 'Carica Video'}
+                              </Button>
+                              <input
+                                ref={videoInputRef}
+                                type="file"
+                                accept="video/*"
+                                style={{ display: 'none' }}
+                                onChange={async (e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) await uploadVideoFileMobile(f);
+                                  if (e.target) e.target.value = '';
+                                }}
+                              />
+                              <p style={{ fontSize: '10px', color: 'var(--text-soft)', marginTop: '6px', lineHeight: 1.5 }}>
+                                Puoi incollare un link YouTube/Vimeo oppure caricare un file .mp4/.webm.
+                              </p>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                              <ToggleRow label="Autoplay" value={!!block.props?.autoplay} onChange={() => patchProps({ autoplay: !block.props?.autoplay })} />
+                              <ToggleRow label="Loop" value={!!block.props?.loop} onChange={() => patchProps({ loop: !block.props?.loop })} />
+                              <ToggleRow label="Senza audio" value={block.props?.muted !== false} onChange={() => patchProps({ muted: block.props?.muted === false })} />
+                              <ToggleRow label="Controlli" value={block.props?.controls !== false} onChange={() => patchProps({ controls: block.props?.controls === false })} />
+                            </div>
+                            {url && (
+                              <Button variant="ghost" style={{ width: '100%', color: 'var(--error)', fontSize: '11px', marginTop: '4px' }}
+                                onClick={() => patchProps({ videoUrl: '' })}>
+                                <Trash2 size={14} style={{ marginRight: 6 }} /> Rimuovi video
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+                      return null;
                     })()}
                   </div>
                 )}
@@ -958,7 +1380,15 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                        {/* RIGA INTESTAZIONI UNIFICATA */}
                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '6px', padding: '0 4px' }}>
                          <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 1 }}>
-                            {selectedBlockId ? (blocks?.find(b => b.id === selectedBlockId)?.type === 'rsvp' ? "Modifica RSVP" : "Modifica Sezione") : "Aggiungi"}
+                            {(() => {
+                              if (!selectedBlockId) return "Aggiungi";
+                              const t = blocks?.find(b => b.id === selectedBlockId)?.type;
+                              if (t === 'rsvp') return "Modifica RSVP";
+                              if (t === 'gallery') return "Modifica Galleria";
+                              if (t === 'video') return "Modifica Video";
+                              if (t === 'map') return "Modifica Mappa";
+                              return "Modifica Sezione";
+                            })()}
                          </span>
                          <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 1, width: '150px' }}>Visualizza su</span>
                        </div>
@@ -993,7 +1423,28 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                   </>
                                 );
                               }
-                              
+
+                              // Widget map/gallery/video: stesso pattern di RSVP — un
+                              // pulsante "Impostazioni" apre il tab con i controlli del
+                              // widget + un "+ Testo" per aggiungere titoli/didascalie.
+                              if (block && (block.type === 'map' || block.type === 'gallery' || block.type === 'video')) {
+                                return (
+                                  <>
+                                    <MobileIconBtn
+                                      icon={Settings2}
+                                      label="Impostazioni"
+                                      variant={activeMobileTab === 'widget_settings' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab('widget_settings')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={Type}
+                                      label="+ Testo"
+                                      onClick={addTextLayer}
+                                    />
+                                  </>
+                                );
+                              }
+
                               return (
                                 <>
                                   <MobileIconBtn 
@@ -1006,7 +1457,10 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                     label="Testo" 
                                     onClick={addTextLayer} 
                                   />
-                                  {(!block || (block.type !== 'rsvp' && block.type !== 'map')) && (
+                                  {/* Filtro coerente con sidebar desktop: niente "Foto"
+                                      su widget-only (rsvp/map/gallery/video hanno già le
+                                      loro sorgenti media specifiche). */}
+                                  {(!block || !['rsvp','map','gallery','video'].includes(block.type as string)) && (
                                     <MobileIconBtn 
                                       icon={ImageIcon} 
                                       label="Foto" 

@@ -1,9 +1,11 @@
 import React, { useRef, useState } from 'react';
-import type { Layer, CanvasProps, Block } from '../../../types/editor';
+import type { Layer, CanvasProps, Block, EventTheme } from '../../../types/editor';
 import EditableText from './EditableText';
 import { sortLayersForMobile } from './EditorHelpers';
 import MapWidget from './widgets/MapWidget';
 import { RSVPWidget } from './widgets/RSVPWidget';
+import GalleryWidget from './widgets/GalleryWidget';
+import VideoWidget from './widgets/VideoWidget';
 
 interface SectionCanvasProps {
   block: Block;
@@ -23,11 +25,12 @@ interface SectionCanvasProps {
   editorScale?: number | undefined;
   onMoveLayer?: ((layerId: string, direction: 'up' | 'down') => void) | undefined;
   onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
+  theme: EventTheme;
 }
 
 export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   block, layers, selectedLayerIds, setSelectedLayerIds, setLayers, pushToHistory, setIsDirty, hoveredLayerId, setHoveredLayerId, onSelectBlock, isMobile, previewMobile, editingLayerId, setEditingLayerId,
-  editorScale = 1, onUpdateBlock
+  editorScale = 1, onUpdateBlock, theme
 }) => {
   const isMobileEffective = isMobile;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -320,65 +323,80 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
     window.addEventListener('pointerup', handleUp);
   };
 
-  const handleWidgetPointerDown = (e: React.PointerEvent) => {
-    if (previewMobile) return; 
+  /**
+   * Drag handler generico per i widget posizionati (RSVP, Gallery, Video).
+   *
+   * Prima esisteva un solo `handleWidgetPointerDown` hard-coded su RSVP
+   * (`widget-rsvp` + `formX/formY`). Ora lo stesso comportamento — click-to-select,
+   * drag con conversione in coord blocco via `editorScale`, snap sugli assi
+   * centrali e sugli altri layer, push history al rilascio — vale per qualsiasi
+   * widget posizionato. Ogni widget-type ha le sue chiavi in `widgetProps` per
+   * non collidere:
+   *  - RSVP      → formX / formY (manteniamo nome storico per retrocompat DB)
+   *  - Gallery   → widgetX / widgetY
+   *  - Video     → widgetX / widgetY
+   */
+  const handleWidgetPointerDownGeneric = (
+    e: React.PointerEvent,
+    config: { widgetId: string; xKey: string; yKey: string; defaultX: number; defaultY: number }
+  ) => {
+    if (previewMobile) return;
     if (!onUpdateBlock) return;
 
     e.stopPropagation();
     if (onSelectBlock) onSelectBlock();
-    setSelectedLayerIds(['widget-rsvp']);
+    setSelectedLayerIds([config.widgetId]);
 
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
 
     const startX = e.clientX;
     const startY = e.clientY;
-    
-    let initialX = typeof block.widgetProps?.formX === 'number' && !isNaN(block.widgetProps.formX) 
-        ? block.widgetProps.formX 
-        : 500;
-        
-    let initialY = typeof block.widgetProps?.formY === 'number' && !isNaN(block.widgetProps.formY) 
-        ? block.widgetProps.formY 
-        : (block.height || 400) / 2;
+
+    const wp: Record<string, unknown> = (block.widgetProps || {}) as any;
+    const rawX = wp[config.xKey];
+    const rawY = wp[config.yKey];
+
+    let initialX = typeof rawX === 'number' && !isNaN(rawX) ? rawX : config.defaultX;
+    let initialY = typeof rawY === 'number' && !isNaN(rawY) ? rawY : config.defaultY;
 
     let dx = 0; let dy = 0;
 
     const handleMove = (moveEv: PointerEvent) => {
       dx = (moveEv.clientX - startX) / editorScale;
       dy = (moveEv.clientY - startY) / editorScale;
-      
+
       let nx = initialX + dx;
       let ny = initialY + dy;
 
-      const newGuides: {axis: string, position: number}[] = [];
+      const newGuides: { axis: string, position: number }[] = [];
       const SNAP_THRESHOLD = 5;
 
       if (containerRef.current) {
         const cw = containerRef.current.clientWidth;
         const ch = containerRef.current.clientHeight;
-        
+
         let snappedX = false;
         let snappedY = false;
 
-        // Snap al Centro Canvas
-        if (Math.abs(nx - cw/2) < SNAP_THRESHOLD) { nx = cw/2; newGuides.push({axis: 'x', position: cw/2}); snappedX = true; }
-        if (Math.abs(ny - ch/2) < SNAP_THRESHOLD) { ny = ch/2; newGuides.push({axis: 'y', position: ch/2}); snappedY = true; }
+        if (Math.abs(nx - cw / 2) < SNAP_THRESHOLD) { nx = cw / 2; newGuides.push({ axis: 'x', position: cw / 2 }); snappedX = true; }
+        if (Math.abs(ny - ch / 2) < SNAP_THRESHOLD) { ny = ch / 2; newGuides.push({ axis: 'y', position: ch / 2 }); snappedY = true; }
 
-        // Mappa gli altri layer per snap
         layers.forEach(otherL => {
-            const oW = 100; // default for simplicity on widget
-            const oH = 30;
-            const ox = typeof otherL.x === 'number' ? otherL.x : cw/2;
-            const oy = typeof otherL.y === 'number' ? otherL.y : ch/2;
+          const ox = typeof otherL.x === 'number' ? otherL.x : cw / 2;
+          const oy = typeof otherL.y === 'number' ? otherL.y : ch / 2;
 
-            if (!snappedX && Math.abs(nx - ox) < SNAP_THRESHOLD) { nx = ox; newGuides.push({axis: 'x', position: ox}); snappedX = true; }
-            if (!snappedY && Math.abs(ny - oy) < SNAP_THRESHOLD) { ny = oy; newGuides.push({axis: 'y', position: oy}); snappedY = true; }
+          if (!snappedX && Math.abs(nx - ox) < SNAP_THRESHOLD) { nx = ox; newGuides.push({ axis: 'x', position: ox }); snappedX = true; }
+          if (!snappedY && Math.abs(ny - oy) < SNAP_THRESHOLD) { ny = oy; newGuides.push({ axis: 'y', position: oy }); snappedY = true; }
         });
       }
 
       setSnapGuides(newGuides);
-      onUpdateBlock(block.id as string, { widgetProps: { formX: nx, formY: ny } });
+      // Merge con widgetProps esistente: altri settings (es. mapAccentColor,
+      // mobileOrder) non vanno persi a ogni drag.
+      onUpdateBlock(block.id as string, {
+        widgetProps: { ...(block.widgetProps || {}), [config.xKey]: nx, [config.yKey]: ny }
+      });
     };
 
     const handleUp = (upEv: PointerEvent) => {
@@ -394,6 +412,15 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
     window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', handleUp);
   };
+
+  // Back-compat: il form RSVP usa ancora la stessa API `onPointerDown={handleWidgetPointerDown}`.
+  const handleWidgetPointerDown = (e: React.PointerEvent) => handleWidgetPointerDownGeneric(e, {
+    widgetId: 'widget-rsvp',
+    xKey: 'formX',
+    yKey: 'formY',
+    defaultX: 500,
+    defaultY: (block.height || 400) / 2,
+  });
 
   if (previewMobile) {
     const sortedLayers = sortLayersForMobile(layers);
@@ -411,7 +438,12 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
         style={{ 
           width: '100%', 
           height: 'auto', 
-          minHeight: (block.height || 400) + 'px', 
+          // Gallery/Video: niente minHeight forzato (block.height default 400 generava
+          // barre vuote sotto il widget, mentre il public mobile è già `auto`).
+          // Gli altri blocchi mantengono il minHeight per preservare lo spazio del
+          // canvas autore (es. RSVP che ha form espandibile, testi liberi che fanno
+          // riferimento a coordinate del canvas logico).
+          minHeight: (block.type === 'gallery' || block.type === 'video') ? 'auto' : ((block.height || 400) + 'px'), 
           position: 'relative', 
           backgroundColor: (block as any).props?.bgColor || 'transparent',
           display: 'flex', 
@@ -424,15 +456,27 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           touchAction: 'pan-y'
         }}
       >
-        {/* RENDER LAYERS & WIDGET IN UNICO STREAM (Interscambiabili su mobile con Sposta Su/Giù) */}
+        {/* RENDER LAYERS & WIDGET IN UNICO STREAM (Interscambiabili su mobile con Sposta Su/Giù)
+            [FIX visibilità mobile] aggiunto filtro `!hiddenMobile` sui layer: prima
+            mancava del tutto nel ramo mobile (il flag veniva salvato ma ignorato). */}
         {(() => {
+          // Id widget sincronizzato col desktop: ogni tipo ha il suo `widget-<type>`
+          // (escluso map, che resta fill-parent senza widget-layer selezionabile).
+          // Prima era hard-coded `widget-element` + `widget-rsvp` → gallery e video
+          // non erano selezionabili in mobile, SPOSTA GIÙ risultava disabilitato
+          // perché la toolbar non trovava il widget nello stream.
+          const widgetId = block.type === 'rsvp' ? 'widget-rsvp'
+            : block.type === 'gallery' ? 'widget-gallery'
+            : block.type === 'video' ? 'widget-video'
+            : null;
+
           const blockLayers = sortedLayers
-            .filter(layer => layer.blockId === block.id)
+            .filter(layer => layer.blockId === block.id && !layer.hiddenMobile)
             .map(l => ({ ...l, isWidget: false }));
-            
-          const widgetItem = (block.type === 'map' || block.type === 'rsvp') ? {
+
+          const widgetItem = (widgetId || block.type === 'map') ? {
             isWidget: true,
-            id: 'widget-element',
+            id: widgetId || 'widget-map',
             mobileOrder: block.widgetProps?.mobileOrder ?? 5 // Valore default intermedio
           } : null;
 
@@ -442,23 +486,81 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
 
           return allItems.map(item => {
             if (item!.isWidget) {
+              const isSelected = widgetId ? selectedLayerIds.includes(widgetId) : false;
               return (
-                <div key="widget-element" style={{ pointerEvents: 'none', position: 'relative', zIndex: 0 }}>
-                  {block.type === 'map' && (
-                    <MapWidget 
-                      address={block.props?.address} 
-                      title={block.props?.title}
-                      zoom={block.props?.zoom}
-                      previewMobile={previewMobile}
-                    />
-                  )}
-                  {block.type === 'rsvp' && (
-                    <RSVPWidget 
-                      block={block} 
-                      readOnly={true} 
-                      isMobile={previewMobile}
-                    />
-                  )}
+                <div
+                  key={item!.id}
+                  style={{
+                    pointerEvents: 'auto',
+                    position: 'relative',
+                    zIndex: 0,
+                    cursor: 'pointer',
+                    border: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+                    borderRadius: '16px',
+                    transition: 'border-color 0.2s'
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    // Tutti i widget con widgetId (rsvp/gallery/video) espongono un
+                    // "widget-layer" selezionabile: mettendolo in selectedLayerIds la
+                    // sidebar mostra i controlli contestuali e la toolbar mobile
+                    // attiva SPOSTA SU/GIÙ coerentemente. La mappa invece non ha
+                    // widget-layer (resta fill-parent, selezionare il blocco basta).
+                    if (widgetId) {
+                      setSelectedLayerIds([widgetId]);
+                    } else {
+                      setSelectedLayerIds([]);
+                    }
+                    if (onSelectBlock) onSelectBlock();
+                  }}
+                >
+                  <div style={{ pointerEvents: 'none' }}>
+                    {block.type === 'map' && (
+                      <MapWidget
+                        address={block.props?.address}
+                        title={block.props?.title}
+                        zoom={block.props?.zoom}
+                        sectionBg={block.props?.bgColor || block.bgColor}
+                        accentColor={block.widgetProps?.mapAccentColor || theme?.accent}
+                        previewMobile={previewMobile}
+                      />
+                    )}
+                    {block.type === 'rsvp' && (
+                      <RSVPWidget
+                        block={block}
+                        readOnly={true}
+                        isMobile={previewMobile}
+                        sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
+                      />
+                    )}
+                    {block.type === 'gallery' && (
+                      <GalleryWidget
+                        title={block.props?.title}
+                        images={block.props?.images || []}
+                        layout={block.props?.layout || 'masonry'}
+                        gap={block.props?.gap ?? 12}
+                        columns={block.props?.columns ?? 3}
+                        accentColor={theme?.accent}
+                        sectionBg={block.props?.bgColor || block.bgColor}
+                        previewMobile={previewMobile}
+                        readOnly={true}
+                      />
+                    )}
+                    {block.type === 'video' && (
+                      <VideoWidget
+                        title={block.props?.title}
+                        videoUrl={block.props?.videoUrl}
+                        autoplay={block.props?.autoplay}
+                        loop={block.props?.loop}
+                        controls={block.props?.controls !== false}
+                        muted={block.props?.muted !== false}
+                        accentColor={theme?.accent}
+                        sectionBg={block.props?.bgColor || block.bgColor}
+                        previewMobile={previewMobile}
+                        readOnly={true}
+                      />
+                    )}
+                  </div>
                 </div>
               );
             }
@@ -542,16 +644,138 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
         if (onSelectBlock) onSelectBlock();
       }
     }}>
+      {/* Mappa resta fill-parent: non è un "oggetto mobile" come form/gallery/video,
+          è un layer informativo che accompagna l'evento (indirizzo + pin). Avrebbe
+          poco senso poterla trascinare a caso nella sezione; se serve riposizionarla
+          si sposta il blocco intero. */}
       {block.type === 'map' && (
-        <div style={{ pointerEvents: 'none', width: '100%', height: '100%' }}>
-          <MapWidget 
-            address={block.props?.address} 
+        <div style={{ pointerEvents: 'none', width: '100%', height: '100%', display: 'flex', alignItems: 'flex-start' }}>
+          <MapWidget
+            address={block.props?.address}
             title={block.props?.title}
             zoom={block.props?.zoom}
+            sectionBg={block.props?.bgColor || block.bgColor}
+            accentColor={block.widgetProps?.mapAccentColor || theme?.accent}
             previewMobile={false}
           />
         </div>
       )}
+
+      {/* Galleria e Video come "oggetti posizionabili" — stesso pattern RSVP:
+          position absolute + translate(-50%, -50%), rettangolo di selezione accent
+          quando selezionati, drag handler che scrive in `widgetProps.widgetX/Y` e
+          pubblica le stesse guide di snap del form. Serve per poter mettere
+          testi/layers intorno al widget (es. titoli, didascalie) senza che il
+          widget occupi tutto lo spazio. */}
+      {block.type === 'gallery' && (() => {
+        const wx = typeof block.widgetProps?.widgetX === 'number' && !isNaN(block.widgetProps.widgetX)
+          ? (block.widgetProps.widgetX as number) + 'px' : '50%';
+        const wy = typeof block.widgetProps?.widgetY === 'number' && !isNaN(block.widgetProps.widgetY)
+          ? (block.widgetProps.widgetY as number) + 'px' : '50%';
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              top: wy,
+              left: wx,
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'auto',
+              cursor: 'grab',
+              touchAction: 'none',
+              zIndex: 5,
+              // Width concreta invece di `max-content`: i widget interni
+              // (Gallery empty state, Video) usano `paddingTop: 56.25%` per
+              // l'aspect ratio 16:9 — calcolato sulla width del parent. Con
+              // `max-content` il parent collassa a 0 e il video sparisce.
+              // Usiamo il maxWidth interno del widget (900px) + respiro ai lati.
+              width: 'min(940px, calc(100% - 40px))'
+            }}
+            onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
+              widgetId: 'widget-gallery', xKey: 'widgetX', yKey: 'widgetY',
+              defaultX: (containerRef.current?.clientWidth || 1000) / 2,
+              defaultY: (block.height || 580) / 2,
+            })}
+          >
+            {selectedLayerIds.includes('widget-gallery') && (
+              <div style={{
+                position: 'absolute',
+                top: -8, bottom: -8, left: -8, right: -8,
+                border: '2px solid var(--accent)',
+                borderRadius: '12px',
+                pointerEvents: 'none',
+                zIndex: 100
+              }} />
+            )}
+            <div style={{ pointerEvents: 'none', width: '100%' }}>
+              <GalleryWidget
+                title={block.props?.title}
+                images={block.props?.images || []}
+                layout={block.props?.layout || 'masonry'}
+                gap={block.props?.gap ?? 12}
+                columns={block.props?.columns ?? 3}
+                accentColor={theme?.accent}
+                sectionBg={block.props?.bgColor || block.bgColor}
+                previewMobile={false}
+                readOnly={true}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
+      {block.type === 'video' && (() => {
+        const wx = typeof block.widgetProps?.widgetX === 'number' && !isNaN(block.widgetProps.widgetX)
+          ? (block.widgetProps.widgetX as number) + 'px' : '50%';
+        const wy = typeof block.widgetProps?.widgetY === 'number' && !isNaN(block.widgetProps.widgetY)
+          ? (block.widgetProps.widgetY as number) + 'px' : '50%';
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              top: wy,
+              left: wx,
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'auto',
+              cursor: 'grab',
+              touchAction: 'none',
+              zIndex: 5,
+              // Vedi nota width su widget-gallery: `paddingTop: 56.25%` del
+              // VideoWidget richiede width concreta del parent, non `max-content`.
+              width: 'min(940px, calc(100% - 40px))'
+            }}
+            onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
+              widgetId: 'widget-video', xKey: 'widgetX', yKey: 'widgetY',
+              defaultX: (containerRef.current?.clientWidth || 1000) / 2,
+              defaultY: (block.height || 640) / 2,
+            })}
+          >
+            {selectedLayerIds.includes('widget-video') && (
+              <div style={{
+                position: 'absolute',
+                top: -8, bottom: -8, left: -8, right: -8,
+                border: '2px solid var(--accent)',
+                borderRadius: '12px',
+                pointerEvents: 'none',
+                zIndex: 100
+              }} />
+            )}
+            <div style={{ pointerEvents: 'none', width: '100%' }}>
+              <VideoWidget
+                title={block.props?.title}
+                videoUrl={block.props?.videoUrl}
+                autoplay={block.props?.autoplay}
+                loop={block.props?.loop}
+                controls={block.props?.controls !== false}
+                muted={block.props?.muted !== false}
+                accentColor={theme?.accent}
+                sectionBg={block.props?.bgColor || block.bgColor}
+                previewMobile={false}
+                readOnly={true}
+              />
+            </div>
+          </div>
+        );
+      })()}
       {block.type === 'rsvp' && (
         <div 
           style={{ 
@@ -582,17 +806,19 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
               block={block} 
               readOnly={true}
               isMobile={false}
+              theme={theme}
+              sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
             />
           </div>
         </div>
       )}
 
-      {(previewMobile 
-        ? [...layers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0))
-        : layers
-      )
+      {/* Questo branch è raggiunto **solo** in preview desktop dell'editor (il ramo
+          mobile fa early-return più in alto). Quindi filtriamo solo `hiddenDesktop`;
+          la versione precedente aveva un `if (previewMobile)` che era codice morto. */}
+      {layers
         .filter(layer => {
-          // FILTRO CRITICO: Solo i layer appartenenti a questa sezione/blocco
+          if (layer.hiddenDesktop) return false;
           const bId = block.id || block._id;
           if (!layer.blockId) {
             if (bId) return false;
@@ -600,8 +826,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           } else {
             if (layer.blockId !== bId) return false;
           }
-          if (previewMobile) return !layer.hiddenMobile;
-          return !layer.hiddenDesktop;
+          return true;
         })
         .map(layer => {
           const isSelected = selectedLayerIds.includes(layer.id);

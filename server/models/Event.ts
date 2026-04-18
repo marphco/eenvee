@@ -3,7 +3,7 @@ import mongoose, { Schema, InferSchemaType, Types } from "mongoose";
 const blockSchema = new Schema(
   {
     id: { type: String, required: true },
-    type: { type: String, required: true }, // es: "text", "image", "map", "rsvp"
+    type: { type: String, required: true }, // es: "canvas", "map", "rsvp", "gallery", "video"
     order: { type: Number, default: 0 },
     x: { type: Schema.Types.Mixed },
     y: { type: Schema.Types.Mixed },
@@ -11,6 +11,7 @@ const blockSchema = new Schema(
     height: { type: Schema.Types.Mixed },
     bgColor: { type: String, default: '#ffffff' },
     props: { type: Schema.Types.Mixed, default: {} },
+    widgetProps: { type: Schema.Types.Mixed, default: {} },
   },
   { _id: false }
 );

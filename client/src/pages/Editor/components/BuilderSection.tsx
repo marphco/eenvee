@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowUp, ArrowDown } from 'lucide-react';
-import type { Block, Layer } from '../../../types/editor';
+import type { Block, Layer, EventTheme } from '../../../types/editor';
 import SectionToolbar from './SectionToolbar';
 import { SectionCanvas } from './SectionCanvas';
 
@@ -34,6 +34,7 @@ interface BuilderSectionProps {
   onDuplicateLayer?: ((layerId: string) => void) | undefined;
   onDeleteLayer?: ((layerId: string) => void) | undefined;
   onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
+  theme: EventTheme;
 }
 
 const BuilderSection: React.FC<BuilderSectionProps> = ({ 
@@ -65,7 +66,8 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   onMoveLayer,
   onDuplicateLayer,
   onDeleteLayer,
-  onUpdateBlock
+  onUpdateBlock,
+  theme
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isAnchorHovered, setIsAnchorHovered] = useState(false);
@@ -198,6 +200,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
           editorScale={editorScale}
           onMoveLayer={onMoveLayer}
           onUpdateBlock={onUpdateBlock}
+          theme={theme}
         />
       </div>
 
@@ -272,21 +275,50 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
             onMoveLayer={onMoveLayer}
             onDuplicateLayer={onDuplicateLayer}
             onDeleteLayer={onDeleteLayer}
-            isFirstLayer={(() => {
-              if (selectedLayerIds.length !== 1) return false;
+            {...(() => {
+              // Stream mobile coerente col rendering in SectionCanvas. Prima il
+              // widget virtuale era considerato solo per `rsvp` e `map` → per
+              // gallery/video la toolbar riteneva che il testo fosse l'unico
+              // elemento in lista e disabilitava `SPOSTA GIÙ` anche se sullo
+              // schermo c'era il widget sotto (`mobileOrder=5` default vs testo
+              // `mobileOrder=0`). Allineato: tutti i tipi widget contribuiscono
+              // allo stream di ordinamento, con id coerente col widget-layer
+              // del rendering mobile (`widget-<type>`).
+              if (selectedLayerIds.length !== 1) return { isFirstLayer: false, isLastLayer: false };
+              const selId = selectedLayerIds[0]!;
               const blockLayers = layers.filter(l => l.blockId === block.id && !l.hiddenMobile);
-              const sorted = [...blockLayers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0));
-              return sorted[0]?.id === selectedLayerIds[0];
+              const widgetId = block.type === 'rsvp' ? 'widget-rsvp'
+                : block.type === 'gallery' ? 'widget-gallery'
+                : block.type === 'video' ? 'widget-video'
+                : block.type === 'map' ? 'widget-map'
+                : null;
+              const items: { id: string; mobileOrder: number }[] = [
+                ...blockLayers.map(l => ({ id: l.id!, mobileOrder: (l.mobileOrder ?? 0) as number })),
+                ...(widgetId ? [{ id: widgetId, mobileOrder: (block.widgetProps?.mobileOrder ?? 5) as number }] : [])
+              ];
+              const sorted = [...items].sort((a, b) => a.mobileOrder - b.mobileOrder);
+              return {
+                isFirstLayer: sorted[0]?.id === selId,
+                isLastLayer: sorted[sorted.length - 1]?.id === selId,
+              };
             })()}
-            isLastLayer={(() => {
+            isWidgetLayer={(() => {
               if (selectedLayerIds.length !== 1) return false;
-              const blockLayers = layers.filter(l => l.blockId === block.id && !l.hiddenMobile);
-              const sorted = [...blockLayers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0));
-              return sorted[sorted.length - 1]?.id === selectedLayerIds[0];
+              const selId = selectedLayerIds[0]!;
+              return selId.startsWith('widget-');
             })()}
             contextLabel={(() => {
               if (selectedLayerIds.length === 1) {
-                const layer = layers.find(l => l.id === selectedLayerIds[0]);
+                const selId = selectedLayerIds[0]!;
+                // Virtual widget IDs (es. 'widget-rsvp') non sono in layers[]: risolvi dal tipo blocco
+                if (selId.startsWith('widget-')) {
+                  if (block.type === 'rsvp') return 'Modulo RSVP';
+                  if (block.type === 'map') return 'Mappa';
+                  if (block.type === 'gallery') return 'Galleria';
+                  if (block.type === 'video') return 'Video';
+                  return 'Widget';
+                }
+                const layer = layers.find(l => l.id === selId);
                 if (layer?.type === 'image') return 'Immagine';
                 if (layer?.type === 'text' || !layer?.type) return 'Testo';
                 return 'Elemento';

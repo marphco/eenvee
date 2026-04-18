@@ -12,6 +12,8 @@ import ScrollHint from "../../components/ui/ScrollHint";
 import type { EventData, Block } from "../../types/editor";
 import { RSVPWidget } from "../Editor/components/widgets/RSVPWidget";
 import MapWidget from "../Editor/components/widgets/MapWidget";
+import GalleryWidget from "../Editor/components/widgets/GalleryWidget";
+import VideoWidget from "../Editor/components/widgets/VideoWidget";
 
 export default function EventPublic() {
   const { slug } = useParams<{ slug: string }>();
@@ -95,7 +97,13 @@ export default function EventPublic() {
     );
   }
 
-  const orderedBlocks = [...(event.blocks || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  // Stesso criterio dell'editor: fallback sull'indice originale quando `order`
+  // manca. Evita che eventi legacy (creati prima della normalizzazione di `order`)
+  // collassino tutti a `order=0` e vengano ordinati in modo "stabile ma casuale".
+  const orderedBlocks = [...(event.blocks || [])]
+    .map((b, i) => ({ block: b, _idx: i }))
+    .sort((a, b) => ((a.block.order ?? a._idx) as number) - ((b.block.order ?? b._idx) as number))
+    .map(x => x.block);
 
   return (
     <div className="event-public-page" style={{ 
@@ -215,8 +223,35 @@ export default function EventPublic() {
               {orderedBlocks.map((block) => {
                 const layoutPreset = block.props?.layoutPreset || "single";
                 const currentScale = isMobile ? 1 : stageScale;
-                const isWidget = ['map'].includes(block.type);
+                const isWidget = ['map', 'gallery', 'video'].includes(block.type);
+                // Su mobile gallery e video cadono nel ramo LOGICAL CANVAS con
+                // ReadOnlyCanvas `isMobile+isBlock`, che genera uno stream flex
+                // column interleaved (stesso comportamento di SectionCanvas mobile).
+                // Questo è l'unico modo per replicare FEDELMENTE i testi (layer)
+                // attorno al widget: il ramo isWidget "desktop" usa overlay absolute
+                // con coordinate del canvas logico 1000x400, che su mobile cadono
+                // in posizioni incoerenti. Map resta nel ramo isWidget anche su
+                // mobile perché non ha un widget-layer ordinabile (è fill-parent).
+                const useAbsoluteWidgetBranch = isWidget && !(isMobile && (block.type === 'gallery' || block.type === 'video'));
                 const scaledHeight = (block.height || 400) * currentScale;
+                const isRsvpBlock = block.type === 'rsvp';
+                const rsvpFormY = isRsvpBlock
+                  ? ((typeof block.widgetProps?.formY === 'number' && !isNaN(block.widgetProps.formY))
+                      ? block.widgetProps.formY
+                      : (block.height || 400) / 2)
+                  : 0;
+                // Stima (statica) della metà altezza del widget RSVP nel suo stato iniziale.
+                // Usata SOLO per calcolare il paddingTop del layout in-flow così che il widget
+                // parta visivamente alla stessa Y che avrebbe in editor (formY - halfH).
+                // Tenendola statica il widget NON salta quando si espande: la sezione cresce
+                // semplicemente verso il basso grazie a `height: auto` + `flex-start`.
+                const RSVP_WIDGET_EST_HALF = 200;
+                const rsvpTopPadding = isRsvpBlock
+                  ? Math.max(40, rsvpFormY - RSVP_WIDGET_EST_HALF) * currentScale
+                  : 0;
+                const rsvpBottomPadding = isRsvpBlock
+                  ? Math.max(40, (block.height || 400) - rsvpFormY - RSVP_WIDGET_EST_HALF) * currentScale
+                  : 0;
                 
                 return (
                   <div 
@@ -225,17 +260,23 @@ export default function EventPublic() {
                     style={{
                        position: 'relative',
                        width: '100%', 
-                       height: isMobile || isWidget ? 'auto' : (scaledHeight + 'px'),
-                       minHeight: isMobile ? '200px' : (isWidget ? '300px' : 'auto'),
-                       background: block.props?.bgColor || 'transparent',
+                       height: isMobile || isWidget || isRsvpBlock ? 'auto' : (scaledHeight + 'px'),
+                       // Su mobile gallery/video vanno in-flow con ReadOnlyCanvas mobile
+                       // (padding 40px 20px già interno): imponendo un minHeight 200px
+                       // si aggiungevano barre vuote sotto al widget. Per map invece
+                       // teniamo 200px perché il MapWidget ha altezza naturale piccola.
+                       minHeight: isMobile
+                         ? (useAbsoluteWidgetBranch ? '200px' : 'auto')
+                         : (isWidget ? '300px' : (isRsvpBlock ? (scaledHeight + 'px') : 'auto')),
+                       background: block.props?.bgColor || block.bgColor || 'transparent',
                        marginBottom: isMobile ? '20px' : '0',
-                       overflow: isWidget ? 'visible' : 'hidden',
+                       overflow: isWidget || isRsvpBlock ? 'visible' : 'hidden',
                        display: 'flex',
                        justifyContent: 'center',
                        boxSizing: 'border-box'
                     }}
                   >
-                    {isWidget ? (
+                    {useAbsoluteWidgetBranch ? (
                       /* FLUID WIDGET RENDERING - No fixed width/scale wrapper to prevent clipping */
                       <div style={{ 
                         width: '100%', 
@@ -249,18 +290,92 @@ export default function EventPublic() {
                         alignItems: 'center'
                       }}>
                         {block.type === 'map' && (
-                          <MapWidget 
-                            address={block.props?.address} 
+                          <MapWidget
+                            address={block.props?.address}
                             title={block.props?.title}
                             zoom={block.props?.zoom || 15}
+                            sectionBg={block.props?.bgColor || block.bgColor}
+                            accentColor={block.widgetProps?.mapAccentColor || event.theme?.accent}
                             previewMobile={isMobile}
                           />
                         )}
-                        {/* WIDGET OVERLAY LAYERS (es. testi draggabili RSVP) */}
+                        {/* Gallery/Video: se l'utente ha posizionato il widget nell'editor
+                            (widgetX/widgetY settati) replichiamo la stessa posizione absolute
+                            qui, altrimenti fallback al layout centrato del parent flex per
+                            retro-compat con gli eventi creati prima dei widget posizionabili.
+                            Su mobile il posizionamento libero viene ignorato (il layout è
+                            stacked a colonna, coerente con tutti gli altri blocchi). */}
+                        {block.type === 'gallery' && (() => {
+                          const hasPos = !isMobile
+                            && typeof block.widgetProps?.widgetX === 'number'
+                            && typeof block.widgetProps?.widgetY === 'number';
+                          const galleryEl = (
+                            <GalleryWidget
+                              title={block.props?.title}
+                              images={block.props?.images || []}
+                              layout={block.props?.layout || 'masonry'}
+                              gap={block.props?.gap ?? 12}
+                              columns={block.props?.columns ?? 3}
+                              accentColor={event.theme?.accent}
+                              sectionBg={block.props?.bgColor || block.bgColor}
+                              previewMobile={isMobile}
+                              readOnly={false}
+                            />
+                          );
+                          if (!hasPos) return galleryEl;
+                          return (
+                            <div style={{
+                              position: 'absolute',
+                              top: (block.widgetProps!.widgetY as number) + 'px',
+                              left: (block.widgetProps!.widgetX as number) + 'px',
+                              transform: 'translate(-50%, -50%)',
+                              width: 'min(940px, calc(100% - 40px))'
+                            }}>
+                              {galleryEl}
+                            </div>
+                          );
+                        })()}
+                        {block.type === 'video' && (() => {
+                          const hasPos = !isMobile
+                            && typeof block.widgetProps?.widgetX === 'number'
+                            && typeof block.widgetProps?.widgetY === 'number';
+                          const videoEl = (
+                            <VideoWidget
+                              title={block.props?.title}
+                              videoUrl={block.props?.videoUrl}
+                              autoplay={block.props?.autoplay}
+                              loop={block.props?.loop}
+                              controls={block.props?.controls !== false}
+                              muted={block.props?.muted !== false}
+                              accentColor={event.theme?.accent}
+                              sectionBg={block.props?.bgColor || block.bgColor}
+                              previewMobile={isMobile}
+                              readOnly={false}
+                            />
+                          );
+                          if (!hasPos) return videoEl;
+                          return (
+                            <div style={{
+                              position: 'absolute',
+                              top: (block.widgetProps!.widgetY as number) + 'px',
+                              left: (block.widgetProps!.widgetX as number) + 'px',
+                              transform: 'translate(-50%, -50%)',
+                              width: 'min(940px, calc(100% - 40px))'
+                            }}>
+                              {videoEl}
+                            </div>
+                          );
+                        })()}
+                        {/* WIDGET OVERLAY LAYERS (es. testi draggabili RSVP).
+                            [FIX visibilità] aggiunto filtro `hiddenMobile/hiddenDesktop`:
+                            prima il flag era salvato dal toggle in PropertyPanel ma
+                            ignorato su tutti e 3 i path del public → i layer restavano
+                            sempre visibili indipendentemente dalla vista. */}
                         {event.layers && event.canvas && (
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}>
                             <ReadOnlyCanvas 
                               layers={event.layers.filter(l => {
+                                if (isMobile ? l.hiddenMobile : l.hiddenDesktop) return false;
                                 const bId = block.id || block._id;
                                 if (!l.blockId) {
                                   if (bId) return false;
@@ -276,8 +391,73 @@ export default function EventPublic() {
                           </div>
                         )}
                       </div>
+                    ) : !isMobile && isRsvpBlock ? (
+                      /* RSVP DESKTOP — LAYOUT IN-FLOW
+                         Il widget vive in normal flow dentro un flex-column con paddingTop
+                         calcolato per farlo apparire visivamente dove l'autore lo ha messo
+                         nell'editor (formY − halfWidget estimato). Se il form espande
+                         dinamicamente (es. "Sì allergie"), il widget cresce in basso e la
+                         sezione cresce insieme a lui (`height: auto`) senza sovrapporsi ai
+                         testi decorativi, che restano assoluti alle loro y logiche. */
+                      <div style={{
+                        position: 'relative',
+                        width: '100%',
+                        maxWidth: MAX_CANVA_WIDTH + 'px',
+                        minHeight: scaledHeight + 'px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        paddingTop: rsvpTopPadding + 'px',
+                        paddingBottom: rsvpBottomPadding + 'px',
+                        boxSizing: 'border-box',
+                        zIndex: 1
+                      }}>
+                        {/* Overlay text layer decorativi (assoluti, non in flusso).
+                            Filtro visibilità: rispetta i flag `hiddenDesktop` nella
+                            path RSVP-desktop (qui `isMobile` è già false per rami). */}
+                        {event.layers && event.canvas && (() => {
+                          const bId = block.id || block._id;
+                          const decorativeLayers = event.layers.filter(l => {
+                            if (!l.blockId) return false;
+                            if (l.hiddenDesktop) return false;
+                            return l.blockId === bId;
+                          });
+                          if (decorativeLayers.length === 0) return null;
+                          return (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: '50%',
+                              transform: `translateX(-50%) scale(${currentScale})`,
+                              transformOrigin: 'top center',
+                              width: LOGICAL_WIDTH + 'px',
+                              height: (block.height || 400) + 'px',
+                              pointerEvents: 'none',
+                              zIndex: 2
+                            }}>
+                              <ReadOnlyCanvas
+                                layers={decorativeLayers}
+                                canvasProps={{ ...event.canvas, height: block.height || 400, bgImage: null, bgColor: 'transparent' }}
+                                isMobile={false}
+                                isBlock={true}
+                              />
+                            </div>
+                          );
+                        })()}
+                        {/* Widget RSVP in flusso naturale, centrato orizzontalmente */}
+                        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', zIndex: 3, position: 'relative' }}>
+                          <RSVPWidget
+                            block={block}
+                            theme={event.theme}
+                            eventSlug={slug || ""}
+                            isMobile={false}
+                            sectionBg={block.props?.bgColor || block.bgColor || '#ffffff'}
+                          />
+                        </div>
+                      </div>
                     ) : (
-                      /* LOGICAL CANVAS RENDERING - Uses scaling for precise layer positioning */
+                      /* LOGICAL CANVAS RENDERING - Uses scaling for precise layer positioning. */
                       <div style={!isMobile ? {
                         width: LOGICAL_WIDTH + 'px',
                         height: (block.height || 400) + 'px',
@@ -301,6 +481,7 @@ export default function EventPublic() {
                           <ReadOnlyCanvas 
                             layers={[
                               ...event.layers.filter(l => {
+                                if (isMobile ? l.hiddenMobile : l.hiddenDesktop) return false;
                                 const bId = block.id || block._id;
                                 if (!l.blockId) {
                                   if (bId) return false;
@@ -312,10 +493,23 @@ export default function EventPublic() {
                               ...(block.type === 'rsvp' ? [{
                                 id: `widget-rsvp-${block.id || block._id}`,
                                 type: 'custom-widget' as any,
-                                blockId: block.id,
+                                blockId: block.id || block._id || '',
                                 mobileOrder: block.widgetProps?.mobileOrder ?? 5,
                                 x: (typeof block.widgetProps?.formX === 'number' && !isNaN(block.widgetProps.formX)) ? block.widgetProps.formX : 500,
                                 y: (typeof block.widgetProps?.formY === 'number' && !isNaN(block.widgetProps.formY)) ? block.widgetProps.formY : (block.height || 400) / 2,
+                                z: 5
+                              }] : []),
+                              // Gallery/Video mobile: iniettiamo un custom-widget nello
+                              // stream mobile del ReadOnlyCanvas così il widget vive
+                              // in-flow tra i layer testo (ordinati per mobileOrder),
+                              // esattamente come SectionCanvas mobile fa nell'editor.
+                              ...(isMobile && (block.type === 'gallery' || block.type === 'video') ? [{
+                                id: `widget-${block.type}-${block.id || block._id}`,
+                                type: 'custom-widget' as any,
+                                blockId: block.id || block._id || '',
+                                mobileOrder: block.widgetProps?.mobileOrder ?? 5,
+                                x: 500,
+                                y: (block.height || 400) / 2,
                                 z: 5
                               }] : [])
                             ]}
@@ -323,7 +517,48 @@ export default function EventPublic() {
                               if (layer.type === 'custom-widget' && block.type === 'rsvp') {
                                 return (
                                   <div style={{ pointerEvents: 'auto' }}>
-                                    <RSVPWidget block={block} theme={event.theme} eventSlug={slug || ""} isMobile={isMobile} />
+                                    <RSVPWidget
+                                      block={block}
+                                      theme={event.theme}
+                                      eventSlug={slug || ""}
+                                      isMobile={isMobile}
+                                      sectionBg={block.props?.bgColor || block.bgColor || '#ffffff'}
+                                    />
+                                  </div>
+                                );
+                              }
+                              if (layer.type === 'custom-widget' && block.type === 'gallery') {
+                                return (
+                                  <div style={{ pointerEvents: 'auto' }}>
+                                    <GalleryWidget
+                                      title={block.props?.title}
+                                      images={block.props?.images || []}
+                                      layout={block.props?.layout || 'masonry'}
+                                      gap={block.props?.gap ?? 12}
+                                      columns={block.props?.columns ?? 3}
+                                      accentColor={event.theme?.accent}
+                                      sectionBg={block.props?.bgColor || block.bgColor}
+                                      previewMobile={isMobile}
+                                      readOnly={false}
+                                    />
+                                  </div>
+                                );
+                              }
+                              if (layer.type === 'custom-widget' && block.type === 'video') {
+                                return (
+                                  <div style={{ pointerEvents: 'auto' }}>
+                                    <VideoWidget
+                                      title={block.props?.title}
+                                      videoUrl={block.props?.videoUrl}
+                                      autoplay={block.props?.autoplay}
+                                      loop={block.props?.loop}
+                                      controls={block.props?.controls !== false}
+                                      muted={block.props?.muted !== false}
+                                      accentColor={event.theme?.accent}
+                                      sectionBg={block.props?.bgColor || block.bgColor}
+                                      previewMobile={isMobile}
+                                      readOnly={false}
+                                    />
                                   </div>
                                 );
                               }

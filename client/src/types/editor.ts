@@ -1,7 +1,7 @@
 export interface Layer {
   id: string;
   blockId?: string;
-  type?: 'text' | 'image';
+  type?: 'text' | 'image' | 'custom-widget';
   x: number | 'center';
   y: number | 'center';
   z?: number;

@@ -144,8 +144,15 @@ router.put("/:slug", requireAuth, async (req: AuthRequest, res: Response) => {
     const isPremium = realPlan === "premium";
 
     // ✅ blocks safe
+    // NB: in produzione gli account non premium non possono salvare blocchi
+    // 'gallery' (gate commerciale), ma in sviluppo li lasciamo passare sempre,
+    // coerentemente con quanto già fatto in `uploads.ts` (requirePremiumForGalleryUpload).
+    // Prima di questa correzione, in dev il save eliminava silenziosamente i blocchi
+    // gallery: l'utente caricava le foto, vedeva "Salvato" e al refresh tutto spariva.
     let safeBlocks = Array.isArray(blocks) ? blocks : [];
-    if (!isPremium) safeBlocks = safeBlocks.filter((b: any) => b.type !== "gallery");
+    if (!isPremium && process.env.NODE_ENV === "production") {
+      safeBlocks = safeBlocks.filter((b: any) => b.type !== "gallery");
+    }
 
     const update: any = {
       ...(title !== undefined && { title }),

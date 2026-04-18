@@ -7,6 +7,43 @@ import requireAuth, { AuthRequest } from "../middleware/requireAuth.js";
 const router = express.Router();
 
 /* ======================================
+   ✅ Helper: normalizza `customResponses` in un array
+   [{ fieldId, label, type, answer }].
+   Accetta due forme:
+     - array già strutturato (nuovo widget)
+     - oggetto { fieldId: answer } (vecchi client / retro-compat)
+   Ritorna:
+     - array normalizzato
+     - `null` se il caller non ha inviato nulla (→ non toccare il record)
+===================================== */
+function normalizeCustomResponses(input: any): Array<{ fieldId: string; label: string; type: string; answer: any }> | null {
+  if (input === undefined || input === null) return null;
+
+  if (Array.isArray(input)) {
+    return input
+      .filter((r: any) => r && (r.fieldId || r.id))
+      .map((r: any) => ({
+        fieldId: String(r.fieldId ?? r.id ?? ""),
+        label: String(r.label ?? r.fieldId ?? r.id ?? "Domanda"),
+        type: r.type === "checkbox" ? "checkbox" : "text",
+        answer: r.answer ?? null,
+      }));
+  }
+
+  if (typeof input === "object") {
+    // formato legacy: { "<fieldId>": "answer" }
+    return Object.keys(input).map((k) => ({
+      fieldId: k,
+      label: k,
+      type: "text",
+      answer: input[k] ?? null,
+    }));
+  }
+
+  return [];
+}
+
+/* ======================================
    ✅ Helper: calcola scadenza token = giorno evento (23:59)
 ===================================== */
 function tokenExpiryFromEvent(event: any) {
@@ -28,14 +65,27 @@ function tokenExpiryFromEvent(event: any) {
 ====================================== */
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { eventSlug, name, email, phone, guestsCount, message, status } =
-      req.body;
+    const {
+      eventSlug,
+      name,
+      email,
+      phone,
+      guestsCount,
+      message,
+      status,
+      allergies,
+      customResponses,
+    } = req.body;
 
     if (!eventSlug || !name) {
       return res
         .status(400)
         .json({ message: "eventSlug e name sono obbligatori" });
     }
+
+    // ✅ normalizza customResponses: accetta sia array [{fieldId,label,type,answer}]
+    //    sia vecchi payload oggetto {fieldId: answer} (retro-compat).
+    const normalizedCustomResponses = normalizeCustomResponses(customResponses);
 
     // ✅ cerchiamo se esiste già una RSVP per questo evento con stessa email o phone
     const hasIdentifier =
@@ -66,6 +116,8 @@ router.post("/", async (req: Request, res: Response) => {
       existing.guestsCount = guestsCount ?? existing.guestsCount;
       existing.message = message ?? existing.message;
       existing.status = status || existing.status;
+      if (allergies !== undefined) existing.allergies = allergies || "";
+      if (normalizedCustomResponses !== null) existing.customResponses = normalizedCustomResponses as any;
 
       // ✅ refresh scadenza token fino al giorno evento
       const event = await Event.findOne({ slug: eventSlug }).select(
@@ -98,6 +150,8 @@ router.post("/", async (req: Request, res: Response) => {
       phone,
       guestsCount,
       message,
+      allergies: allergies || "",
+      customResponses: normalizedCustomResponses || [],
       status: status || "yes",
       editToken: token,
       editTokenExpiresAt: expiresAt,
@@ -182,7 +236,7 @@ router.get("/edit/:token", async (req: Request, res: Response) => {
 ====================================== */
 router.put("/edit/:token", async (req: Request, res: Response) => {
   try {
-    const { name, guestsCount, status, message, email, phone } = req.body;
+    const { name, guestsCount, status, message, email, phone, allergies, customResponses } = req.body;
 
     const rsvp = await Rsvp.findOne({ editToken: req.params.token });
     if (!rsvp) return res.status(404).json({ message: "Token non valido" });
@@ -195,6 +249,10 @@ router.put("/edit/:token", async (req: Request, res: Response) => {
     rsvp.guestsCount = guestsCount ?? rsvp.guestsCount;
     rsvp.status = status ?? rsvp.status;
     rsvp.message = message ?? rsvp.message;
+
+    if (allergies !== undefined) rsvp.allergies = allergies || "";
+    const normalized = normalizeCustomResponses(customResponses);
+    if (normalized !== null) rsvp.customResponses = normalized as any;
 
     if (email) rsvp.email = email.toLowerCase().trim();
     if (phone) rsvp.phone = phone.trim();
@@ -225,12 +283,28 @@ router.put("/:id", requireAuth, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: "Non autorizzato" });
     }
 
-    const { name, guestsCount, status, message } = req.body;
+    const { name, guestsCount, status, message, allergies, customResponses, email, phone } = req.body;
 
     if (name !== undefined) rsvp.name = name;
     if (guestsCount !== undefined) rsvp.guestsCount = guestsCount;
     if (status !== undefined) rsvp.status = status;
     if (message !== undefined) rsvp.message = message;
+    if (allergies !== undefined) rsvp.allergies = allergies || "";
+
+    // Email / phone sono opzionali anche lato owner. Usiamo `undefined` (non "")
+    // per rimuoverli: il partial-unique-index su `email`/`phone` scatta solo per
+    // valori di tipo string, quindi `""` confliggerebbe fra più RSVP "senza email".
+    if (email !== undefined) {
+      const v = String(email || "").toLowerCase().trim();
+      rsvp.email = v || (undefined as any);
+    }
+    if (phone !== undefined) {
+      const v = String(phone || "").trim();
+      rsvp.phone = v || (undefined as any);
+    }
+
+    const normalized = normalizeCustomResponses(customResponses);
+    if (normalized !== null) rsvp.customResponses = normalized as any;
 
     await rsvp.save();
     res.json(rsvp);

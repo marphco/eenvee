@@ -15,7 +15,6 @@ interface EventPageBuilderProps {
   setSelectedLayerIds: (ids: string[]) => void;
   isMobile: boolean;
   scenarioScale: number;
-  updateTheme: (updates: any, pushToHistory?: () => void) => void;
   blocks: Block[];
   setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
   selectedBlockId: string | null;
@@ -26,6 +25,7 @@ interface EventPageBuilderProps {
   editingLayerId: string | null;
   setEditingLayerId: (id: string | null) => void;
   onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
+  updateEventData: (updates: any, pushToHistory?: () => void) => void;
 }
 
 export function EventPageBuilder({
@@ -37,7 +37,6 @@ export function EventPageBuilder({
   setSelectedLayerIds,
   isMobile,
   scenarioScale,
-  updateTheme,
   blocks,
   setBlocks,
   selectedBlockId,
@@ -47,7 +46,8 @@ export function EventPageBuilder({
   previewMobile,
   editingLayerId,
   setEditingLayerId,
-  onUpdateBlock
+  onUpdateBlock,
+  updateEventData
 }: EventPageBuilderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInvitationOpened, setIsInvitationOpened] = useState(false);
@@ -79,7 +79,7 @@ export function EventPageBuilder({
 
   const handleHeightChangeComplete = () => {
     // Sincronizza con il tema dell'evento solo alla fine del drag per performance e history pulita
-    updateTheme({ blocks: blocks }); 
+    updateEventData({ blocks: blocks }); 
     pushToHistory();
   };
 
@@ -99,44 +99,80 @@ export function EventPageBuilder({
     const ordered = newBlocks.map((b, i) => ({ ...b, order: i }));
     
     setBlocks(ordered);
-    updateTheme({ blocks: ordered });
+    updateEventData({ blocks: ordered });
     pushToHistory();
     setSelectedBlockId(current.id || null);
   };
 
-  const moveBlockMobile = (index: number, direction: 'up' | 'down') => {
-    const currentBlocks = [...blocks];
-    // Se non hanno mobileOrder, inizializzali in base all'ordine attuale
-    const hasAnyMobileOrder = currentBlocks.some(b => b.mobileOrder !== undefined);
-    
-    let workingBlocks = [...currentBlocks];
-    if (!hasAnyMobileOrder) {
-      workingBlocks = workingBlocks.map((b, i) => ({ ...b, mobileOrder: i }));
-    }
-
-    // Ordina per mobileOrder per trovare i vicini reali in questa vista
-    const sorted = [...workingBlocks].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0));
-    const currentBlockInSorted = sorted[index];
-    const targetIdxInSorted = direction === 'up' ? index - 1 : index + 1;
-    
-    if (targetIdxInSorted < 0 || targetIdxInSorted >= sorted.length) return;
-    
-    const targetBlockInSorted = sorted[targetIdxInSorted];
-
-    // Scambia i mobileOrder
-    if (currentBlockInSorted && targetBlockInSorted) {
-      const tempOrder = currentBlockInSorted.mobileOrder;
-      currentBlockInSorted.mobileOrder = targetBlockInSorted.mobileOrder as number;
-      targetBlockInSorted.mobileOrder = tempOrder as number;
-
-      setBlocks(workingBlocks);
-      updateTheme({ blocks: workingBlocks });
-      pushToHistory();
-      setSelectedBlockId(currentBlockInSorted.id || null);
-    }
-  };
+  // [FIX ordine mobile/desktop] Prima `moveBlockMobile` aggiornava `block.mobileOrder`
+  // — un binario separato che sia la preview mobile dell'editor sia la pagina
+  // pubblica ignoravano (la public usa `block.order`). Risultato: l'utente
+  // spostava una sezione su mobile e l'ordine restava diverso ovunque. Le
+  // SEZIONI hanno un solo ordine globale (solo gli elementi interni, i layer,
+  // hanno `mobileOrder` separato). Rendiamo `moveBlockMobile` un alias di
+  // `moveBlock` così ogni "sposta sezione" — che venga dalla vista desktop o
+  // mobile dell'editor — aggiorna `block.order`, garantendo consistenza con
+  // la pagina pubblica su entrambi i dispositivi.
+  const moveBlockMobile = (index: number, direction: 'up' | 'down') => moveBlock(index, direction);
 
   const moveLayerMobile = (layerId: string, direction: 'up' | 'down') => {
+    // === WIDGET VIRTUALE (RSVP/Mappa/Gallery/Video) ===
+    // L'ID `widget-<type>` non vive in layers[]: l'ordinamento è su
+    // block.widgetProps.mobileOrder. Costruiamo lo stream completo
+    // (layer reali + widget) e swappiamo l'ordine con il vicino.
+    // [FIX] prima accettava solo rsvp/map → su gallery/video il move era no-op.
+    if (layerId.startsWith('widget-')) {
+      const WIDGET_TYPES = ['rsvp', 'map', 'gallery', 'video'] as const;
+      const block = blocks?.find(b => WIDGET_TYPES.includes(b.type as any) && b.id === selectedBlockId);
+      if (!block) return;
+      const blockLayers = (layers || []).filter(l => l.blockId === block.id && !l.hiddenMobile);
+      const hasAnyMobileOrder = blockLayers.some(l => l.mobileOrder !== undefined);
+      const preparedLayers = [...blockLayers];
+      if (!hasAnyMobileOrder) {
+        preparedLayers.sort((a, b) => ((a.y as number) || 0) - ((b.y as number) || 0));
+        preparedLayers.forEach((l, i) => { (l as any).mobileOrder = i; });
+      }
+      const widgetOrder = (block.widgetProps?.mobileOrder ?? 5) as number;
+
+      type StreamItem = { id: string; mobileOrder: number; isWidget: boolean };
+      const stream: StreamItem[] = [
+        ...preparedLayers.map(l => ({ id: l.id!, mobileOrder: (l.mobileOrder ?? 0) as number, isWidget: false })),
+        { id: layerId, mobileOrder: widgetOrder, isWidget: true }
+      ].sort((a, b) => a.mobileOrder - b.mobileOrder);
+
+      const idx = stream.findIndex(s => s.isWidget);
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (idx < 0 || targetIdx < 0 || targetIdx >= stream.length) return;
+
+      const other = stream[targetIdx]!;
+      const current = stream[idx]!;
+      // Scambio valori di mobileOrder
+      const newWidgetOrder = other.mobileOrder;
+      const newOtherOrder = current.mobileOrder;
+
+      // Applica: aggiorna il widget sul block e il layer vicino in layers[]
+      const newBlocks = (blocks || []).map(b => b.id === block.id
+        ? { ...b, widgetProps: { ...b.widgetProps, mobileOrder: newWidgetOrder } }
+        : b
+      );
+      const newLayers = (layers || []).map(l => {
+        if (l.id === other.id) return { ...l, mobileOrder: newOtherOrder };
+        // Seed iniziale: se mancava un mobileOrder, lo fissiamo coerentemente con prepared
+        if (!hasAnyMobileOrder) {
+          const p = preparedLayers.find(pl => pl.id === l.id);
+          if (p) return { ...l, mobileOrder: (p as any).mobileOrder };
+        }
+        return l;
+      });
+
+      setBlocks(newBlocks);
+      setLayers(newLayers);
+      updateEventData({ blocks: newBlocks, layers: newLayers });
+      setIsDirty(true);
+      pushToHistory();
+      return;
+    }
+
     const currentLayers = [...layers];
     const targetLayer = currentLayers.find(l => l.id === layerId);
     if (!targetLayer) return;
@@ -156,22 +192,52 @@ export function EventPageBuilder({
       });
     }
 
-    const sorted = [...blockLayers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0));
-    const idx = sorted.findIndex(l => l.id === layerId);
+    // Costruiamo lo stream completo includendo il widget se il blocco ne ha uno:
+    // così lo "scambio" tra un layer reale e il widget funziona in entrambi i sensi.
+    // [FIX] ora coperti tutti e 4 i tipi widget, non solo rsvp/map.
+    const block = blocks?.find(b => b.id === targetLayer.blockId);
+    const widgetId = block?.type === 'rsvp' ? 'widget-rsvp'
+      : block?.type === 'map' ? 'widget-map'
+      : block?.type === 'gallery' ? 'widget-gallery'
+      : block?.type === 'video' ? 'widget-video'
+      : null;
+    type StreamItem = { id: string; mobileOrder: number; isWidget: boolean };
+    const stream: StreamItem[] = [
+      ...blockLayers.map(l => ({ id: l.id!, mobileOrder: (l.mobileOrder ?? 0) as number, isWidget: false })),
+      ...(widgetId ? [{ id: widgetId, mobileOrder: (block!.widgetProps?.mobileOrder ?? 5) as number, isWidget: true }] : [])
+    ].sort((a, b) => a.mobileOrder - b.mobileOrder);
+
+    const idx = stream.findIndex(s => s.id === layerId);
     const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (idx < 0 || targetIdx < 0 || targetIdx >= stream.length) return;
 
-    if (targetIdx >= 0 && targetIdx < sorted.length) {
-      const otherLayer = sorted[targetIdx];
-      if (targetLayer && otherLayer) {
-        const tempOrder = targetLayer.mobileOrder;
-        targetLayer.mobileOrder = otherLayer.mobileOrder as number;
-        otherLayer.mobileOrder = tempOrder as number;
+    const other = stream[targetIdx]!;
+    const current = stream[idx]!;
+    const tempOrder = current.mobileOrder;
+    const newCurrentOrder = other.mobileOrder;
+    const newOtherOrder = tempOrder;
 
-        setLayers(currentLayers);
-        updateTheme({ layers: currentLayers });
-        pushToHistory();
-      }
+    if (other.isWidget && block) {
+      // Scambio tra layer reale e widget: aggiorna il widget sul block
+      const newBlocks = (blocks || []).map(b => b.id === block.id
+        ? { ...b, widgetProps: { ...b.widgetProps, mobileOrder: newOtherOrder } }
+        : b
+      );
+      const newLayers = currentLayers.map(l => l.id === current.id ? { ...l, mobileOrder: newCurrentOrder } : l);
+      setBlocks(newBlocks);
+      setLayers(newLayers);
+      updateEventData({ blocks: newBlocks, layers: newLayers });
+    } else {
+      // Scambio classico tra due layer reali (path originale, preservato)
+      const newLayers = currentLayers.map(l => {
+        if (l.id === current.id) return { ...l, mobileOrder: newCurrentOrder };
+        if (l.id === other.id) return { ...l, mobileOrder: newOtherOrder };
+        return l;
+      });
+      setLayers(newLayers);
     }
+    setIsDirty(true);
+    pushToHistory();
   };
 
   const duplicateBlock = (index: number) => {
@@ -194,18 +260,21 @@ export function EventPageBuilder({
     
     const newBlocks = [...blocks];
     newBlocks.splice(index + 1, 0, newBlock);
-    
+    // Normalizziamo `order` = idx array. È CRITICO: la public view sorta per
+    // `(block.order ?? 0)`, quindi se i blocchi hanno order non contiguo o uguale
+    // (tipico dopo duplicate/delete) l'ordine nelle due viste si disallinea.
+    const orderedBlocks = newBlocks.map((b, i) => ({ ...b, order: i }));
     const updatedLayers = [...layers, ...newLayers];
 
-    setBlocks(newBlocks);
+    setBlocks(orderedBlocks);
     setLayers(updatedLayers); // Aggiorna lo stato locale
-    
+
     // Sincronizzazione ATOMICA: mandiamo sia i blocchi che i layer aggiornati al server in un colpo solo
-    updateTheme({ 
-      blocks: newBlocks, 
-      layers: updatedLayers 
+    updateEventData({
+      blocks: orderedBlocks,
+      layers: updatedLayers
     });
-    
+
     pushToHistory();
     setSelectedBlockId(newBlockId); // Seleziona automaticamente il nuovo blocco
   };
@@ -213,19 +282,34 @@ export function EventPageBuilder({
   const deleteBlock = (index: number) => {
     const blockToDelete = blocks[index];
     if (!blockToDelete) return;
-    const newBlocks = blocks.filter((_, i) => i !== index);
+    // Stessa normalizzazione di order applicata in moveBlock/duplicateBlock.
+    const newBlocks = blocks
+      .filter((_, i) => i !== index)
+      .map((b, i) => ({ ...b, order: i }));
     const newLayers = layers.filter(l => l.blockId !== blockToDelete.id);
     setBlocks(newBlocks);
     setLayers(newLayers);
-    updateTheme({ blocks: newBlocks, layers: newLayers });
+    updateEventData({ blocks: newBlocks, layers: newLayers });
     pushToHistory();
   };
 
 
   const deleteLayer = (layerId: string) => {
+    // Widget virtuale (form RSVP, mappa): non esiste un layer "vero" da rimuovere.
+    // Eliminare il widget equivale a svuotare la sezione del suo contenuto principale,
+    // quindi eliminiamo l'intero blocco (la doppia-tap "SICURO?" della toolbar è la safety net).
+    if (layerId.startsWith('widget-') && selectedBlockId) {
+      const idx = (blocks || []).findIndex(b => b.id === selectedBlockId);
+      if (idx >= 0) {
+        deleteBlock(idx);
+        setSelectedLayerIds([]);
+        setSelectedBlockId(null);
+      }
+      return;
+    }
     const newLayers = layers.filter(l => l.id !== layerId);
     setLayers(newLayers);
-    updateTheme({ layers: newLayers });
+    updateEventData({ layers: newLayers });
     pushToHistory();
     setSelectedLayerIds([]);
   };
@@ -273,7 +357,7 @@ export function EventPageBuilder({
     finalLayers.splice(firstLayerGlobalIdx === -1 ? finalLayers.length : firstLayerGlobalIdx, 0, ...normalizedSectionLayers);
 
     setLayers(finalLayers);
-    updateTheme({ layers: finalLayers });
+    setIsDirty(true);
     pushToHistory();
     setSelectedLayerIds([newLayer.id]);
   };
@@ -284,7 +368,7 @@ export function EventPageBuilder({
     const targetProps = { ...targetBlock.props, bgColor: newColor };
     newBlocks[index] = { ...targetBlock, props: targetProps } as any;
     setBlocks(newBlocks);
-    updateTheme({ blocks: newBlocks }, pushToHistory);
+    updateEventData({ blocks: newBlocks }, pushToHistory);
   };
 
   return (
@@ -421,10 +505,18 @@ export function EventPageBuilder({
             DYNAMIC SECTIONS (Blocks)
             ======================= */}
         <div className="dynamic-sections-container" style={{ position: 'relative', overflow: 'visible', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {(previewMobile 
-          ? [...blocks].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0))
-          : blocks
-        ).map((block, idx) => (
+        {/* UNICO CRITERIO DI ORDINAMENTO — identico in editor desktop,
+            editor mobile preview e public view (desktop + mobile). Le sezioni
+            hanno un solo `block.order` globale: mobile e desktop mostrano la
+            stessa sequenza di blocchi. (Gli elementi interni — layer — hanno
+            invece `mobileOrder` separato per permettere stream diversi fra le
+            due viste.) Fallback all'indice array per retro-compatibilità
+            con eventi legacy che non hanno ancora `order` popolato ovunque. */}
+        {[...blocks]
+          .map((b, i) => ({ block: b, _idx: i }))
+          .sort((a, b) => (a.block.order ?? a._idx) - (b.block.order ?? b._idx))
+          .map(x => x.block)
+          .map((block, idx) => (
           <BuilderSection 
             key={block.id}
             block={block}
@@ -442,7 +534,7 @@ export function EventPageBuilder({
             isFirst={idx === 0}
             isLast={idx === (blocks.length - 1)}
             isMobile={isMobile}
-            bgColor={block.props?.bgColor || '#ffffff'}
+            bgColor={block.props?.bgColor || block.bgColor || '#ffffff'}
             layers={layers}
             selectedLayerIds={selectedLayerIds}
             setSelectedLayerIds={setSelectedLayerIds}
@@ -456,6 +548,7 @@ export function EventPageBuilder({
             onMoveLayer={moveLayerMobile}
             onDuplicateLayer={duplicateLayer}
             onDeleteLayer={deleteLayer}
+            theme={event?.theme}
           />
         ))}
       </div>
@@ -484,7 +577,7 @@ export function EventPageBuilder({
                 height: 400, 
                 bgColor: '#ffffff' 
               } as Block];
-              updateTheme({ blocks: newBlocks });
+              updateEventData({ blocks: newBlocks });
               pushToHistory();
             }}
           >

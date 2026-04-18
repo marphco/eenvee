@@ -482,6 +482,30 @@ body.editor-locked {
 .property-panel input[type="range"].custom-slider {
   background: transparent;
 }
+
+/* ---------------------------------------------------------------------------
+   Placeholder leggibile negli input "Jewelry" della sidebar/panel-section.
+   Di default molti browser applicano un grigio chiarissimo sul --text-primary
+   ereditato, che sul nostro sfondo crema risulta invisibile. Uniformiamo tutti
+   i placeholder degli input/textarea/contenteditable dentro i pannelli editor
+   a --text-soft (#3C4F76 @ 50% alpha) con opacity piena: stessa tonalità delle
+   label, resta ben leggibile ma non compete col contenuto vero dell'utente.
+   --------------------------------------------------------------------------- */
+.panel-section input::placeholder,
+.panel-section textarea::placeholder {
+  color: var(--text-soft);
+  opacity: 1; /* Firefox default sarebbe 0.54, appiattiamo */
+}
+.panel-section input::-webkit-input-placeholder,
+.panel-section textarea::-webkit-input-placeholder {
+  color: var(--text-soft);
+  opacity: 1;
+}
+.panel-section input::-moz-placeholder,
+.panel-section textarea::-moz-placeholder {
+  color: var(--text-soft);
+  opacity: 1;
+}
 /* Page Editor Interaction Styles */
 .page-block-wrapper {
   transition: box-shadow 0.2s ease, border-color 0.2s ease;

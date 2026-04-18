@@ -71,21 +71,22 @@ export const AVAILABLE_SCENARIO_BGS: ScenarioBgOption[] = [
 ];
 
 export const sortLayersForMobile = (layers: Layer[]): Layer[] => {
+  // Allineato alla logica usata in `SectionCanvas` (vista mobile editor) e in
+  // `EventPageBuilder`: un layer senza `mobileOrder` viene trattato come 0. In
+  // questo modo il widget RSVP (che di default ha `mobileOrder=5`) finisce DOPO
+  // i layer testuali (che partono a 0), replicando l'ordine WYSIWYG visto in
+  // editor anche sulla pagina pubblica. In caso di pareggio cadiamo sulla
+  // posizione Y/X del layer per mantenere un ordine naturale.
   return [...layers].sort((a, b) => {
-    // PRIORITÀ 1: ORDINE MANUALE (Binari Separati)
-    if (typeof a.mobileOrder === 'number' && typeof b.mobileOrder === 'number') {
-      return a.mobileOrder - b.mobileOrder;
-    }
-    // PRIORITÀ 2: Se solo uno ha ordine manuale, quello vince
-    if (typeof a.mobileOrder === 'number') return -1;
-    if (typeof b.mobileOrder === 'number') return 1;
+    const ao = typeof a.mobileOrder === 'number' ? a.mobileOrder : 0;
+    const bo = typeof b.mobileOrder === 'number' ? b.mobileOrder : 0;
+    if (ao !== bo) return ao - bo;
 
-    // FALLBACK: ORDINAMENTO AUTOMATICO (Design Esistente) 
     const ay = typeof a.y === 'number' ? a.y : 0;
     const by = typeof b.y === 'number' ? b.y : 0;
-    const ax = typeof a.x === 'number' ? a.x : 200; // default center-ish
+    const ax = typeof a.x === 'number' ? a.x : 200;
     const bx = typeof b.x === 'number' ? b.x : 200;
-    
+
     if (Math.abs(ay - by) < 40) {
       return ax - bx;
     }

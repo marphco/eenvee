@@ -299,18 +299,26 @@ export default function EventEditor() {
   };
 
   const updateBlock = (blockId: string, updates: Partial<Block>) => {
-    const newBlocks = [...blocks].map(b => 
-      b.id === blockId 
-        ? { ...b, ...updates, widgetProps: { ...(b.widgetProps || {}), ...(updates.widgetProps || {}) } } 
-        : b
-    );
-    // Special case for custom fields if passed directly in updates
-    if (updates.props) {
-       // already merged by ...updates
-    }
-
-    setBlocks(newBlocks);
-    updateEventData({ blocks: newBlocks });
+    setBlocks(prev => {
+      const newBlocks = prev.map(b => {
+        if (b.id !== blockId) return b;
+        
+        // Deep merge per widgetProps e props per evitare sovrascritture accidentali
+        return { 
+          ...b, 
+          ...updates, 
+          widgetProps: { 
+            ...(b.widgetProps || {}), 
+            ...(updates.widgetProps || {}) 
+          },
+          props: {
+            ...(b.props || {}),
+            ...(updates.props || {})
+          }
+        };
+      });
+      return newBlocks;
+    });
     setIsDirty(true);
   };
 
@@ -446,6 +454,7 @@ export default function EventEditor() {
            layers={layers}
            setLayers={setLayers}
            setIsDirty={setIsDirty}
+           slug={event?.slug || ''}
          />
         <EditorStage 
           stageRef={stageRef} canvasRef={canvasRef} editorMode={editorMode} isMobile={isMobile}
@@ -468,6 +477,7 @@ export default function EventEditor() {
           onUpdateBlock={updateBlock}
           selectedBlockId={selectedBlockId} setSelectedBlockId={setSelectedBlockId}
           previewMobile={previewMobile}
+          updateEventData={updateEventData}
         />
         </div>
       </div>

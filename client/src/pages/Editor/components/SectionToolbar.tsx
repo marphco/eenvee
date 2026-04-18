@@ -23,6 +23,9 @@ interface SectionToolbarProps {
   contextLabel?: string;
   isMobileDevice?: boolean;
   editingLayerId?: string | null;
+  // Se true, il layer selezionato è un widget virtuale (es. form RSVP, mappa):
+  // nasconde "Duplica" perché un widget è unico per sezione.
+  isWidgetLayer?: boolean;
 }
 
 const SectionToolbar: React.FC<SectionToolbarProps> = ({ 
@@ -45,7 +48,8 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
   onDeleteLayer,
   contextLabel,
   isMobileDevice,
-  editingLayerId
+  editingLayerId,
+  isWidgetLayer = false
 }) => {
   const isHorizontal = layout === 'horizontal';
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -103,7 +107,11 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
         boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
         zIndex: 10000,
         pointerEvents: 'auto',
-        minWidth: isMobileLayout ? '300px' : '58px',
+        // Auto-sizing: la toolbar si adatta al numero effettivo di pulsanti
+        // (evita spazio morto a destra in modalità widget, dove Duplica/Colore sono nascosti).
+        minWidth: isMobileLayout ? 'auto' : '58px',
+        maxWidth: isMobileLayout ? 'calc(100vw - 24px)' : 'none',
+        width: 'max-content',
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
       }}
       onPointerDown={(e) => e.stopPropagation()}
@@ -255,19 +263,21 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
         </>
       )}
 
-      <ToolbarButton 
-        icon={<Copy size={isMobileDevice ? 14 : 16} />} 
-        label="DUPLICA" 
-        title={selectedLayerId ? (isLayerToolbar ? "Duplica Elemento" : "Duplica Elemento") : "Duplica Sezione"}
-        onClick={() => {
-          if (isLayerToolbar && selectedLayerId && onDuplicateLayer) {
-            onDuplicateLayer(selectedLayerId);
-          } else {
-            onDuplicate();
-          }
-        }} 
-        isHorizontal={isMobileDevice || false}
-      />
+      {!(isLayerToolbar && isWidgetLayer) && (
+        <ToolbarButton 
+          icon={<Copy size={isMobileDevice ? 14 : 16} />} 
+          label="DUPLICA" 
+          title={selectedLayerId ? (isLayerToolbar ? "Duplica Elemento" : "Duplica Elemento") : "Duplica Sezione"}
+          onClick={() => {
+            if (isLayerToolbar && selectedLayerId && onDuplicateLayer) {
+              onDuplicateLayer(selectedLayerId);
+            } else {
+              onDuplicate();
+            }
+          }} 
+          isHorizontal={isMobileDevice || false}
+        />
+      )}
       
       <ToolbarButton 
         icon={<Trash2 size={isMobileDevice ? 16 : 18} />} 

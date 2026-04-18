@@ -9,6 +9,7 @@ interface RSVPWidgetProps {
   readOnly?: boolean;
   eventSlug?: string;
   isMobile?: boolean; // helps with sizing
+  sectionBg?: string; // effective section background (resolves transparent/inheritance)
 }
 
 export const RSVPWidget: React.FC<RSVPWidgetProps> = ({ 
@@ -16,7 +17,8 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
   theme, 
   readOnly = false,
   eventSlug = "demo-slug",
-  isMobile = false
+  isMobile = false,
+  sectionBg: sectionBgProp
 }) => {
   const props = block.widgetProps || {};
   
@@ -25,11 +27,86 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
   const desc = props.rsvpDescription || "Ti preghiamo di confermare la tua presenza entro il 30 Giugno.";
   const askGuests = props.rsvpAskGuests !== false; // default true
   const askIntolerances = props.rsvpAskIntolerances !== false; // default true
+  // Contatti: default OFF per non rompere eventi esistenti.
+  // Il proprietario li abilita esplicitamente dalla sidebar se vuole raccoglierli.
+  const askEmail = props.rsvpAskEmail === true;
+  const askPhone = props.rsvpAskPhone === true;
   const customConfirm = props.rsvpConfirmationMessage || "Grazie! La tua risposta è stata registrata con successo.";
-    // Colors overriding system
-  const primaryColor = props.formPrimaryColor || props.formColors?.primary || theme?.accent || '#1abc9c';
-  const textColor = props.formTextColor || props.formColors?.text || '#ffffff';
-  const inputBg = props.formInputBg || 'rgba(0,0,0,0.2)';
+
+  // === AUTO-DETECT BACKGROUND LUMINANCE ===
+  // Rileva automaticamente se lo sfondo della sezione è chiaro o scuro
+  // e adatta TUTTI i colori del form di conseguenza
+  const primaryColor = props.formPrimaryColor || theme?.accent || '#1abc9c';
+  
+  const normalizeColor = (color?: string | null) => {
+    if (!color) return null;
+    const c = String(color).trim();
+    if (!c) return null;
+    if (c === 'transparent') return null;
+    if (c === 'none') return null;
+    return c;
+  };
+
+  const getLuminance = (color: string): number => {
+    if (!color) return 0;
+    
+    let r = 0, g = 0, b = 0;
+    
+    if (color.startsWith('#')) {
+      const hex = color.replace('#', '');
+      if (hex.length === 3) {
+        r = parseInt((hex[0] || '0') + (hex[0] || '0'), 16);
+        g = parseInt((hex[1] || '0') + (hex[1] || '0'), 16);
+        b = parseInt((hex[2] || '0') + (hex[2] || '0'), 16);
+      } else if (hex.length >= 6) {
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+      }
+    } else if (color.startsWith('rgb')) {
+      const match = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+      if (match && match[1] && match[2] && match[3]) {
+        r = parseInt(match[1]);
+        g = parseInt(match[2]);
+        b = parseInt(match[3]);
+      }
+    }
+    
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  };
+  
+  // === SMART COLOR SYSTEM v3 ===
+  // Rilevamento sfondo con fallback a cascata: blocco > props > tema globale > default nero
+  const getSafeColor = () => {
+    const effective =
+      normalizeColor(sectionBgProp) ??
+      normalizeColor(block.props?.bgColor) ??
+      normalizeColor(block.bgColor) ??
+      normalizeColor(theme?.background);
+
+    // IMPORTANT: if the section is visually transparent, the page is typically white.
+    // Falling back to theme.background (often dark) would produce wrong contrast.
+    return effective ?? '#ffffff';
+  };
+
+  const effectiveSectionBg = getSafeColor();
+  const isDark = getLuminance(effectiveSectionBg) < 0.6; // Soglia alzata per gestire meglio i grigi
+  const isAccentDark = getLuminance(primaryColor) < 0.5;
+
+  const colors = {
+    text:            isDark ? '#ffffff' : '#111111',
+    textSoft:        isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+    inputBg:         isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+    inputBorder:     isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)',
+    toggleBg:        isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+    toggleInactive:  isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.45)',
+    buttonText:      isAccentDark ? '#ffffff' : '#000000',
+    placeholder:     isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)',
+    allergyBorder:   isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
+    successBg:       isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+    successBorder:   isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)',
+    errorBg:         'rgba(255,77,79,0.15)',
+  };
 
   // Internal Form State
   const [status, setStatus] = useState<"yes" | "no" | "maybe">("yes");
@@ -60,6 +137,31 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
       return;
     }
 
+    // MANDATORY CONTACT CHECK — logica smart:
+    //  · entrambi ON  → basta uno dei due.
+    //  · solo email   → email obbligatoria.
+    //  · solo phone   → phone obbligatorio.
+    //  · entrambi OFF → nessun controllo (non li chiediamo proprio).
+    const cleanEmail = (email || "").trim();
+    const cleanPhone = (phone || "").trim();
+    if (askEmail && askPhone && !cleanEmail && !cleanPhone) {
+      setErrorMsg("Inserisci almeno email o telefono per consentirci di contattarti.");
+      return;
+    }
+    if (askEmail && !askPhone && !cleanEmail) {
+      setErrorMsg("Inserisci la tua email per proseguire.");
+      return;
+    }
+    if (askPhone && !askEmail && !cleanPhone) {
+      setErrorMsg("Inserisci il tuo numero di telefono per proseguire.");
+      return;
+    }
+    // Basic email shape check (solo se valorizzata): evita typo ovvi tipo "mario@".
+    if (askEmail && cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setErrorMsg("L'email inserita non sembra valida. Controlla e riprova.");
+      return;
+    }
+
     // MANDATORY CUSTOM FIELDS CHECK
     const missingFields = (props.customFields || []).filter((f: any) => f.required && !customResponses[f.id]);
     if (missingFields.length > 0 && missingFields[0]) {
@@ -72,6 +174,22 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
     setIsDone(false);
     setIsUpdated(false);
 
+    // ✅ Serializza le risposte custom in forma denormalizzata:
+    //    salviamo label/type DEL MOMENTO dell'invio, così se il creatore
+    //    rinomina/cambia le domande in futuro, la risposta dell'ospite
+    //    resta comprensibile (es. export catering storico).
+    const customResponsesPayload = (props.customFields || []).map((f: any) => ({
+      fieldId: f.id,
+      label: f.label || "Domanda",
+      type: f.type === "checkbox" ? "checkbox" : "text",
+      answer: customResponses[f.id] ?? null,
+    }));
+
+    // ✅ Allergie: campo dedicato + fallback su message per retro-compat.
+    const allergiesText = askIntolerances && status !== 'no' && hasAllergies === 'yes'
+      ? (message || "").trim()
+      : "";
+
     try {
       const res = await apiFetch(`/api/rsvps`, {
         method: "POST",
@@ -82,9 +200,10 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
           email: email || null,
           phone: phone || null,
           guestsCount: Number(guestsCount) || 1,
-          message: hasAllergies === 'yes' ? message : "Nessuna allergia segnalata",
+          message: hasAllergies === 'yes' ? message : "",
           status,
-          customResponses // Includiamo le risposte extra
+          allergies: allergiesText,
+          customResponses: customResponsesPayload,
         }),
       });
 
@@ -116,11 +235,11 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
 
   const inputStyle = {
     width: '100%',
-    background: inputBg,
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: colors.inputBg,
+    border: `1px solid ${colors.inputBorder}`,
     borderRadius: '16px',
     padding: '14px 16px',
-    color: textColor,
+    color: colors.text,
     fontSize: '14px',
     outline: 'none',
     transition: 'all 0.3s ease',
@@ -135,23 +254,23 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
       background: 'transparent',
       borderRadius: '24px',
       padding: isMobile ? '24px' : '0 40px', // Horizontal padding only, vertical managed by parent
-      color: textColor
+      color: colors.text
     }}>
 
       {isDone ? (
         <div style={{ 
           textAlign: 'center', 
           padding: '30px 20px',
-          background: 'rgba(255,255,255,0.03)',
+          background: colors.successBg,
           borderRadius: '16px',
-          border: '1px solid rgba(255,255,255,0.05)',
+          border: `1px solid ${colors.successBorder}`,
           animation: 'fadeIn 0.5s ease-out'
         }}>
           <CheckCircle2 size={48} color={primaryColor} style={{ display: 'block', margin: '0 auto 16px' }} />
           <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>
             {isUpdated ? 'Risposta Aggiornata' : 'Risposta Inviata!'}
           </h3>
-          <p style={{ fontSize: '14px', color: textColor, opacity: 0.7 }}>{customConfirm}</p>
+          <p style={{ fontSize: '14px', color: colors.text, opacity: 0.7 }}>{customConfirm}</p>
           <button 
             type="button" 
             onClick={() => setIsDone(false)}
@@ -177,7 +296,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
           {/* TOGGLE PARTECIPAZIONE */}
           <div style={{ 
              display: 'flex', 
-             background: 'rgba(255,255,255,0.05)', 
+             background: colors.toggleBg, 
              borderRadius: '100px', 
              padding: '6px',
              position: 'relative'
@@ -197,8 +316,8 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                 onClick={() => setStatus('yes')}
                 style={{
                   flex: 1, padding: '14px 0', border: 'none', background: 'transparent',
-                  color: status === 'yes' ? '#000' : textColor,
-                  opacity: status === 'yes' ? 1 : 0.5,
+                  color: status === 'yes' ? colors.buttonText : colors.toggleInactive,
+                  opacity: 1,
                   fontWeight: 700, fontSize: '13px', cursor: 'pointer',
                   position: 'relative', zIndex: 1, transition: 'color 0.3s'
                 }}
@@ -210,8 +329,8 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                 onClick={() => setStatus('maybe')}
                 style={{
                   flex: 1, padding: '14px 0', border: 'none', background: 'transparent',
-                  color: status === 'maybe' ? '#000' : textColor,
-                  opacity: status === 'maybe' ? 1 : 0.5,
+                  color: status === 'maybe' ? colors.buttonText : colors.toggleInactive,
+                  opacity: 1,
                   fontWeight: 700, fontSize: '13px', cursor: 'pointer',
                   position: 'relative', zIndex: 1, transition: 'color 0.3s'
                 }}
@@ -223,8 +342,8 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                 onClick={() => setStatus('no')}
                 style={{
                   flex: 1, padding: '14px 0', border: 'none', background: 'transparent',
-                  color: status === 'no' ? '#000' : textColor,
-                  opacity: status === 'no' ? 1 : 0.5,
+                  color: status === 'no' ? colors.buttonText : colors.toggleInactive,
+                  opacity: 1,
                   fontWeight: 700, fontSize: '13px', cursor: 'pointer',
                   position: 'relative', zIndex: 1, transition: 'color 0.3s'
                 }}
@@ -233,44 +352,88 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
              </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
-            <input 
-              type="text" 
-              placeholder="Nome e Cognome *" 
-              value={name} 
-              onChange={e => setName(e.target.value)} 
-              required 
-              style={inputStyle}
-            />
-            {askGuests && status !== 'no' ? (
-               <div style={{ position: 'relative' }}>
-                  <Users size={18} color={textColor} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
-                  <input 
-                    type="number" 
-                    min="1" 
-                    max="10"
-                    placeholder="Num. Ospiti" 
-                    value={guestsCount} 
-                    onChange={e => setGuestsCount(parseInt(e.target.value))} 
-                    required 
-                    style={{ ...inputStyle, paddingLeft: '44px' }}
-                  />
-               </div>
-            ) : (
+          {(() => {
+            const showGuests = askGuests && status !== 'no';
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile || !showGuests ? '1fr' : '1fr 1fr', gap: '16px' }}>
                 <input 
-                  type="email" 
-                  placeholder="Email" 
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)} 
+                  type="text" 
+                  placeholder="Nome e Cognome *" 
+                  value={name} 
+                  onChange={e => setName(e.target.value)} 
+                  required 
                   style={inputStyle}
                 />
-            )}
-          </div>
+                {showGuests && (
+                  <div style={{ position: 'relative' }}>
+                    <Users size={18} color={colors.text} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                    <input 
+                      type="number" 
+                      min="1" 
+                      max="10"
+                      placeholder="Num. Ospiti" 
+                      value={guestsCount} 
+                      onChange={e => setGuestsCount(parseInt(e.target.value))} 
+                      required 
+                      style={{ ...inputStyle, paddingLeft: '44px' }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ─────────── CONTATTI (Email / Telefono) ───────────
+              Resi solo se abilitati nel blocco. Layout:
+               · entrambi ON → griglia 2 colonne su desktop, 1 su mobile.
+               · solo uno    → full-width.
+              Il placeholder mostra "*" quando il campo è obbligatorio
+              (rilevato dalla logica "almeno uno" nel submit). */}
+          {(askEmail || askPhone) && status !== 'no' && (() => {
+            // Se entrambi sono attivi, nessuno dei due ha asterisco: "almeno uno".
+            // Se solo uno è attivo, quello ha asterisco.
+            const emailRequiredMark = askEmail && !askPhone ? ' *' : '';
+            const phoneRequiredMark = askPhone && !askEmail ? ' *' : '';
+            const twoColumns = askEmail && askPhone && !isMobile;
+            return (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: twoColumns ? '1fr 1fr' : '1fr', gap: '16px' }}>
+                  {askEmail && (
+                    <input
+                      type="email"
+                      placeholder={`Email${emailRequiredMark}`}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      style={inputStyle}
+                      autoComplete="email"
+                      inputMode="email"
+                    />
+                  )}
+                  {askPhone && (
+                    <input
+                      type="tel"
+                      placeholder={`Telefono${phoneRequiredMark}`}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      style={inputStyle}
+                      autoComplete="tel"
+                      inputMode="tel"
+                    />
+                  )}
+                </div>
+                {askEmail && askPhone && (
+                  <p style={{ margin: '-8px 0 0', fontSize: '11px', color: colors.textSoft, opacity: 0.85 }}>
+                    Lascia almeno un recapito (email o telefono) per ricevere aggiornamenti sull'evento.
+                  </p>
+                )}
+              </>
+            );
+          })()}
 
           {/* CUSTOM FIELDS RENDERING */}
           {status !== 'no' && (props.customFields || []).map((field: any) => (
             <div key={field.id} style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: textColor, opacity: 0.6, display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: colors.textSoft, display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {field.label} {field.required ? '*' : ''}
               </label>
               
@@ -292,9 +455,9 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                         onClick={() => setCustomResponses(prev => ({ ...prev, [field.id]: opt }))}
                         style={{
                           flex: 1, padding: '12px', borderRadius: '12px', 
-                          border: `1px solid ${customResponses[field.id] === opt ? primaryColor : 'rgba(255,255,255,0.1)'}`,
+                          border: `1px solid ${customResponses[field.id] === opt ? primaryColor : colors.allergyBorder}`,
                           background: customResponses[field.id] === opt ? primaryColor : 'transparent',
-                          color: customResponses[field.id] === opt ? '#000' : textColor,
+                          color: customResponses[field.id] === opt ? colors.buttonText : colors.text,
                           fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
                         }}
                      >
@@ -309,7 +472,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
           {/* ALLERGIE SECTION - MANDATORY YES/NO */}
           {askIntolerances && status !== 'no' && (
             <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: textColor, opacity: 0.6, display: 'block', marginBottom: '12px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: colors.textSoft, display: 'block', marginBottom: '12px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 HAI ALLERGIE O INTOLLERANZE? *
               </label>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: hasAllergies === 'yes' ? '16px' : '0' }}>
@@ -317,8 +480,8 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                   type="button" 
                   onClick={() => setHasAllergies('yes')}
                   style={{ 
-                    padding: '10px 24px', borderRadius: '100px', border: `1px solid ${hasAllergies === 'yes' ? primaryColor : 'rgba(255,255,255,0.1)'}`, 
-                    background: hasAllergies === 'yes' ? primaryColor : 'transparent', color: hasAllergies === 'yes' ? '#000' : textColor, 
+                    padding: '10px 24px', borderRadius: '100px', border: `1px solid ${hasAllergies === 'yes' ? primaryColor : colors.allergyBorder}`, 
+                    background: hasAllergies === 'yes' ? primaryColor : 'transparent', color: hasAllergies === 'yes' ? colors.buttonText : colors.text, 
                     fontSize: '11px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' 
                   }}
                 >SÌ</button>
@@ -326,8 +489,8 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                   type="button" 
                   onClick={() => { setHasAllergies('no'); setMessage(""); }}
                   style={{ 
-                    padding: '10px 24px', borderRadius: '100px', border: `1px solid ${hasAllergies === 'no' ? primaryColor : 'rgba(255,255,255,0.1)'}`, 
-                    background: hasAllergies === 'no' ? primaryColor : 'transparent', color: hasAllergies === 'no' ? '#000' : textColor, 
+                    padding: '10px 24px', borderRadius: '100px', border: `1px solid ${hasAllergies === 'no' ? primaryColor : colors.allergyBorder}`, 
+                    background: hasAllergies === 'no' ? primaryColor : 'transparent', color: hasAllergies === 'no' ? colors.buttonText : colors.text, 
                     fontSize: '11px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' 
                   }}
                 >NO</button>
@@ -335,7 +498,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
 
               {hasAllergies === 'yes' && (
                 <div style={{ position: 'relative', animation: 'fadeIn 0.3s ease-out', marginTop: '12px' }}>
-                  <AlertCircle size={18} color={textColor} style={{ position: 'absolute', left: '16px', top: '16px', opacity: 0.4 }} />
+                  <AlertCircle size={18} color={colors.text} style={{ position: 'absolute', left: '16px', top: '16px', opacity: 0.4 }} />
                   <textarea 
                     placeholder="Dettaglio allergie (obbligatorio)... *" 
                     value={message} 
@@ -360,7 +523,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
           ) : null}
 
           {errorMsg && (
-            <div style={{ color: '#ff4d4f', fontSize: '13px', textAlign: 'center', background: 'rgba(255,77,79,0.1)', padding: '10px', borderRadius: '8px' }}>
+            <div style={{ color: '#ff4d4f', fontSize: '13px', textAlign: 'center', background: colors.errorBg, padding: '10px', borderRadius: '8px' }}>
               {errorMsg}
             </div>
           )}
@@ -371,7 +534,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
             style={{
               width: '100%',
               background: primaryColor,
-              color: '#000',
+              color: colors.buttonText,
               border: 'none',
               padding: '18px',
               borderRadius: '100px',
@@ -406,7 +569,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
           to { opacity: 1; transform: translateY(0); }
         }
         input::placeholder, textarea::placeholder {
-          color: rgba(255,255,255,0.3);
+          color: ${colors.placeholder};
         }
       `}</style>
     </div>

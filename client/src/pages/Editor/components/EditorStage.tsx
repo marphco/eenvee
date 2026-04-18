@@ -53,6 +53,7 @@ interface EditorStageProps {
   setSelectedBlockId: React.Dispatch<React.SetStateAction<string | null>>;
   onUpdateBlock?: (blockId: string, updates: Partial<Block>) => void;
   previewMobile: boolean;
+  updateEventData: (updates: any, pushToHistory?: () => void) => void;
 }
 
 const EditorStage: React.FC<EditorStageProps> = ({
@@ -101,7 +102,8 @@ const EditorStage: React.FC<EditorStageProps> = ({
   onUpdateBlock,
   selectedBlockId,
   setSelectedBlockId,
-  previewMobile
+  previewMobile,
+  updateEventData
 }) => {
 
   return (
@@ -356,7 +358,6 @@ const EditorStage: React.FC<EditorStageProps> = ({
             setSelectedLayerIds,
             isMobile,
             scenarioScale,
-            updateTheme,
             blocks: blocks || [],
             setBlocks,
             selectedBlockId,
@@ -366,7 +367,8 @@ const EditorStage: React.FC<EditorStageProps> = ({
             previewMobile,
             editingLayerId,
             setEditingLayerId,
-            onUpdateBlock
+            onUpdateBlock,
+            updateEventData
           } as any}
         />
       ) : (

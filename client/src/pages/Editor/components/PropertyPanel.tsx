@@ -218,7 +218,30 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
       ) : (!selectedLayer.type || selectedLayer.type === 'text') ? (
        <>
-         <label style={{marginTop: '1.2rem', marginBottom: '8px', display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-soft)'}}>Carattere</label>
+         {/* HEADER DI CONTESTO — intestazione interna del pannello (stesso Surface del resto) */}
+         <div style={{
+           display: 'flex', alignItems: 'center', gap: '12px',
+           marginBottom: '18px', paddingBottom: '14px',
+           borderBottom: '1px solid var(--border)'
+         }}>
+           <div style={{
+             width: '36px', height: '36px', borderRadius: '10px',
+             background: 'rgba(var(--accent-rgb), 0.12)',
+             border: '1px solid rgba(var(--accent-rgb), 0.25)',
+             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+           }}>
+             <Type size={18} color="var(--accent)" />
+           </div>
+           <div style={{ minWidth: 0 }}>
+             <div style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+               Stai modificando
+             </div>
+             <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+               Testo
+             </h3>
+           </div>
+         </div>
+         <label style={{marginBottom: '8px', display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-soft)'}}>Carattere</label>
          <CustomFontSelect 
            value={selectedLayer.fontFamily || ""} 
            fonts={AVAILABLE_FONTS}
@@ -364,6 +387,29 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
        </>
       ) : (
         <div style={{ marginBottom: '1rem' }}>
+          {/* HEADER DI CONTESTO — intestazione interna del pannello (stesso Surface del resto) */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            marginBottom: '18px', paddingBottom: '14px',
+            borderBottom: '1px solid var(--border)'
+          }}>
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: 'rgba(var(--accent-rgb), 0.12)',
+              border: '1px solid rgba(var(--accent-rgb), 0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            }}>
+              <ImageIcon size={18} color="var(--accent)" />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+                Stai modificando
+              </div>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                Immagine
+              </h3>
+            </div>
+          </div>
           <Button 
             variant="subtle" 
             onClick={() => replaceFileInputRef.current?.click()} 
