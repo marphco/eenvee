@@ -2,7 +2,23 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiFetch } from "../../utils/apiFetch";
 import { Surface, Button, Badge, StatCard } from "../../ui";
-import { CheckCircle2, HelpCircle, XCircle, Users, AlertTriangle, Download, ClipboardList, FileText, ChefHat, Mail, Phone } from "lucide-react";
+import {
+  CheckCircle2,
+  HelpCircle,
+  XCircle,
+  Users,
+  AlertTriangle,
+  Download,
+  ClipboardList,
+  FileText,
+  ChefHat,
+  Mail,
+  Phone,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  UserPlus,
+} from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./EventRsvps.css";
@@ -105,6 +121,9 @@ export default function EventRsvps() {
   }>({ askIntolerances: true, askEmail: false, askPhone: false, customFields: [] });
 
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [manualPanelOpen, setManualPanelOpen] = useState(false);
+  const [exportPanelOpen, setExportPanelOpen] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -209,9 +228,17 @@ export default function EventRsvps() {
   }, [rsvps]);
 
   const filteredRsvps = useMemo(() => {
-    if (filterStatus === "all") return rsvps;
-    return rsvps.filter((r) => r.status === filterStatus);
-  }, [rsvps, filterStatus]);
+    let list = filterStatus === "all" ? rsvps : rsvps.filter((r) => r.status === filterStatus);
+    const q = search.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((r) => {
+      const customHay = (r.customResponses || [])
+        .map((cr) => `${cr.label || ""} ${formatCustomAnswer(cr)}`)
+        .join(" ");
+      const hay = `${r.name || ""} ${r.email || ""} ${r.phone || ""} ${extractAllergies(r)} ${r.message || ""} ${customHay}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [rsvps, filterStatus, search]);
 
   /* --- Union di TUTTE le domande custom mai ricevute → header dinamici CSV --- */
   const allCustomLabels = useMemo(() => {
@@ -619,11 +646,11 @@ export default function EventRsvps() {
   }
 
   const filterOptions = [
-    { key: "all", label: "Tutti", icon: Users },
-    { key: "yes", label: "Partecipa", icon: CheckCircle2 },
-    { key: "maybe", label: "Forse", icon: HelpCircle },
-    { key: "no", label: "No", icon: XCircle },
-  ];
+    { key: "all", label: "Tutti", segmentLabel: "Tutti", icon: Users },
+    { key: "yes", label: "Partecipa", segmentLabel: "Partecipa", icon: CheckCircle2 },
+    { key: "maybe", label: "Forse", segmentLabel: "Forse", icon: HelpCircle },
+    { key: "no", label: "Non possono", segmentLabel: "No", icon: XCircle },
+  ] as const;
 
   return (
     <div className="rsvp-page">
@@ -632,23 +659,49 @@ export default function EventRsvps() {
           <Button variant="ghost" onClick={() => navigate("/dashboard")}>
             ← Torna alla dashboard
           </Button>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div className="rsvp-header">
             <div>
               <p className="rsvp-eyebrow">INVITATI & RSVP</p>
               <h1>{eventTitle}</h1>
-              <p style={{ margin: 0, color: "var(--text-muted)" }}>
+              <p className="rsvp-subtitle">
                 Gestisci conferme, aggiungi manualmente ospiti e tieni traccia delle modifiche.
               </p>
+            </div>
+            <div className="rsvp-header-actions">
+              <Button variant="subtle" onClick={() => navigate(`/edit/${slug}`)}>
+                Modifica evento
+              </Button>
             </div>
           </div>
         </div>
 
-        <Surface variant="glass" className="rsvp-manual-card" style={{ padding: '2rem', border: '1px solid var(--border-color-strong)' }}>
-          <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-            <p className="rsvp-eyebrow" style={{ margin: 0, fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.25em' }}>AGGIUNTA MANUALE</p>
-            <h2 style={{ margin: '0.4rem 0 0', fontSize: '1.6rem', fontFamily: 'var(--font-display)' }}>Inserisci un nuovo ospite</h2>
-          </div>
+        <div className="rsvp-stats-grid">
+          <StatCard label="Conferme" value={String(counts.yesResponses)} hint={`${counts.yesGuests} ospiti`} />
+          <StatCard label="Forse" value={String(counts.maybeResponses)} hint={`${counts.maybeGuests} ospiti`} />
+          <StatCard label="Non possono" value={String(counts.noResponses)} hint={`${counts.noGuests} ospiti`} />
+        </div>
 
+        <Surface variant="glass" className="rsvp-collapse-card rsvp-manual-card">
+          <button
+            type="button"
+            className="rsvp-collapse-trigger"
+            onClick={() => setManualPanelOpen((v) => !v)}
+            aria-expanded={manualPanelOpen}
+          >
+            <div className="rsvp-collapse-trigger__text">
+              <span className="rsvp-collapse-trigger__eyebrow">Aggiungi ospite</span>
+              <span className="rsvp-collapse-trigger__title">
+                Inserisci un ospite che non compare nell&apos;elenco (es. conferma telefonica)
+              </span>
+            </div>
+            <span className="rsvp-collapse-trigger__meta">
+              <UserPlus size={20} aria-hidden />
+              {manualPanelOpen ? <ChevronUp size={20} aria-hidden /> : <ChevronDown size={20} aria-hidden />}
+            </span>
+          </button>
+
+          {manualPanelOpen ? (
+          <div className="rsvp-collapse-body">
           <form onSubmit={handleManualAdd}>
             {/* Riga principale: dati anagrafici minimi */}
             <div className="rsvp-form-grid">
@@ -694,10 +747,8 @@ export default function EventRsvps() {
                  allergie (se il form pubblico le chiede) e domande custom.
                  Mostrata se lo stato non è "Non può" — coerente col form pubblico. */}
             {manualStatus !== "no" && (
-              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-                <p className="rsvp-eyebrow" style={{ margin: '0 0 1rem', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.2em', color: 'var(--accent)' }}>
-                  DATI AGGIUNTIVI
-                </p>
+              <div className="rsvp-form-subsection">
+                <p className="rsvp-form-subsection__title">Dati aggiuntivi</p>
 
                 {/* Contatti — sempre disponibili lato owner (anche se il form
                      pubblico non li chiede): utili per promemoria/comunicazioni. */}
@@ -788,30 +839,40 @@ export default function EventRsvps() {
                 {manualSending ? "Aggiungo..." : "Aggiungi ospite"}
               </Button>
             </div>
+
+            {manualError ? (
+              <p style={{ color: "salmon", marginTop: '1rem', fontSize: '0.9rem', fontWeight: 600 }}>{manualError}</p>
+            ) : null}
           </form>
-
-          {manualError && (
-            <p style={{ color: "salmon", marginTop: '1rem', fontSize: '0.9rem', fontWeight: 600 }}>{manualError}</p>
-          )}
+          </div>
+          ) : null}
         </Surface>
-
-        <div className="rsvp-stats" style={{ marginTop: '2rem' }}>
-          <StatCard label="Conferme" value={counts.yesResponses} hint={`${counts.yesGuests} ospiti`} />
-          <StatCard label="Forse" value={counts.maybeResponses} hint={`${counts.maybeGuests} ospiti`} />
-          <StatCard label="Non possono" value={counts.noResponses} hint={`${counts.noGuests} ospiti`} />
-        </div>
 
         {/* EXPORT — CSV (Excel/Numbers) oppure PDF (stampabile/condivisibile) */}
         {rsvps.length > 0 && (
-          <Surface variant="soft" style={{ marginTop: '1.5rem', padding: '1.25rem 1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.25rem' }}>
-              <Download size={16} style={{ color: 'var(--accent)' }} />
-              <p className="rsvp-eyebrow" style={{ margin: 0, fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.2em', color: 'var(--accent)' }}>
-                ESPORTA DATI OSPITI
-              </p>
-            </div>
-            <p style={{ margin: '0 0 1rem', color: 'var(--text-soft)', fontSize: '0.85rem' }}>
-              Scarica l'elenco in PDF (formato stampabile, pronto da condividere con catering e fornitori) oppure in CSV (Excel / Numbers) se devi elaborare i dati.
+          <Surface variant="glass" className="rsvp-collapse-card">
+            <button
+              type="button"
+              className="rsvp-collapse-trigger"
+              onClick={() => setExportPanelOpen((v) => !v)}
+              aria-expanded={exportPanelOpen}
+            >
+              <div className="rsvp-collapse-trigger__text">
+                <span className="rsvp-collapse-trigger__eyebrow">Esporta elenchi</span>
+                <span className="rsvp-collapse-trigger__title">
+                  PDF o CSV per catering, fornitori o Excel
+                </span>
+              </div>
+              <span className="rsvp-collapse-trigger__meta">
+                <Download size={20} aria-hidden />
+                {exportPanelOpen ? <ChevronUp size={20} aria-hidden /> : <ChevronDown size={20} aria-hidden />}
+              </span>
+            </button>
+
+            {exportPanelOpen ? (
+            <div className="rsvp-collapse-body rsvp-export-body">
+            <p className="rsvp-export-lede">
+              Scarica l&apos;elenco in PDF (stampabile) oppure in CSV (Excel / Numbers).
             </p>
 
             <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
@@ -857,58 +918,69 @@ export default function EventRsvps() {
                 </div>
               </div>
             </div>
+            </div>
+            ) : null}
           </Surface>
         )}
 
-        <div style={{ marginTop: '2.5rem', marginBottom: '1rem' }}>
-          <p className="rsvp-eyebrow" style={{ marginBottom: '0.8rem', opacity: 0.8 }}>Filtra per stato:</p>
-          <Surface variant="soft" className="rsvp-filters" style={{ margin: 0 }}>
-            {filterOptions.map((opt) => {
-              const isSelected = filterStatus === opt.key;
-              let bgColor = "transparent";
-              let color = "var(--text-soft)";
-              
-              if (isSelected) {
-                if (opt.key === "yes") {
-                  bgColor = "rgba(var(--accent-rgb), 0.1)";
-                  color = "var(--accent)";
-                } else if (opt.key === "maybe") {
-                  bgColor = "rgba(244, 196, 107, 0.15)";
-                  color = "#d9a13e";
-                } else if (opt.key === "no") {
-                  bgColor = "rgba(250, 128, 114, 0.15)";
-                  color = "#e66a5c";
-                } else {
-                  bgColor = "var(--accent)";
-                  color = "#fff";
-                }
-              }
-
-              return (
-                <Button
-                  key={opt.key}
-                  variant={isSelected ? "primary" : "ghost"}
-                  onClick={() => setFilterStatus(opt.key)}
-                  className="rsvp-filter-btn"
-                  style={{
-                    backgroundColor: bgColor,
-                    color: color,
-                    border: isSelected ? `1px solid ${color}` : "1px solid var(--border)",
-                    opacity: 1,
-                    boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
-                  }}
-                >
-                  {opt.icon && <opt.icon size={22} className="filter-icon" />}
-                  <span className="filter-label">{opt.label}</span>
-                </Button>
-              );
-            })}
-          </Surface>
-        </div>
+        <Surface variant="glass" className="rsvp-filters-card">
+          <header className="rsvp-filters-card__header">
+            <p className="rsvp-collapse-trigger__eyebrow">Elenco invitati</p>
+            <p className="rsvp-filters-card__subtitle">
+              Filtra per stato RSVP e cerca tra nome, email, telefono o allergie.
+            </p>
+          </header>
+          <div className="rsvp-filters-row">
+            <div className="rsvp-filters-rail" role="group" aria-label="Filtra per stato RSVP">
+              {filterOptions.map((opt) => {
+                const isSelected = filterStatus === opt.key;
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    className={`rsvp-filter-segment rsvp-filter-segment--${opt.key} ${isSelected ? "is-selected" : ""}`}
+                    title={opt.label}
+                    aria-pressed={isSelected}
+                    onClick={() => setFilterStatus(opt.key)}
+                  >
+                    <Icon size={20} strokeWidth={isSelected ? 2.25 : 1.85} className="rsvp-filter-segment__icon" aria-hidden />
+                    <span className="rsvp-filter-segment__label">{opt.segmentLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="rsvp-search">
+              <Search size={16} strokeWidth={2} className="rsvp-search__icon" aria-hidden />
+              <input
+                type="search"
+                placeholder="Cerca invitato…"
+                title="Cerca per nome, email, telefono o allergie"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Cerca tra gli invitati per nome, email, telefono o allergie"
+              />
+            </div>
+          </div>
+        </Surface>
 
         {filteredRsvps.length === 0 ? (
-          <Surface variant="soft" className="rsvp-empty">
-            Nessuna RSVP per questo filtro.
+          <Surface variant="glass" className="rsvp-empty-card">
+            {rsvps.length === 0 ? (
+              <>
+                <Users size={32} strokeWidth={1.5} aria-hidden />
+                <h3>Nessuna RSVP ancora</h3>
+                <p>Quando gli invitati confermeranno, compariranno qui. Puoi anche aggiungere ospiti a mano aprendo «Aggiungi ospite» sopra.</p>
+              </>
+            ) : (
+              <>
+                <Search size={32} strokeWidth={1.5} aria-hidden />
+                <h3>Nessun risultato</h3>
+                <p>
+                  Nessun ospite corrisponde al filtro o alla ricerca. Prova a cambiare stato o cancella il testo nella barra di ricerca.
+                </p>
+              </>
+            )}
           </Surface>
         ) : (
           <div className="rsvp-list">
