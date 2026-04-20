@@ -683,7 +683,7 @@ Penetrazione ~8–10% mercato matrimoni + espansione non-wedding: **€600.000�
 - [x] Editor invito (canvas, layer, template)
 - [x] Pagina evento pubblica (blocchi, RSVP, mappa, galleria, video, regali)
 - [x] Flusso nuovo evento (picker template, date, salvataggio)
-- [ ] Paywall Stripe per sblocco evento (€49 una tantum)
+- [x] Paywall Stripe piano **Evento** (€49 una tantum; DB `plan: paid`) — 2026-04-19: flusso **principale** allineato al modulo donazioni (`EventPurchaseModal` + `PaymentElement`, appearance/locale IT, SEPA+carte). `POST /api/subscriptions/create-unlock-intent` → `complete-unlock-intent` dopo `confirmPayment`; **fallback** hosted `POST /api/subscriptions/checkout` se intent non disponibile (503). Dev senza Stripe: `dev_simulate` → `success-mock` (solo non-prod). Redirect `?unlock=1&session_id=` resta per checkout hosted completato in precedenza. **Email** (stesso layout donazioni): webhook `payment_intent.succeeded` → ricevuta acquirente + notifica `INTERNAL_NOTIFY_EMAIL` (default `info@eenvee.com`). Migrazione dati legacy: `npm run migrate:plan` nella cartella `server/`.
 - [ ] Add-on acquistabili (tableau €15, libretto €15)
 - [ ] Invio inviti email funzionante e semplice
 - [x] Dashboard utente (lista eventi, statistiche base) — `Dashboard.tsx` 2026-04-19

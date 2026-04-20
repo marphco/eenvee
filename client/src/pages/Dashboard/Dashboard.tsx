@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../../utils/apiFetch";
 import { Surface, Button, Badge, StatCard } from "../../ui";
 import { PenSquare, Send, Users, ExternalLink, Link2, Share2, Trash2, CheckCircle2, HelpCircle, XCircle, Star, Gift } from "lucide-react";
+import EventPurchaseModal from "../../components/payments/EventPurchaseModal";
+import { isPaidPlan } from "../../utils/eventPlan";
 import "./Dashboard.css";
 
 interface RsvpSummary {
@@ -25,12 +27,15 @@ interface Event {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [confirmDeleteSlug, setConfirmDeleteSlug] = useState<string | null>(null);
   const [rsvpSummaryBySlug, setRsvpSummaryBySlug] = useState<Record<string, RsvpSummary | null>>({});
+  const [unlockBanner, setUnlockBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [purchaseModal, setPurchaseModal] = useState<{ slug: string; title: string } | null>(null);
 
   const deleteEvent = async (slug: string) => {
     try {
@@ -150,9 +155,65 @@ export default function Dashboard() {
     };
   }, [navigate]);
 
-  const { publishedCount, premiumCount, upcomingCount, totalGuests, totalResponses } = useMemo(() => {
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    const unlock = searchParams.get("unlock");
+    if (unlock !== "1" || !sessionId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await apiFetch("/api/subscriptions/complete-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          message?: string;
+          slug?: string;
+          alreadyPaid?: boolean;
+          alreadyPremium?: boolean;
+        };
+        if (cancelled) return;
+
+        setSearchParams({}, { replace: true });
+
+        if (!res.ok) {
+          setUnlockBanner({ type: "err", text: data.message || "Impossibile confermare il pagamento." });
+          return;
+        }
+
+        const slug = data.slug;
+        if (slug) {
+          setEvents((prev) => prev.map((e) => (e.slug === slug ? { ...e, plan: "paid" } : e)));
+        }
+        const already = data.alreadyPaid ?? data.alreadyPremium;
+        setUnlockBanner({
+          type: "ok",
+          text: already
+            ? "Questo evento risultava già attivato (pagamento già registrato)."
+            : "Pagamento ricevuto: piano Evento attivo per il tuo invito.",
+        });
+      } catch {
+        if (!cancelled) {
+          setSearchParams({}, { replace: true });
+          setUnlockBanner({
+            type: "err",
+            text: "Errore di rete. Se hai pagato, controlla lo stato su Stripe o riapri la dashboard tra qualche istante.",
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, setSearchParams]);
+
+  const { publishedCount, paidCount, upcomingCount, totalGuests, totalResponses } = useMemo(() => {
     const published = events.filter((e) => e.status === "published").length;
-    const premium = events.filter((e) => (e.plan || "").toLowerCase() === "premium").length;
+    const paid = events.filter((e) => isPaidPlan(e.plan)).length;
     const now = Date.now();
     const upcoming = events.filter((e) => {
       if (e.dateTBD || !e.date) return true;
@@ -171,7 +232,7 @@ export default function Dashboard() {
 
     return {
       publishedCount: published,
-      premiumCount: premium,
+      paidCount: paid,
       upcomingCount: upcoming,
       totalGuests: guests,
       totalResponses: responses,
@@ -193,6 +254,31 @@ export default function Dashboard() {
   return (
     <div className="dashboard-page">
       <div className="dashboard-shell">
+        {unlockBanner ? (
+          <Surface
+            variant="glass"
+            className="dashboard-unlock-banner"
+            style={{
+              marginBottom: "1.25rem",
+              borderColor: unlockBanner.type === "ok" ? "rgba(58, 230, 179, 0.45)" : "rgba(255, 120, 120, 0.35)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
+              <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: 1.5 }}>
+                {unlockBanner.type === "ok" ? (
+                  <CheckCircle2 size={18} style={{ display: "inline", marginRight: 8, verticalAlign: "text-top", color: "var(--accent)" }} />
+                ) : (
+                  <XCircle size={18} style={{ display: "inline", marginRight: 8, verticalAlign: "text-top", color: "salmon" }} />
+                )}
+                {unlockBanner.text}
+              </p>
+              <Button variant="ghost" type="button" onClick={() => setUnlockBanner(null)}>
+                Chiudi
+              </Button>
+            </div>
+          </Surface>
+        ) : null}
+
         <div className="dashboard-header">
           <div className="dashboard-title-block">
             <div style={{ marginBottom: "1rem" }}>
@@ -227,7 +313,7 @@ export default function Dashboard() {
         </div>
 
         <div className="dashboard-stats">
-          <StatCard label="Eventi pubblicati" value={publishedCount} hint={`${premiumCount} premium`} />
+          <StatCard label="Eventi pubblicati" value={publishedCount} hint={`${paidCount} con piano Evento`} />
           <StatCard label="Eventi attivi/prossimi" value={upcomingCount} hint={events.length ? `${events.length} totali` : ""} />
           <StatCard label="Ospiti invitati" value={totalGuests} hint={`${totalResponses} RSVP`} />
         </div>
@@ -244,7 +330,7 @@ export default function Dashboard() {
           <div className="events-grid">
             {events.map((ev) => {
               const sum = rsvpSummaryBySlug[ev.slug];
-              const premium = (ev.plan || "").toLowerCase() === "premium";
+              const paid = isPaidPlan(ev.plan);
               const published = ev.status === "published";
 
               return (
@@ -253,8 +339,14 @@ export default function Dashboard() {
 
                   <h2>{ev.title}</h2>
                   <div className="event-card__meta">
-                    <Badge variant={premium ? "accent" : "default"}>
-                      {premium ? <><Star size={12} fill="currentColor" style={{marginRight:4, verticalAlign:"middle"}}/> Premium</> : "Free"}
+                    <Badge variant={paid ? "accent" : "default"}>
+                      {paid ? (
+                        <>
+                          <Star size={12} fill="currentColor" style={{ marginRight: 4, verticalAlign: "middle" }} /> Attivo
+                        </>
+                      ) : (
+                        "Lancio (gratis)"
+                      )}
                     </Badge>
                     <Badge variant={published ? "success" : "warning"}>
                       {published ? "Pubblicato" : "Draft"}
@@ -312,29 +404,14 @@ export default function Dashboard() {
                     </Button>
                     
                     <div className="event-card__actions-secondary">
-                      {!premium && (
-                        <Button 
-                          variant="ghost" 
-                          onClick={async () => {
-                             try {
-                               const res = await apiFetch(`/api/subscriptions/checkout`, {
-                                 method: "POST",
-                                 body: JSON.stringify({ eventSlug: ev.slug })
-                               });
-                               if (res.ok) {
-                                 const data = await res.json();
-                                 window.location.href = data.url; 
-                               } else {
-                                 alert("Errore generazione checkout");
-                                }
-                             } catch (err) {
-                               console.error(err);
-                               alert("Errore pagamento");
-                             }
-                          }}
+                      {!paid && (
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          onClick={() => setPurchaseModal({ slug: ev.slug, title: ev.title })}
                           style={{ color: "var(--accent)", border: "1px solid var(--accent)", marginRight: "auto" }}
                         >
-                          <Star size={14} style={{marginRight:6}}/> Passa a Premium
+                          <Star size={14} style={{ marginRight: 6 }} /> Attiva evento (49 €)
                         </Button>
                       )}
                       
@@ -385,6 +462,18 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {purchaseModal ? (
+        <EventPurchaseModal
+          open
+          eventSlug={purchaseModal.slug}
+          eventTitle={purchaseModal.title}
+          onClose={() => setPurchaseModal(null)}
+          onUnlocked={(slug) => {
+            setEvents((prev) => prev.map((e) => (e.slug === slug ? { ...e, plan: "paid" } : e)));
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import fs from "fs";
 import { Upload } from "@aws-sdk/lib-storage";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import Event from "../models/Event.js";
+import { isPaidPlan } from "../utils/eventPlan.js";
 import { getR2Client } from "../utils/r2.js";
 
 const router = express.Router();
@@ -50,7 +51,7 @@ const uploadVideo = multer({
   },
 });
 
-const requirePremiumForGalleryUpload = async (req: Request, res: Response, next: NextFunction) => {
+const requirePaidForGalleryUpload = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { slug } = req.query;
     if (!slug) return res.status(400).json({ error: "Missing slug" });
@@ -58,10 +59,9 @@ const requirePremiumForGalleryUpload = async (req: Request, res: Response, next:
     const ev = await Event.findOne({ slug: slug as string });
     if (!ev) return res.status(404).json({ error: "Evento non trovato" });
 
-    const isPremium = (ev.plan || "free").toLowerCase() === "premium";
-    // Allow uploads in local development or if premium
-    if (!isPremium && process.env.NODE_ENV === "production") {
-      return res.status(403).json({ error: "Gallery solo Premium" });
+    // In sviluppo sempre ok; in produzione serve piano Evento (pagato).
+    if (!isPaidPlan(ev.plan) && process.env.NODE_ENV === "production") {
+      return res.status(403).json({ error: "Caricamento galleria e video disponibile con il piano Evento (49 €)." });
     }
 
     next();
@@ -73,7 +73,7 @@ const requirePremiumForGalleryUpload = async (req: Request, res: Response, next:
 // Caricamento Immagini
 router.post(
   "/",
-  requirePremiumForGalleryUpload as any,
+  requirePaidForGalleryUpload as any,
   upload.array("images", 20),
   async (req: Request, res: Response) => {
     try {
@@ -145,12 +145,12 @@ router.post(
 /**
  * POST /api/uploads/video — carica un singolo file video (multipart form "video").
  * Se R2 è configurato salva in `events/<slug>/videos/…` (o `templates/videos/`),
- * altrimenti fallback locale in /uploads. Applica lo stesso gate Premium del
+ * altrimenti fallback locale in /uploads. Stesso gate piano Evento (`paid`) del
  * router principale per coerenza commerciale.
  */
 router.post(
   "/video",
-  requirePremiumForGalleryUpload as any,
+  requirePaidForGalleryUpload as any,
   uploadVideo.single("video"),
   async (req: Request, res: Response) => {
     try {

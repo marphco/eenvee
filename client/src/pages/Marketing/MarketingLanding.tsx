@@ -194,8 +194,10 @@ export default function MarketingLanding() {
       {/* PREMIUM TEASER */}
       <section className="marketing-section premium-teaser">
         <Surface variant="glass" className="premium-box">
-          <h2>Passa a Premium per espandere le funzionalità.</h2>
-          <p>Sblocca la Gallery fotografica, elimina i limiti di caricamento e rimuovi il brand eenvee, per darti un tocco ancora più esclusivo.</p>
+          <h2>49 € una tantum: il tuo invito digitale completo.</h2>
+          <p>
+            Piano Evento: template e widget base, RSVP, regali, galleria e video sulla pagina pubblica (a regime senza brand eenvee). Gli extra tipo tableau e libretto saranno add-on separati.
+          </p>
           <Button onClick={() => setShowAuthModal(true)} style={{ marginTop: "1rem" }}>
             <CreditCard size={18} style={{ marginRight: "0.5rem" }} />
             Scopri i vantaggi

@@ -1,0 +1,28 @@
+@keyframes event-purchase-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.event-purchase-modal__spin {
+  animation: event-purchase-spin 0.85s linear infinite;
+}
+
+.event-purchase-modal__name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.event-purchase-modal__addr-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr minmax(56px, 72px);
+  gap: 8px;
+}
+
+@media (max-width: 440px) {
+  .event-purchase-modal__name-row,
+  .event-purchase-modal__addr-row {
+    grid-template-columns: 1fr;
+  }
+}

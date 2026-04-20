@@ -97,9 +97,13 @@ const eventSchema = new Schema(
     theme: { type: themeSchema, default: undefined },
     plan: {
       type: String,
-      enum: ["free", "premium"],
+      enum: ["free", "paid"],
       default: "free",
     },
+    /** Idempotenza ricevute email acquisto tier «Evento» (PaymentIntent id). */
+    paidReceiptSentForPi: { type: String, default: undefined },
+    /** Solo documenti pre-migrazione; rimuovere dopo `npm run migrate:plan` ovunque. */
+    premiumReceiptSentForPi: { type: String, default: undefined },
     ownerId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }

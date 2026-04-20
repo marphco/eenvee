@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import Event from "../models/Event.js";
 import Rsvp from "../models/Rsvp.js";
 import requireAuth, { AuthRequest } from "../middleware/requireAuth.js";
+import { isPaidPlan, normalizePlanFromClient } from "../utils/eventPlan.js";
 import { getRsvpsSummary } from "../controllers/rsvpSummaryController.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
@@ -26,7 +27,7 @@ const slugify = (str: string) => {
 ============================ */
 router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { title, date, dateTBD, templateId, blocks, layers, canvas, plan } = req.body;
+    const { title, date, dateTBD, templateId, blocks, layers, canvas } = req.body;
 
     const cleanTitle =
       typeof title === "string" ? title.trim() : String(title ?? "").trim();
@@ -68,7 +69,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       blocks: blocks || [],
       layers: layers || [],
       canvas: canvas || {},
-      plan: plan || "free",
+      plan: "free",
       ownerId: req.userId,
     });
 
@@ -147,18 +148,27 @@ router.put("/:slug", requireAuth, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: "Non autorizzato" });
     }
 
-    // ✅ plan (server truth)
-    const realPlan = (plan || existing.plan || "free").toLowerCase();
-    const isPremium = realPlan === "premium";
+    // ✅ plan (server truth): solo free | paid; legacy "premium" dal client → paid
+    const incoming = normalizePlanFromClient(plan);
+    const merged = (incoming ?? (existing.plan as string) ?? "free").toLowerCase();
+    const realPlan = merged === "premium" ? "paid" : merged === "paid" ? "paid" : "free";
+
+    if (plan !== undefined) {
+      if (realPlan === "paid" && !isPaidPlan(existing.plan)) {
+        return res.status(403).json({ message: "Il piano Evento si attiva solo dopo l'acquisto (pagamento Stripe)." });
+      }
+      if (realPlan === "free" && isPaidPlan(existing.plan)) {
+        return res.status(400).json({ message: "Non è possibile annullare il piano acquistato da qui." });
+      }
+    }
 
     // ✅ blocks safe
-    // NB: in produzione gli account non premium non possono salvare blocchi
-    // 'gallery' (gate commerciale), ma in sviluppo li lasciamo passare sempre,
-    // coerentemente con quanto già fatto in `uploads.ts` (requirePremiumForGalleryUpload).
+    // NB: in produzione senza piano Evento (paid) non si salvano blocchi gallery,
+    // coerentemente con `uploads.ts` (requirePaidForGalleryUpload middleware).
     // Prima di questa correzione, in dev il save eliminava silenziosamente i blocchi
     // gallery: l'utente caricava le foto, vedeva "Salvato" e al refresh tutto spariva.
     let safeBlocks = Array.isArray(blocks) ? blocks : [];
-    if (!isPremium && process.env.NODE_ENV === "production") {
+    if (!isPaidPlan(realPlan) && process.env.NODE_ENV === "production") {
       safeBlocks = safeBlocks.filter((b: any) => b.type !== "gallery");
     }
 

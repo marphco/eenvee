@@ -2,7 +2,8 @@ export interface BlockLibraryItem {
   type: string;
   label: string;
   description: string;
-  premium?: boolean;
+  /** Richiede piano Evento (pagato) per uso in produzione — vedi roadmap. */
+  requiresPaidPlan?: boolean;
   presets: Record<string, any>;
 }
 
@@ -21,7 +22,7 @@ export const BLOCK_LIBRARY: BlockLibraryItem[] = [
     type: "gallery",
     label: "Gallery",
     description: "Carosello immagini ad alta risoluzione.",
-    premium: true,
+    requiresPaidPlan: true,
     presets: {
       images: [],
       layout: "carousel",

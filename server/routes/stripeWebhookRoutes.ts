@@ -8,6 +8,8 @@ import User from "../models/User.js";
 import { getStripe, isStripeConfigured } from "../utils/stripeClient.js";
 import { stripeConfig } from "../config/env.js";
 import { sendDonorReceipt, sendHostNotification } from "../utils/donationEmails.js";
+import { dispatchPaidEventEmailsIfNeeded } from "../utils/paidEventEmailDispatch.js";
+import { isPaidPlan } from "../utils/eventPlan.js";
 
 const router = express.Router();
 
@@ -100,9 +102,13 @@ async function handleAccountUpdated(account: Stripe.Account) {
 }
 
 async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
+  if (pi.metadata?.kind === "event_unlock") {
+    await handleEventUnlockPaymentSucceeded(pi);
+    return;
+  }
+
   const donation = await Donation.findOne({ stripePaymentIntentId: pi.id });
   if (!donation) {
-    console.warn(`[webhook] donation non trovata per PI ${pi.id}`);
     return;
   }
 
@@ -146,6 +152,35 @@ async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
     }
   } catch (emailErr: any) {
     console.error("[webhook] errore invio email donazione:", emailErr.message);
+  }
+}
+
+/**
+ * Acquisto piano Evento (PaymentIntent piattaforma): allinea piano `paid` + email come donazioni.
+ */
+async function handleEventUnlockPaymentSucceeded(pi: Stripe.PaymentIntent) {
+  const slug = pi.metadata?.eventSlug;
+  const ownerId = pi.metadata?.ownerId;
+  if (!slug || !ownerId) {
+    console.warn(`[webhook] event_unlock PI ${pi.id}: metadata slug/owner mancanti`);
+    return;
+  }
+
+  try {
+    const ev = await Event.findOne({ slug, ownerId });
+    if (!ev) {
+      console.warn(`[webhook] event_unlock PI ${pi.id}: evento non trovato ${slug}`);
+      return;
+    }
+
+    if (!isPaidPlan(ev.plan)) {
+      ev.plan = "paid";
+      await ev.save();
+    }
+
+    await dispatchPaidEventEmailsIfNeeded(pi, ev);
+  } catch (err: any) {
+    console.error("[webhook] errore event_unlock / email piano Evento:", err.message);
   }
 }
 
