@@ -126,6 +126,14 @@ Log completo delle funzionalità implementate e delle prossime feature da realiz
 
 ---
 
+### 20-04-2026: Inviti — messaggio + link, WhatsApp `wa.me`, condivisione nativa ✅
+- [x] **Pagina inviti** (`EventInvites.tsx` + CSS): template messaggio con placeholder `{name}` e `{link}` (URL pubblico `/e/:slug` automatico); per ogni contatto pulsanti **WhatsApp** (deep link `wa.me` con numero normalizzato e testo precompilato), **Condividi** (`navigator.share` + fallback copia), **Segna inviato**; azione bulk **Segna come inviati** sui selezionati.
+- [x] **Util** `client/src/utils/whatsAppInvite.ts`: normalizzazione numeri (focus Italia `39`), limite lunghezza testo per URL, `buildWhatsAppSendUrl`.
+- [x] **API** `POST /api/events/:slug/invites/send`: validazione `inviteIds`, dedup, verifica che tutti gli inviti appartengano all’evento prima di `updateMany` (`inviteRoutes.ts`).
+- [x] **UI allineata a RSVP / donazioni**: `EventInvites` su shell `rsvp-page` + `StatCard`, form `rsvp-input` / `rsvp-textarea`, card elenco stile `rsvp-card` + `don-gift-list`, note QR/`localhost`; `MobileImport` stesso sfondo e tipografia (`EventRsvps.css`).
+
+---
+
 ## 🚀 La Nuova Architettura: Sviluppo a Lotti Modulari (Batches)
 
 Per garantire un codice pulito, altamente debuggabile e con struttura a micro-componenti, le feature rimaste sono state organizzate per priorità evolutiva.

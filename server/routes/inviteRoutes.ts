@@ -53,15 +53,29 @@ router.post("/:slug/invites", requireAuth, async (req: AuthRequest, res: Respons
 router.post("/:slug/invites/send", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { slug } = req.params;
-    const { inviteIds, messageTemplate } = req.body;
-    
-    // In futuro qui chiamerà messageDispatcher.js per ognuno
+    const { inviteIds } = req.body as { inviteIds?: unknown };
+
+    if (!Array.isArray(inviteIds) || inviteIds.length === 0) {
+      return res.status(400).json({ message: "inviteIds richiesto (array non vuoto)" });
+    }
+
+    const ids = [...new Set(inviteIds.map((id) => String(id)))];
+
+    const existing = await Event.findOne({ slug });
+    if (!existing) return res.status(404).json({ message: "Evento non trovato" });
+    if (existing.ownerId.toString() !== req.userId) return res.status(403).json({ message: "Non autorizzato" });
+
+    const matched = await Invite.countDocuments({ _id: { $in: ids }, eventSlug: slug });
+    if (matched !== ids.length) {
+      return res.status(400).json({ message: "Alcuni inviti non appartengono a questo evento" });
+    }
+
     await Invite.updateMany(
-      { _id: { $in: inviteIds }, eventSlug: slug },
+      { _id: { $in: ids }, eventSlug: slug },
       { $set: { status: "sent", sentAt: new Date() } }
     );
-    
-    res.json({ message: "Inviti marcati come inviati (mock)" });
+
+    res.json({ message: "Inviti marcati come inviati", updated: matched });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Errore server" });

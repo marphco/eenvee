@@ -1,8 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiFetch } from "../../utils/apiFetch";
-import { Surface, Button, Badge } from "../../ui";
-import { Users, Mail, MessageCircle, MessageSquare, ClipboardPaste, BookUser, QrCode, FileSpreadsheet } from "lucide-react";
+import { Surface, Button, Badge, StatCard } from "../../ui";
+import "../Rsvps/EventRsvps.css";
+import "../Donations/EventDonations.css";
+import {
+  Mail,
+  MessageCircle,
+  MessageSquare,
+  ClipboardPaste,
+  BookUser,
+  QrCode,
+  FileSpreadsheet,
+  Share2,
+  Check,
+} from "lucide-react";
+import {
+  buildWhatsAppSendUrl,
+  interpolateInviteTemplate,
+  toWhatsAppPhoneDigits,
+} from "../../utils/whatsAppInvite";
 import "./EventInvites.css";
 
 interface Invite {
@@ -14,9 +31,6 @@ interface Invite {
   channel: string;
   sentAt?: string;
 }
-
-// Minimal type for Contact Picker API
-import type { Contact } from "../../types/contacts";
 
 export default function EventInvites() {
   const { slug } = useParams<{ slug: string }>();
@@ -37,6 +51,92 @@ export default function EventInvites() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
+
+  const defaultTemplate =
+    "Ciao {name},\n\nTi invito all'evento! Dettagli e RSVP qui:\n{link}\n\nA presto!";
+  const [messageTemplate, setMessageTemplate] = useState(defaultTemplate);
+
+  const publicEventUrl = useMemo(() => {
+    if (!slug) return "";
+    return `${window.location.origin}/e/${slug}`;
+  }, [slug]);
+
+  const inviteCounts = useMemo(() => {
+    const total = invites.length;
+    const sent = invites.filter((i) => i.status === "sent").length;
+    return { total, sent, pending: Math.max(0, total - sent) };
+  }, [invites]);
+
+  const resolvedBody = useCallback(
+    (inv: Invite) =>
+      interpolateInviteTemplate(messageTemplate, inv.name.trim() || "ospite", publicEventUrl),
+    [messageTemplate, publicEventUrl]
+  );
+
+  const openWhatsAppForInvite = useCallback(
+    (inv: Invite) => {
+      const digits = toWhatsAppPhoneDigits(inv.phone);
+      if (!digits) {
+        alert(
+          "Non risulta un numero telefonico valido per questo contatto. Aggiungi o correggi il cellulare (es. 347 1234567) oppure usa Condividi e scegli il destinatario nel foglio nativo."
+        );
+        return;
+      }
+      const url = buildWhatsAppSendUrl(digits, resolvedBody(inv));
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    [resolvedBody]
+  );
+
+  const nativeShareForInvite = useCallback(
+    async (inv: Invite) => {
+      let text = resolvedBody(inv);
+      if (publicEventUrl && !text.includes(publicEventUrl)) {
+        text = `${text}\n\n${publicEventUrl}`;
+      }
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: eventTitle || "Invito",
+            text,
+          });
+        } catch {
+          /* annullato dall’utente */
+        }
+      } else {
+        try {
+          await navigator.clipboard.writeText(text);
+          alert("Messaggio copiato negli appunti.");
+        } catch {
+          prompt("Copia il testo:", text);
+        }
+      }
+    },
+    [eventTitle, publicEventUrl, resolvedBody]
+  );
+
+  const markInvitesSent = useCallback(
+    async (ids: string[]) => {
+      if (ids.length === 0) return false;
+      const res = await apiFetch(`/api/events/${slug}/invites/send`, {
+        method: "POST",
+        body: JSON.stringify({ inviteIds: ids }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert((err as { message?: string }).message || "Errore aggiornamento stato inviti.");
+        return false;
+      }
+      const now = new Date().toISOString();
+      setInvites((prev) =>
+        prev.map((inv) =>
+          ids.includes(inv._id) ? { ...inv, status: "sent", sentAt: now } : inv
+        )
+      );
+      return true;
+    },
+    [slug]
+  );
 
   useEffect(() => {
     async function fetchInvites() {
@@ -213,166 +313,313 @@ export default function EventInvites() {
     }
   };
 
-  const handleSendSelected = async () => {
+  const handleMarkSelectedSent = async () => {
     if (selectedIds.size === 0) return;
     setSending(true);
-
     try {
-      const res = await apiFetch(`/api/events/${slug}/invites/send`, {
-        method: "POST",
-        body: JSON.stringify({
-          inviteIds: Array.from(selectedIds),
-          messageTemplate: "Ciao {name}, sei invitato!"
-        }),
-      });
-
-      if (res.ok) {
-        setInvites(prev => prev.map(inv => {
-          if (selectedIds.has(inv._id)) {
-            return { ...inv, status: "sent", sentAt: new Date().toISOString() };
-          }
-          return inv;
-        }));
+      const ids = Array.from(selectedIds);
+      const ok = await markInvitesSent(ids);
+      if (ok) {
         setSelectedIds(new Set());
-        alert("Ordini di invio presi in carico dal server (mockup)!");
       }
     } catch {
-      alert("Errore invio messaggi.");
+      alert("Errore aggiornamento inviti.");
     } finally {
       setSending(false);
     }
   };
 
-  if (loading) return <div className="invites-page">Caricamento...</div>;
+  if (loading) {
+    return (
+      <div className="rsvp-page">
+        <div className="rsvp-shell">
+          <Surface variant="glass" className="rsvp-empty-card">
+            <p style={{ margin: 0 }}>Caricamento rubrica inviti…</p>
+          </Surface>
+        </div>
+      </div>
+    );
+  }
+
+  const qrImportUrl = `${window.location.origin}/import/${slug}`;
 
   return (
-    <div className="invites-page">
-      <div className="invites-shell">
-        <div className="invites-topbar">
-          <Button variant="ghost" onClick={() => navigate(`/dashboard`)}>
+    <div className="rsvp-page">
+      <div className="rsvp-shell">
+        <div className="rsvp-topbar">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")}>
             ← Torna alla dashboard
           </Button>
-          <div>
-            <p className="invites-eyebrow">RUBRICA & INVITI</p>
-            <h1>{eventTitle}</h1>
-            <p style={{ margin: 0, color: "var(--text-muted)" }}>
-              Importa contatti e orchestra l'invio multicanale.
-            </p>
+          <div className="rsvp-header">
+            <div>
+              <p className="rsvp-eyebrow">RUBRICA & INVITI</p>
+              <h1>{eventTitle}</h1>
+              <p className="rsvp-subtitle">
+                Importa contatti, componi il messaggio con link RSVP e invia via WhatsApp o condivisione nativa. Segna come inviati per tenere allineata la
+                lista su eenvee.
+              </p>
+            </div>
+            <div className="rsvp-header-actions">
+              <Button variant="subtle" type="button" onClick={() => navigate(`/edit/${slug}`)}>
+                Modifica evento
+              </Button>
+            </div>
           </div>
         </div>
 
-        <div className="invites-actions-grid">
-          <Surface variant="soft" className="invites-card">
-            <h3>Aggiunta manuale</h3>
-            <form onSubmit={handleManualAdd} className="invites-form">
-              <input type="text" placeholder="Nome contatto" value={manualName} onChange={e => setManualName(e.target.value)} required />
-              <input type="tel" placeholder="Telefono (per WhatsApp/SMS)" value={manualPhone} onChange={e => setManualPhone(e.target.value)} />
-              <input type="email" placeholder="Email" value={manualEmail} onChange={e => setManualEmail(e.target.value)} />
-              <select value={manualChannel} onChange={e => setManualChannel(e.target.value)}>
-                <option value="whatsapp">💬 WhatsApp</option>
-                <option value="sms">📱 SMS</option>
-                <option value="email">✉️ Email</option>
-              </select>
-              <Button type="submit" disabled={adding}>{adding ? "Aggiungo..." : "Aggiungi alla rubrica"}</Button>
+        <div className="rsvp-stats-grid">
+          <StatCard label="In rubrica" value={String(inviteCounts.total)} hint="Contatti importati o aggiunti" />
+          <StatCard label="Inviati" value={String(inviteCounts.sent)} hint="Segnati su eenvee" />
+          <StatCard label="Da inviare" value={String(inviteCounts.pending)} hint="Ancora in attesa" />
+        </div>
+
+        <div className="inv-hub-grid">
+          <Surface variant="glass" className="inv-surface-card">
+            <p className="inv-card-title">Aggiunta singola</p>
+            <h2 className="inv-card-heading">Nuovo contatto</h2>
+            <form onSubmit={handleManualAdd}>
+              <div className="rsvp-form-grid">
+                <div className="input-group">
+                  <label>Nome</label>
+                  <input
+                    type="text"
+                    className="rsvp-input"
+                    placeholder="Nome o coppia/famiglia"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="input-group">
+                  <label>Telefono</label>
+                  <input
+                    type="tel"
+                    className="rsvp-input"
+                    placeholder="Per WhatsApp / SMS"
+                    value={manualPhone}
+                    onChange={(e) => setManualPhone(e.target.value)}
+                  />
+                </div>
+                <div className="input-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    className="rsvp-input"
+                    placeholder="Opzionale"
+                    value={manualEmail}
+                    onChange={(e) => setManualEmail(e.target.value)}
+                  />
+                </div>
+                <div className="input-group">
+                  <label>Canale preferito</label>
+                  <select
+                    className="rsvp-select"
+                    value={manualChannel}
+                    onChange={(e) => setManualChannel(e.target.value)}
+                  >
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="sms">SMS</option>
+                    <option value="email">Email</option>
+                  </select>
+                </div>
+              </div>
+              <Button type="submit" disabled={adding} style={{ marginTop: "1rem", width: "100%" }}>
+                {adding ? "Aggiungo…" : "Aggiungi alla rubrica"}
+              </Button>
             </form>
           </Surface>
 
-          <Surface variant="soft" className="invites-card">
-            <h3>Importazione Multipla</h3>
-            <p className="hint">
-              <strong>Desktop:</strong> Carica un CSV o inquadra il QR per catturare i contatti del telefono.<br/>
-              <strong>Mobile:</strong> Usa il tasto Rubrica per un accesso diretto.
+          <Surface variant="glass" className="inv-surface-card">
+            <p className="inv-card-title">Importazione</p>
+            <h2 className="inv-card-heading">Rubrica, QR e lista</h2>
+            <p className="inv-hint">
+              <strong>Desktop:</strong> CSV o QR dal telefono (stesso Wi‑Fi o dominio pubblico: da <code>localhost</code> il telefono non raggiunge il PC).{" "}
+              <strong>Mobile:</strong> rubrica nativa del dispositivo.
             </p>
-            
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
-              <Button style={{ flex: 1 }} onClick={handleNativeContactPicker}>
-                <BookUser size={16} style={{marginRight: 6}} /> Rubrica Nativa
+
+            <div className="inv-actions-bar">
+              <Button type="button" variant="primary" onClick={handleNativeContactPicker}>
+                <BookUser size={16} style={{ marginRight: 6 }} />
+                Rubrica nativa
               </Button>
-              <div style={{ flex: 1, position: "relative" }}>
-                <Button variant="outline" style={{ width: "100%" }}>
-                   <FileSpreadsheet size={16} style={{marginRight: 6}} /> Carica CSV
+              <div className="inv-csv-wrap">
+                <Button variant="outline" type="button" style={{ width: "100%" }}>
+                  <FileSpreadsheet size={16} style={{ marginRight: 6 }} />
+                  Carica CSV
                 </Button>
-                <input 
-                  type="file" 
-                  accept=".csv,.txt" 
-                  onChange={handleCsvUpload} 
-                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} 
+                <input
+                  type="file"
+                  accept=".csv,.txt"
+                  className="inv-csv-hit"
+                  onChange={handleCsvUpload}
+                  aria-label="Carica file CSV o testo"
                 />
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem", padding: "1rem", background: "rgba(0,0,0,0.2)", borderRadius: "var(--radius-md)" }}>
-               <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(window.location.origin + "/import/" + slug)}`} 
-                  alt="QR Code Import" 
-                  style={{ width: "80px", height: "80px", borderRadius: "8px", border: "4px solid white" }} 
-               />
-               <div>
-                  <h4 style={{ margin: "0 0 0.25rem 0", fontSize: "0.95rem" }}><QrCode size={14} style={{verticalAlign:"middle"}}/> Importa da Cellulare</h4>
-                  <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>Sei su PC? Prendi il telefono, inquadra questo codice e i contatti scelti appariranno magicamente qui. Ricarica la pagina dopo l'invio.</p>
-               </div>
+            <div className="inv-qr-panel">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrImportUrl)}`}
+                alt="QR import contatti"
+                width={88}
+                height={88}
+              />
+              <div className="inv-qr-copy">
+                <h4>
+                  <QrCode size={16} aria-hidden />
+                  Importa da cellulare
+                </h4>
+                <p>
+                  Inquadra con il telefono (account eenvee già collegato), scegli i contatti e torna qui: <strong>ricarica la pagina</strong> per vederli in
+                  elenco.
+                </p>
+              </div>
             </div>
 
-            <div className="quick-paste-zone">
-              <label>Incolla Lista (es. Giovanni 3331234567)</label>
-              <textarea 
-                placeholder="Marco 333444555&#10;Anna anna@mail.com" 
-                rows={3} 
+            <div className="inv-paste-zone">
+              <label>Incolla lista</label>
+              <textarea
+                className="rsvp-textarea"
+                placeholder={"Marco 3334445555\nAnna anna@email.com"}
+                rows={3}
                 value={quickPaste}
-                onChange={e => setQuickPaste(e.target.value)}
+                onChange={(e) => setQuickPaste(e.target.value)}
               />
-              <Button variant="ghost" onClick={handleQuickPaste} disabled={parsing || !quickPaste}>
-                 <ClipboardPaste size={16} style={{marginRight: 6}} /> Aggiungi
+              <Button variant="ghost" type="button" onClick={handleQuickPaste} disabled={parsing || !quickPaste} style={{ marginTop: "0.5rem" }}>
+                <ClipboardPaste size={16} style={{ marginRight: 6 }} />
+                {parsing ? "Elaboro…" : "Aggiungi da testo"}
               </Button>
             </div>
           </Surface>
-          
-          <Surface variant="soft" className="invites-card compose-card">
-              <h4>Componi Messaggio Globale</h4>
-              <textarea placeholder="Ciao {name}, sei invitato al mio evento! Clicca qui: {link}" rows={4} style={{ width: "100%", marginTop: "0.5rem" }} />
-              <Button style={{ marginTop: "0.5rem", width: "100%" }} onClick={handleSendSelected} disabled={selectedIds.size === 0 || sending}>
-                 Invia ai selezionati ({selectedIds.size})
-              </Button>
+
+          <Surface variant="glass" className="inv-surface-card">
+            <p className="inv-card-title">Messaggio</p>
+            <h2 className="inv-card-heading">Testo invito</h2>
+            <p className="inv-hint">
+              Placeholder <code>{"{name}"}</code> e <code>{"{link}"}</code>. Link pubblico attuale:{" "}
+              <span style={{ wordBreak: "break-all" }}>{publicEventUrl || "—"}</span>
+            </p>
+            <textarea
+              className="rsvp-textarea"
+              rows={6}
+              value={messageTemplate}
+              onChange={(e) => setMessageTemplate(e.target.value)}
+              spellCheck
+            />
+            <p className="inv-hint" style={{ marginBottom: 0 }}>
+              Su ogni riga: <strong>WhatsApp</strong> apre chat con numero e testo; <strong>Condividi</strong> foglio nativo; <strong>Segna</strong> aggiorna
+              lo stato su eenvee.
+            </p>
+            <Button
+              variant="outline"
+              type="button"
+              style={{ marginTop: "0.85rem", width: "100%" }}
+              onClick={handleMarkSelectedSent}
+              disabled={selectedIds.size === 0 || sending}
+            >
+              {sending ? "Aggiorno…" : `Segna come inviati (${selectedIds.size})`}
+            </Button>
           </Surface>
         </div>
 
-        <div className="invites-list-container">
-          <div className="invites-list-header">
-            <h3>Contatti Rubrica ({invites.length})</h3>
-            <Button variant="ghost" onClick={selectAll}>Seleziona tutti</Button>
+        <section className="inv-list-section" aria-labelledby="inv-list-heading">
+          <div className="inv-list-head">
+            <h2 id="inv-list-heading">Contatti ({invites.length})</h2>
+            <Button variant="ghost" type="button" onClick={selectAll}>
+              {selectedIds.size === invites.length && invites.length > 0 ? "Deseleziona tutti" : "Seleziona tutti"}
+            </Button>
           </div>
-          
+
           {invites.length === 0 ? (
-            <Surface variant="glass" style={{ textAlign: "center", padding: "3rem" }}>
-               Nessun contatto presente in rubrica.
+            <Surface variant="glass" className="rsvp-empty-card">
+              <h3>Nessun contatto</h3>
+              <p>Importa dalla rubrica, incolla una lista o aggiungi manualmente un invitato.</p>
             </Surface>
           ) : (
-            <div className="invites-table">
-              {invites.map(inv => (
-                <div key={inv._id} className={`invite-row ${selectedIds.has(inv._id) ? "selected" : ""}`} onClick={() => toggleSelect(inv._id)}>
-                  <input type="checkbox" checked={selectedIds.has(inv._id)} readOnly />
-                  <div className="invite-info">
-                    <strong>{inv.name}</strong>
-                    <div className="invite-meta">
-                      {inv.phone && <span>{inv.phone}</span>}
-                      {inv.email && <span>{inv.email}</span>}
+            <div className="inv-list-stack don-gift-list">
+              {invites.map((inv) => {
+                const waDigits = toWhatsAppPhoneDigits(inv.phone);
+                const selected = selectedIds.has(inv._id);
+                const sentClass = inv.status === "sent" ? "rsvp-card-yes" : "";
+                return (
+                  <div
+                    key={inv._id}
+                    className={`rsvp-card inv-invite-row ${sentClass} ${selected ? "inv-invite-row--selected" : ""}`}
+                    onClick={(e) => {
+                      const el = e.target as HTMLElement;
+                      if (el.closest("button, a, input, textarea, label")) return;
+                      toggleSelect(inv._id);
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      className="inv-invite-row__cb"
+                      checked={selected}
+                      onChange={() => toggleSelect(inv._id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Seleziona ${inv.name}`}
+                    />
+                    <div className="inv-invite-row__body">
+                      <div className="inv-invite-row__title-line">
+                        <strong>{inv.name}</strong>
+                        <div className="inv-status-wrap">
+                          <Badge variant={inv.status === "sent" ? "success" : "default"}>
+                            {inv.status === "sent" ? "Inviato" : "In attesa"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="inv-invite-meta">
+                        {inv.phone ? <span>{inv.phone}</span> : null}
+                        {inv.email ? <span>{inv.email}</span> : null}
+                      </div>
+                    </div>
+                    <div className="inv-invite-channel" aria-hidden>
+                      {inv.channel === "whatsapp" && <MessageCircle size={18} color="#25D366" />}
+                      {inv.channel === "sms" && <MessageSquare size={18} color="#8b7bff" />}
+                      {inv.channel === "email" && <Mail size={18} color="#f4c46b" />}
+                    </div>
+                    <div className="inv-invite-actions" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className="inv-icon-btn"
+                        disabled={!waDigits}
+                        title={
+                          waDigits
+                            ? "Apri WhatsApp con numero e messaggio già impostati"
+                            : "Aggiungi un numero valido per aprire WhatsApp"
+                        }
+                        onClick={() => openWhatsAppForInvite(inv)}
+                      >
+                        <MessageCircle size={20} color={waDigits ? "#25D366" : "rgba(128,128,128,0.45)"} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className="inv-icon-btn"
+                        title="Condividi (foglio nativo)"
+                        onClick={() => void nativeShareForInvite(inv)}
+                      >
+                        <Share2 size={18} />
+                      </Button>
+                      {inv.status !== "sent" ? (
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          className="inv-icon-btn"
+                          title="Segna come inviato su eenvee"
+                          onClick={() => void markInvitesSent([inv._id])}
+                        >
+                          <Check size={18} color="var(--accent)" />
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
-                  <div className="invite-status">
-                    <Badge variant={inv.status === "sent" ? "success" : "default"}>
-                       {inv.status === "sent" ? "✅ Inviato" : "⏳ In attesa"}
-                    </Badge>
-                  </div>
-                  <div className="invite-channel">
-                    {inv.channel === "whatsapp" && <MessageCircle size={18} color="#25D366" />}
-                    {inv.channel === "sms" && <MessageSquare size={18} color="#8b7bff" />}
-                    {inv.channel === "email" && <Mail size={18} color="#f4c46b" />}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );
