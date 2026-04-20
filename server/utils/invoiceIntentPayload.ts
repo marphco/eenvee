@@ -9,13 +9,13 @@ function up(s: string): string {
   return s.replace(/\s/g, "").toUpperCase();
 }
 
-/** CF persona italiana (16 alfanumerici). */
+/** CF persona italiana (16 alfanumerici) — solo formato, niente checksum (omocodia / edge case). */
 export function isPersonCodiceFiscale(s: string): boolean {
   const x = up(s);
   return x.length === 16 && /^[A-Z0-9]{16}$/.test(x);
 }
 
-/** CF azienda (11 cifre). */
+/** CF azienda (11 cifre) — solo formato. */
 export function isCompanyCodiceFiscale(s: string): boolean {
   return /^\d{11}$/.test(up(s));
 }
