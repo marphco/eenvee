@@ -119,6 +119,13 @@ Log completo delle funzionalità implementate e delle prossime feature da realiz
 
 ---
 
+### 19-04-2026: Paywall piano Evento — fattura IT, email, idempotenza ✅
+- [x] **Modal acquisto** (`EventPurchaseModal` + CSS): dati pagatore (nome/cognome), checkbox fattura, form per **persona fisica / professionista / società** (copy e placeholder allineati a produzione), indirizzo strutturato; metadata Stripe `inv_*` e `invoice_requested` da `validateInvoiceForIntent` in `server/utils/invoiceIntentPayload.ts`.
+- [x] **Email acquisto**: ricevuta acquirente + notifica interna **solo** da webhook `payment_intent.succeeded` (rimosso dispatch duplicato da `complete-unlock-intent` / `complete-checkout`); claim atomico su `paidReceiptSentForPi` in `paidEventEmailDispatch.ts`; destinatari `INTERNAL_NOTIFY_EMAIL` (multi) o fallback `SMTP_USER`; controllo esito `sendEmail`; `.env.example` aggiornato (`donationEmails.ts`).
+- [x] **CF / P.IVA in fattura**: validazione **solo formato** (niente checksum: evita falsi negativi es. omocodia); commenti espliciti in `invoiceIntentPayload.ts` (2026-04-19).
+
+---
+
 ## 🚀 La Nuova Architettura: Sviluppo a Lotti Modulari (Batches)
 
 Per garantire un codice pulito, altamente debuggabile e con struttura a micro-componenti, le feature rimaste sono state organizzate per priorità evolutiva.
@@ -683,7 +690,7 @@ Penetrazione ~8–10% mercato matrimoni + espansione non-wedding: **€600.000�
 - [x] Editor invito (canvas, layer, template)
 - [x] Pagina evento pubblica (blocchi, RSVP, mappa, galleria, video, regali)
 - [x] Flusso nuovo evento (picker template, date, salvataggio)
-- [x] Paywall Stripe piano **Evento** (€49 una tantum; DB `plan: paid`) — 2026-04-19: flusso **principale** allineato al modulo donazioni (`EventPurchaseModal` + `PaymentElement`, appearance/locale IT, SEPA+carte). `POST /api/subscriptions/create-unlock-intent` → `complete-unlock-intent` dopo `confirmPayment`; **fallback** hosted `POST /api/subscriptions/checkout` se intent non disponibile (503). Dev senza Stripe: `dev_simulate` → `success-mock` (solo non-prod). Redirect `?unlock=1&session_id=` resta per checkout hosted completato in precedenza. **Email** (stesso layout donazioni): webhook `payment_intent.succeeded` → ricevuta acquirente + notifica `INTERNAL_NOTIFY_EMAIL` (default `info@eenvee.com`). Migrazione dati legacy: `npm run migrate:plan` nella cartella `server/`.
+- [x] Paywall Stripe piano **Evento** (€49 una tantum; DB `plan: paid`) — 2026-04-19: flusso **principale** allineato al modulo donazioni (`EventPurchaseModal` + `PaymentElement`, appearance/locale IT, SEPA+carte). `POST /api/subscriptions/create-unlock-intent` → `complete-unlock-intent` dopo `confirmPayment`; **fallback** hosted `POST /api/subscriptions/checkout` se intent non disponibile (503). Dev senza Stripe: `dev_simulate` → `success-mock` (solo non-prod). Redirect `?unlock=1&session_id=` resta per checkout hosted completato in precedenza. **Email** (stesso layout donazioni): webhook `payment_intent.succeeded` → ricevuta acquirente + notifica interna (`INTERNAL_NOTIFY_EMAIL` / fallback `SMTP_USER`; niente doppio invio da route HTTP). **Fattura IT** in modal + metadata `inv_*` (validazione formato-only CF/P.IVA). Migrazione dati legacy: `npm run migrate:plan` nella cartella `server/`. *Dettaglio sessione 19-04-2026: storico sotto.*
 - [ ] Add-on acquistabili (tableau €15, libretto €15)
 - [ ] Invio inviti email funzionante e semplice
 - [x] Dashboard utente (lista eventi, statistiche base) — `Dashboard.tsx` 2026-04-19
