@@ -218,9 +218,27 @@ export async function sendHostNotification(params: HostNotificationParams) {
   });
 }
 
-function internalPaidEventNotifyEmail(): string {
-  const raw = process.env.INTERNAL_NOTIFY_EMAIL || "info@eenvee.com";
-  return raw.split(",")[0]?.trim() || "info@eenvee.com";
+/**
+ * Destinatari notifica interna acquisto piano Evento (comma-separated per nodemailer).
+ * - Se `INTERNAL_NOTIFY_EMAIL` è valorizzato, usa quello (più indirizzi separati da virgola).
+ * - Altrimenti, se `SMTP_USER` è un indirizzo email, usa quello: è la casella da cui invii
+ *   ed è dove di solito vuoi ricevere gli avvisi in dev / piccoli deploy.
+ * - Ultimo fallback: info@eenvee.com (se coincide con EMAIL_FROM, alcuni provider non recapitan bene: imposta INTERNAL_NOTIFY_EMAIL).
+ */
+function internalPaidEventNotifyRecipients(): string {
+  const explicit = process.env.INTERNAL_NOTIFY_EMAIL?.trim();
+  if (explicit) {
+    const parts = explicit
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+    if (parts.length) return parts.join(", ");
+  }
+  const smtp = process.env.SMTP_USER?.trim();
+  if (smtp && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(smtp)) {
+    return smtp;
+  }
+  return "info@eenvee.com";
 }
 
 export interface PaidEventBuyerReceiptParams {
@@ -282,7 +300,7 @@ export interface PaidEventOpsNotificationParams {
 /** Notifica interna vendita piano Evento — stessa struttura dell’email «Hai ricevuto un regalo» (tabella + box + CTA). */
 export async function sendPaidEventOpsNotification(params: PaidEventOpsNotificationParams) {
   const { eventTitle, eventSlug, amountCents, buyerEmail, buyerName, ownerAccountEmail, paymentIntentId, invoiceMetadata } = params;
-  const to = internalPaidEventNotifyEmail();
+  const to = internalPaidEventNotifyRecipients();
   const dashboardUrl = `${SITE_URL}/dashboard`;
 
   const invoiceBlock = invoiceMetadata ? paidEventInvoiceHtml(invoiceMetadata) : "";

@@ -5,7 +5,6 @@ import Stripe from "stripe";
 import Event from "../models/Event.js";
 import requireAuth, { AuthRequest } from "../middleware/requireAuth.js";
 import { getStripe, isStripeConfigured } from "../utils/stripeClient.js";
-import { dispatchPaidEventEmailsIfNeeded } from "../utils/paidEventEmailDispatch.js";
 import { isPaidPlan } from "../utils/eventPlan.js";
 import { validateInvoiceForIntent } from "../utils/invoiceIntentPayload.js";
 
@@ -167,14 +166,12 @@ router.post("/complete-unlock-intent", requireAuth, async (req: AuthRequest, res
     }
 
     if (isPaidPlan(ev.plan)) {
-      await dispatchPaidEventEmailsIfNeeded(pi, ev);
+      // Le ricevute email partono solo dal webhook `payment_intent.succeeded` (idempotente), altrimenti doppio invio con questa route.
       return res.json({ ok: true, slug: eventSlug, alreadyPaid: true });
     }
 
     ev.plan = "paid";
     await ev.save();
-
-    await dispatchPaidEventEmailsIfNeeded(pi, ev);
 
     return res.json({ ok: true, slug: eventSlug });
   } catch (err) {
@@ -274,26 +271,12 @@ router.post("/complete-checkout", requireAuth, async (req: AuthRequest, res: Res
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    const piId =
-      typeof session.payment_intent === "string"
-        ? session.payment_intent
-        : session.payment_intent?.id || null;
-
     if (isPaidPlan(ev.plan)) {
-      if (piId) {
-        const pi = await stripe.paymentIntents.retrieve(piId);
-        await dispatchPaidEventEmailsIfNeeded(pi, ev);
-      }
       return res.json({ ok: true, slug: eventSlug, alreadyPaid: true });
     }
 
     ev.plan = "paid";
     await ev.save();
-
-    if (piId) {
-      const pi = await stripe.paymentIntents.retrieve(piId);
-      await dispatchPaidEventEmailsIfNeeded(pi, ev);
-    }
 
     return res.json({ ok: true, slug: eventSlug });
   } catch (err) {
