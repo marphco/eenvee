@@ -11,14 +11,19 @@ import EventRsvps from "./pages/Rsvps/EventRsvps";
 import EventDonations from "./pages/Donations/EventDonations";
 import EventInvites from "./pages/PublicView/EventInvites";
 import DigitalGiftsInfo from "./pages/Legal/DigitalGiftsInfo";
+import PrivacyPage from "./pages/Legal/PrivacyPage";
+import TermsPage from "./pages/Legal/TermsPage";
+import CookiePage from "./pages/Legal/CookiePage";
 import MobileImport from "./pages/Dashboard/MobileImport";
 import Login from "./pages/Login/Login";
+import CookieBanner from "./components/legal/CookieBanner";
 
 import RequireAuth from "./components/auth/RequireAuth";
 import RedirectIfAuth from "./components/auth/RedirectIfAuth";
 
 function App() {
   return (
+    <>
     <Routes>
       {/* login: se già loggato → redirect dashboard */}
       <Route
@@ -45,6 +50,10 @@ function App() {
       {/* pagina informativa regali digitali (pubblica) */}
       <Route path="/regali-digitali" element={<DigitalGiftsInfo />} />
       <Route path="/legal/digital-gifts" element={<DigitalGiftsInfo />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/termini" element={<TermsPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/cookie" element={<CookiePage />} />
 
       {/* rotta pubblica editor demo */}
       <Route path="/edit/demo" element={<EventEditor />} />
@@ -62,6 +71,8 @@ function App() {
         <Route path="/invites/:slug" element={<EventInvites />} />
       </Route>
     </Routes>
+    <CookieBanner />
+    </>
   );
 }
 

@@ -224,7 +224,7 @@ export default function DigitalGiftsInfo() {
               ricevere regali digitali, ma il rapporto di pagamento si instaura tra
               l'invitato (che paga), l'organizzatore (che riceve) e Stripe (che processa).
               L'utilizzo dei regali digitali è soggetto ai nostri{" "}
-              <a href="/terms">Termini di Servizio</a>, alla{" "}
+              <a href="/termini">Termini di servizio</a>, alla{" "}
               <a href="/privacy">Privacy Policy</a> di eenvee e ai{" "}
               <a
                 href="https://stripe.com/it/legal/connect-account"

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch } from "../../utils/apiFetch";
 import { Button, Surface } from "../../ui";
 import { useGoogleLogin } from '@react-oauth/google';
@@ -15,10 +16,17 @@ export default function AuthForm({ initialMode = "login", onAuthSuccess }: AuthF
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (mode === "register" && !acceptedLegal) {
+      setError("Per registrarti accetta Termini e Privacy.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -108,8 +116,41 @@ export default function AuthForm({ initialMode = "login", onAuthSuccess }: AuthF
 
         {error && <p style={{ color: "salmon", margin: 0 }}>{error}</p>}
 
+        {mode === "register" && (
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "0.5rem",
+              fontSize: "0.82rem",
+              lineHeight: 1.45,
+              color: "var(--text-muted, #6b6b6b)",
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={acceptedLegal}
+              onChange={(e) => setAcceptedLegal(e.target.checked)}
+              style={{ marginTop: "0.2rem", width: 16, height: 16, accentColor: "var(--accent, #0d9488)" }}
+            />
+            <span>
+              Dichiaro di aver letto e accetto i{" "}
+              <Link to="/termini" style={{ color: "var(--accent, #0d9488)", fontWeight: 700 }}>
+                Termini di servizio
+              </Link>{" "}
+              e l’
+              <Link to="/privacy" style={{ color: "var(--accent, #0d9488)", fontWeight: 700 }}>
+                informativa sulla privacy
+              </Link>
+              .
+            </span>
+          </label>
+        )}
+
         <div className="auth-actions" style={{ marginTop: "0.5rem" }}>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || (mode === "register" && !acceptedLegal)}>
             {loading ? "Attendi..." : mode === "login" ? "Accedi" : "Registrati"}
           </Button>
 
@@ -133,7 +174,10 @@ export default function AuthForm({ initialMode = "login", onAuthSuccess }: AuthF
             type="button"
             variant="ghost"
             style={{ fontSize: "0.85rem", marginTop: "0.25rem", color: "var(--text-muted)" }}
-            onClick={() => setMode((prev) => (prev === "login" ? "register" : "login"))}
+            onClick={() => {
+              setMode((prev) => (prev === "login" ? "register" : "login"));
+              setAcceptedLegal(false);
+            }}
           >
             {mode === "login" ? "Non hai un account? Registrati" : "Hai già un account? Login"}
           </Button>

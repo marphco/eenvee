@@ -1,0 +1,127 @@
+.legal-page {
+  min-height: 100vh;
+  background: var(--bg, #f4f1ec);
+  padding: 2rem 1.25rem 4rem;
+  color: var(--text, #1a1a1a);
+}
+
+.legal-page__inner {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.legal-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.legal-page__toolbar-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b6b6b);
+}
+
+.legal-page__toolbar-links a {
+  color: var(--accent, #0d9488);
+  text-decoration: none;
+}
+
+.legal-page__toolbar-links a:hover {
+  text-decoration: underline;
+}
+
+.legal-page__eyebrow {
+  margin: 0;
+  color: var(--accent, #0d9488);
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.legal-page__title {
+  margin: 0.5rem 0 0.35rem;
+  font-family: var(--font-display, "Georgia", serif);
+  font-size: clamp(1.75rem, 4vw, 2.4rem);
+  line-height: 1.12;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+}
+
+.legal-page__updated {
+  margin: 0 0 1.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted, #6b6b6b);
+}
+
+.legal-page__body h2 {
+  margin: 1.75rem 0 0.65rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text, #0f172a);
+}
+
+.legal-page__body p {
+  margin: 0.5rem 0;
+  line-height: 1.65;
+  font-size: 0.98rem;
+}
+
+.legal-page__body ul,
+.legal-page__body ol {
+  margin: 0.4rem 0 0.75rem 1.15rem;
+  line-height: 1.6;
+  font-size: 0.95rem;
+  padding: 0;
+}
+
+.legal-page__body li {
+  margin: 0.25rem 0;
+}
+
+.legal-page__body a {
+  color: var(--accent, #0d9488);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.legal-page__body a:hover {
+  text-decoration: underline;
+}
+
+.legal-page__body strong {
+  color: var(--text, #0f172a);
+}
+
+.legal-page__box {
+  margin: 1rem 0 1.25rem;
+  padding: 1rem 1.1rem;
+  background: rgba(20, 184, 166, 0.07);
+  border: 1px solid rgba(20, 184, 166, 0.22);
+  border-radius: var(--radius-md, 12px);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.legal-page__foot {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border, rgba(60, 79, 118, 0.12));
+  font-size: 0.8rem;
+  color: var(--text-muted, #6b6b6b);
+  line-height: 1.5;
+}
+
+.legal-page__foot a {
+  color: var(--accent, #0d9488);
+  font-weight: 600;
+}

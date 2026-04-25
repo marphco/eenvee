@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Surface, Button, Badge } from "../../ui";
 import { Sparkles, Calendar, Paintbrush, Send, CreditCard, X } from "lucide-react";
 import { API_BASE } from "../../config/api";
@@ -209,8 +209,9 @@ export default function MarketingLanding() {
       <footer className="marketing-footer">
         <div>eenvee &copy; 2026. Tutti i diritti riservati.</div>
         <div className="footer-links">
-          <span>Privacy</span>
-          <span>Termini</span>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/termini">Termini</Link>
+          <Link to="/cookie">Cookie</Link>
         </div>
       </footer>
 
