@@ -132,11 +132,17 @@ Log completo delle funzionalità implementate e delle prossime feature da realiz
 - [x] **API** `POST /api/events/:slug/invites/send`: validazione `inviteIds`, dedup, verifica che tutti gli inviti appartengano all’evento prima di `updateMany` (`inviteRoutes.ts`).
 - [x] **UI allineata a RSVP / donazioni**: `EventInvites` su shell `rsvp-page` + `StatCard`, form `rsvp-input` / `rsvp-textarea`, card elenco stile `rsvp-card` + `don-gift-list`, note QR/`localhost`; `MobileImport` stesso sfondo e tipografia (`EventRsvps.css`).
 
+### 20-04-2026: Anagrafica operativa (Basic ADV) e cookie banner in brand ✅
+- [x] Dati aziendali e posizione marchio: `client/src/config/legalEntity.ts` (brand **eenvee**, distributore **Basic ADV S.r.l.s.**, indirizzo legale, P.IVA, R.E.A., PEC, contatto unico `info@eenvee.com`, dominio pubblico `https://eenvee.com`); allineamento `LegalNoticesLayout` e testi in `pages/Legal/*`.
+- [x] **Termini**: legge italiana, foro consumatori come per legge, **Foro di Napoli** per controversie con professionisti/imprese (non consumatori), salvo norme inderogabili; spaziatura corretta in “P.IVA …” vicino a intro.
+- [x] **Cookie banner** card flottante (bordo Tiffany, Playfair, CTA pill); layout **compatto sm+** (testo + «Ho capito» affiancati, `align-items: center`), **mobile** colonna + CTA full width; copy senza “sotto”, a capo prima di “Approfondisci”.
+- [x] Manutenzione futura analytics/terze parti: `docs/compliance-maintenance.md` e regola `.cursor/rules/compliance-analytics.mdc` (aggiornare policy/cookie al cambio tracciamento).
+
 ---
 
 ### 24-04-2026: RSVP manuale, privacy e cookie ✅
 - [x] **Aggiunta manuale ospite** in `EventRsvps.tsx` (2026-04-24): lettura `widgetProps` da `/api/events/:slug/private` (stesso blocco `rsvp`); numero ospiti condizionato a `rsvpAskGuests`; email/telefono e validazione “almeno uno” come `RSVPWidget`; domande custom (testo + SÌ/NO) nello stesso ordine; allergie con `buildAllergiesPayload` + `allergiesDetail` o testo libero se le intolleranze sono disattivate nell’editor. Corretto l’ordine: `setManualSending` solo dopo le validazioni.
-- [x] **Compliance (base GDPR)**: pagine `Privacy` (`/privacy`), `Termini` (`/termini`, alias `/terms`), `Cookie` (`/cookie`) con `LegalNoticesLayout`; `CookieBanner` (consenso informato + `localStorage`); link footer su `MarketingLanding`; checkbox obbligatoria in `AuthForm` in registrazione. Testi con placeholder titolare/P.IVA e email (revisione legale pre-lancio consigliata).
+- [x] **Compliance (base GDPR)**: pagine `Privacy` (`/privacy`), `Termini` (`/termini`, alias `/terms`), `Cookie` (`/cookie`) con `LegalNoticesLayout`; `CookieBanner` (consenso informato + `localStorage`); link footer su `MarketingLanding`; checkbox obbligatoria in `AuthForm` in registrazione. Regola progetto: `.cursor/rules/no-provisional-user-copy.mdc` (no copy provvisoria in UI; adeguamento legale in checklist pre-lancio, non in faccia al sito).
 
 ---
 

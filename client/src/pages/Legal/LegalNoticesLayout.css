@@ -118,7 +118,11 @@
   border-top: 1px solid var(--border, rgba(60, 79, 118, 0.12));
   font-size: 0.8rem;
   color: var(--text-muted, #6b6b6b);
-  line-height: 1.5;
+  line-height: 1.55;
+}
+
+.legal-page__foot-line {
+  margin: 0 0 0.5rem;
 }
 
 .legal-page__foot a {

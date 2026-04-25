@@ -168,6 +168,7 @@ docs/fase1-spec.md
 *.md
 !README.md
 !ROADMAP.md
+!docs/compliance-maintenance.md
 diff.txt
 .gemini/
 brain/

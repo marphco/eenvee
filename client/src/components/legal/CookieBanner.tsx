@@ -33,17 +33,41 @@ export default function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="cookie-banner" role="dialog" aria-label="Informativa sui cookie">
-      <div className="cookie-banner__inner">
-        <p className="cookie-banner__text">
-          Usiamo cookie e storage necessari a login, sicurezza e funzionamento del servizio. Per i dettagli:{" "}
-          <Link to="/cookie">Cookie Policy</Link> e <Link to="/privacy">Privacy</Link>. Continuando accetti
-          l’uso di queste tecnologie secondo l’informativa.
+    <div className="cookie-banner">
+      <div
+        className="cookie-banner__card"
+        role="dialog"
+        aria-labelledby="cookie-banner-title"
+        aria-describedby="cookie-banner-desc"
+      >
+        <p id="cookie-banner-title" className="cookie-banner__eyebrow">
+          Cookie e privacy
         </p>
-        <div className="cookie-banner__actions">
-          <Button type="button" onClick={accept} className="cookie-banner__btn">
-            Ho capito
-          </Button>
+        <div className="cookie-banner__content">
+          <div id="cookie-banner-desc" className="cookie-banner__copy">
+            <p className="cookie-banner__p">
+              Per la sessione e per la tua sicurezza utilizziamo cookie e dati sul
+              dispositivo.
+              <br />
+              <span className="cookie-banner__inline-links">
+                Approfondisci: <Link to="/cookie">Cookie policy</Link>
+                <span className="cookie-banner__sep" aria-hidden>
+                  {" "}
+                  ·{" "}
+                </span>
+                <Link to="/privacy">Privacy</Link>.
+              </span>
+            </p>
+            <p className="cookie-banner__p cookie-banner__p--hint">
+              Cliccando su <span className="cookie-banner__action-label">Ho capito</span> confermi di aver
+              preso visione.
+            </p>
+          </div>
+          <div className="cookie-banner__actions">
+            <Button type="button" variant="primary" onClick={accept} className="cookie-banner__btn">
+              Ho capito
+            </Button>
+          </div>
         </div>
       </div>
     </div>

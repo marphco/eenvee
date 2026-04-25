@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../../ui";
+import { LEGAL, companyFullAddress } from "../../config/legalEntity";
 import "./LegalNoticesLayout.css";
 
 type Props = {
@@ -10,9 +11,6 @@ type Props = {
   children: React.ReactNode;
 };
 
-/**
- * Guscio condiviso per Privacy, Termini, Cookie: tipografia e link interni coerenti con le altre pagine marketing/legal.
- */
 export default function LegalNoticesLayout({ eyebrow, title, updatedLabel, children }: Props) {
   const navigate = useNavigate();
 
@@ -41,10 +39,13 @@ export default function LegalNoticesLayout({ eyebrow, title, updatedLabel, child
         <article className="legal-page__body">{children}</article>
 
         <footer className="legal-page__foot">
+          <p className="legal-page__foot-line">
+            <strong>{LEGAL.brand}</strong> è un marchio di <strong>{LEGAL.company.legalName}</strong> — {companyFullAddress()} —
+            P.IVA {LEGAL.company.vat} — R.E.A. {LEGAL.company.rea} — PEC{" "}
+            <a href={`mailto:${LEGAL.company.pec}`}>{LEGAL.company.pec}</a>
+          </p>
           <p>
-            In caso di domande:{" "}
-            <a href="mailto:privacy@eenvee.com">privacy@eenvee.com</a> (indirizzo indicativo: aggiornare con
-            P.IVA e ragione sociale del titolare effettivo).
+            Contatti: <a href={`mailto:${LEGAL.publicEmail}`}>{LEGAL.publicEmail}</a>
           </p>
         </footer>
       </div>
