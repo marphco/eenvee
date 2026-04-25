@@ -9,7 +9,7 @@ import {
   Mail,
   MapPin,
   Gift,
-  Globe2,
+  LayoutTemplate,
   Pen,
   CreditCard,
   CalendarDays,
@@ -62,7 +62,7 @@ const FEATURES = [
     p: "Animazione di apertura curata. Sembra una vera busta in mano.",
   },
   {
-    icon: Globe2,
+    icon: LayoutTemplate,
     h: "Una pagina tutta per l’evento",
     p: "Un sito tuo con tutte le informazioni importanti.",
   },
@@ -298,7 +298,9 @@ export default function MarketingLanding() {
         <header className="ml-section__head">
           <span className="ml-eyebrow ml-eyebrow--alt">Cosa ricevono i tuoi invitati</span>
           <h2 id="feat-title" className="ml-h2">Tutto in un solo posto.</h2>
-          <p className="ml-h2__sub">Sei cose, fatte bene. Niente moduli da pagare a parte.</p>
+          <p className="ml-h2__sub">
+            Sei cose, fatte bene. L’essenziale c’è già: il resto lo attivi solo se ti serve.
+          </p>
         </header>
         <div className="ml-features__grid">
           {FEATURES.map(({ icon: Icon, h, p }, i) => (
@@ -321,14 +323,34 @@ export default function MarketingLanding() {
       {/* VALUE STATEMENT (replaces compare table) */}
       <section className="ml-section ml-value" aria-labelledby="value-title">
         <div className="ml-value__card">
-          <span className="ml-eyebrow ml-eyebrow--alt">Perché eenvee</span>
-          <h2 id="value-title" className="ml-value__h">
-            Più cose, <em>meno della metà</em> del prezzo.
-          </h2>
-          <p className="ml-value__p">
-            Niente abbonamenti, niente crediti per invito, niente pubblicità sugli invitati.
-            Una piccola spesa, una sola volta.
-          </p>
+          <div className="ml-value__layout">
+            <div className="ml-value__main">
+              <span className="ml-eyebrow ml-eyebrow--alt">Perché eenvee</span>
+              <h2 id="value-title" className="ml-value__h">
+                <span className="ml-value__h-line">Tutto incluso.</span>
+                <em className="ml-value__h-accent">Al prezzo più basso.</em>
+              </h2>
+              <p className="ml-value__p">
+                <span className="ml-value__lead">49 € una sola volta.</span> Niente canoni, niente
+                costi a sorpresa.
+                <br />
+                Più ricco degli&nbsp;altri, costa meno&nbsp;di&nbsp;tutti.
+              </p>
+            </div>
+            <aside className="ml-value__aside" aria-hidden="true">
+              <div className="ml-value__mosaic">
+                <div className="ml-value__tile">
+                  <ListChecks size={22} strokeWidth={2.1} />
+                </div>
+                <div className="ml-value__tile">
+                  <Sparkles size={22} strokeWidth={2.1} />
+                </div>
+                <div className="ml-value__tile ml-value__tile--wide">
+                  <Heart size={22} strokeWidth={2.1} />
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
       </section>
 
@@ -381,10 +403,11 @@ export default function MarketingLanding() {
             <span className="ml-final__suffix">una tantum, per evento</span>
           </h2>
           <p className="ml-final__p">
-            Una sola spesa, una sola volta. Niente abbonamenti, niente sorprese.
+            Un pagamento unico per attivare l’evento. Zero abbonamenti, zero pubblicità per chi
+            riceve l’invito.
           </p>
           <ul className="ml-final__inc" aria-label="Cosa è incluso">
-            <li><Globe2 size={14} strokeWidth={2.4} /> Pagina dell’evento</li>
+            <li><LayoutTemplate size={14} strokeWidth={2.4} /> Pagina dell’evento</li>
             <li><ListChecks size={14} strokeWidth={2.4} /> Conferme illimitate</li>
             <li><MapPin size={14} strokeWidth={2.4} /> Mappa e indicazioni</li>
             <li><Gift size={14} strokeWidth={2.4} /> Lista regali</li>
