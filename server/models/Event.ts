@@ -82,7 +82,7 @@ const eventSchema = new Schema(
     date: { type: Date },
     dateTBD: { type: Boolean, default: false },
     templateId: { type: String, default: "basic-free" },
-    status: { type: String, enum: ["draft", "published"], default: "draft" },
+    status: { type: String, enum: ["draft", "published"], default: "published" },
     canvas: {
       bgImage: { type: String, default: null },
       bgColor: { type: String, default: "#ffffff" },

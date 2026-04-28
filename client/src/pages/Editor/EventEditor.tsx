@@ -351,7 +351,7 @@ export default function EventEditor() {
           <MobileIconBtn icon={PanelTop} label="Pagina" className="mobile-only" variant={editorMode === 'event_page' ? 'primary' : 'ghost'} onClick={() => { setEditorMode('event_page'); setActiveMobileTab(null); setDisplayColorPicker(false); setSelectedLayerIds([]); }} />
           <div style={{ flex: 1 }} className="desktop-only text-center"><h1 style={{ fontSize: '1.2rem', margin: 0 }}>{event.title}</h1></div>
           <MobileIconBtn icon={Undo2} label="Annulla" onClick={undo} disabled={history.length === 0} />
-          <MobileIconBtn icon={autoSaving ? Save : (isDirty ? Save : Check)} label={autoSaving ? "..." : (isDirty ? "Bozza" : "Salvato")} disabled style={{ color: autoSaving ? "#f4c46b" : (isDirty ? "salmon" : "#3ae6b3") }} />
+          <MobileIconBtn icon={autoSaving ? Save : (isDirty ? Save : Check)} label={autoSaving ? "..." : (isDirty ? "Salva" : "Salvato")} disabled style={{ color: autoSaving ? "#f4c46b" : (isDirty ? "salmon" : "#3ae6b3") }} />
           <MobileIconBtn icon={Check} label="Finito!" variant="primary" onClick={handleSaveAndExit} />
       </div>
 

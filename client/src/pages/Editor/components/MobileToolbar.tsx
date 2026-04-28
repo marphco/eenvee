@@ -928,8 +928,10 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                           value={blocks.find(b => b.id === selectedBlockId)?.widgetProps?.rsvpTitle ?? 'GENTILE CONFERMA'}
                           onChange={(e) => {
                             const val = e.target.value;
-                            setBlocks(blocks.map(b => b.id === selectedBlockId ? { ...b, widgetProps: { ...b.widgetProps, rsvpTitle: val } } : b));
-                            setIsDirty && setIsDirty(true);
+                            if (setBlocks && blocks) {
+                              setBlocks(blocks.map(b => b.id === selectedBlockId ? { ...b, widgetProps: { ...b.widgetProps, rsvpTitle: val } } : b));
+                            }
+                            setIsDirty?.(true);
                           }}
                           style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', minWidth: 0, width: '100%' }}
                         />
@@ -944,8 +946,10 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                           rows={3}
                           onChange={(e) => {
                             const val = e.target.value;
-                            setBlocks(blocks.map(b => b.id === selectedBlockId ? { ...b, widgetProps: { ...b.widgetProps, rsvpDescription: val } } : b));
-                            setIsDirty && setIsDirty(true);
+                            if (setBlocks && blocks) {
+                              setBlocks(blocks.map(b => b.id === selectedBlockId ? { ...b, widgetProps: { ...b.widgetProps, rsvpDescription: val } } : b));
+                            }
+                            setIsDirty?.(true);
                           }}
                           style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', minWidth: 0, width: '100%', resize: 'vertical' }}
                         />
@@ -1555,16 +1559,16 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                   };
                   return (
                     <div style={{ flex: 1, minWidth: 0, width: '100%', alignSelf: 'stretch' }}>
-                      <PaymentSection
+                       <PaymentSection
                         block={block as Block}
                         displayColorPicker={displayColorPicker}
                         setDisplayColorPicker={setDisplayColorPicker}
-                        setIsDirty={(v: boolean) => setIsDirty && setIsDirty(v)}
-                        blocks={blocks || undefined}
-                        setBlocks={setBlocks || undefined}
+                        setIsDirty={(v: boolean) => setIsDirty?.(v)}
+                        blocks={blocks}
+                        setBlocks={setBlocks as any}
                         slug={slug || ''}
                         compact
-                        section={sectionMap[activeMobileTab as string]}
+                        section={sectionMap[activeMobileTab as string] as 'setup' | 'content' | 'amounts' | 'style'}
                       />
                     </div>
                   );

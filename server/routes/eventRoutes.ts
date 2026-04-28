@@ -65,7 +65,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       date: dateTBD ? null : date,
       dateTBD: !!dateTBD,
       templateId: templateId || "basic-free",
-      status: "draft",
+      status: "published",
       blocks: blocks || [],
       layers: layers || [],
       canvas: canvas || {},

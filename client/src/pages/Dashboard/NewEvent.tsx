@@ -155,9 +155,7 @@ export default function NewEvent() {
                 <p className="new-event-card__lede">
                   {preselectedTemplate ? (
                     <>
-                      Aggiungi <strong>nome e data</strong> dell’evento. Puoi modificarli anche dopo.
-                      {" "}
-                      Per un altro modello usa il pulsante nel riquadro sotto.
+                      Aggiungi <strong>nome e data</strong> dell’evento. Per cambiare modello usa il pulsante nel riquadro sotto.
                     </>
                   ) : (
                     <>Nome e data dell’evento. Potrai modificarli anche in seguito dall’editor.</>
@@ -277,17 +275,26 @@ export default function NewEvent() {
                   </h2>
                   <p className="new-event-picked__cat">{preselectedTemplate.category}</p>
                   <p className="new-event-picked__hint">
-                    Poi completi il pagamento (69&nbsp;€) e accedi all’editor per invito, busta e
-                    pagina dell’evento.
+                    Personalizza ogni dettaglio: invito, busta e pagina evento. Tutto in un unico posto.
                   </p>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="new-event-picked__change"
-                    onClick={() => navigate("/templates")}
-                  >
-                    Cambia modello
-                  </Button>
+                  <div style={{ marginTop: '16px' }}>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/templates")}
+                      style={{ 
+                        background: 'none', 
+                        border: 'none', 
+                        padding: 0,
+                        color: 'var(--text-soft)', 
+                        fontSize: '12px', 
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontWeight: 500
+                      }}
+                    >
+                      Cambia modello
+                    </button>
+                  </div>
                 </div>
               </div>
             </Surface>

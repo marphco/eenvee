@@ -402,7 +402,7 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
               type="number"
               min={0}
               value={props.paymentTargetAmount || ''}
-              onChange={(e) => patch({ paymentTargetAmount: e.target.value ? Number(e.target.value) : undefined })}
+              onChange={(e) => patch({ paymentTargetAmount: e.target.value ? Number(e.target.value) : 0 })}
               placeholder={props.paymentMode === 'donation' ? 'Es: 5000' : 'Es: 10000 per la luna di miele'}
               style={inputStyle}
             />
