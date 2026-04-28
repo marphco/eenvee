@@ -3,12 +3,17 @@ import { Gift, Heart, AlertCircle, Loader2 } from 'lucide-react';
 import { getAdaptivePalette } from '../../../../utils/colorUtils';
 import { apiFetch } from '../../../../utils/apiFetch';
 import visaLogo from '../../../../assets/visa.svg';
+import visaDarkLogo from '../../../../assets/visa-dark.svg';
 import mastercardLogo from '../../../../assets/mastercard.svg';
 import amexLogo from '../../../../assets/amex.svg';
 import applePayLogo from '../../../../assets/apple-pay.svg';
+import applePayDarkLogo from '../../../../assets/apple-pay-dark.svg';
 import googlePayLogo from '../../../../assets/google-pay.svg';
+import googlePayDarkLogo from '../../../../assets/google-pay-dark.svg';
 import sepaLogo from '../../../../assets/sepa.svg';
+import sepaDarkLogo from '../../../../assets/sepa-dark.svg';
 import stripeLogo from '../../../../assets/stripe.svg';
+import stripeDarkLogo from '../../../../assets/stripe-dark.svg';
 
 export interface PaymentWidgetProps {
   eventSlug?: string;
@@ -336,22 +341,21 @@ const PaymentWidget: React.FC<PaymentWidgetProps> = ({
       <div style={{ fontSize: '10px', color: palette.textMuted, textAlign: 'center', letterSpacing: '0.02em', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', opacity: 0.8 }}>
           <span style={{ fontSize: '10px' }}>Pagamento sicuro via</span>
-          <img src={stripeLogo} alt="Stripe" style={{ height: '11px', width: 'auto', display: 'block' }} />
+          <img src={palette.isDark ? stripeDarkLogo : stripeLogo} alt="Stripe" style={{ height: '11px', width: 'auto', display: 'block' }} />
         </div>
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center', 
           gap: '12px', 
-          opacity: 0.5,
-          filter: palette.isDark ? 'brightness(0) invert(1)' : 'none' 
+          opacity: 0.5
         }}>
-          <img src={visaLogo} alt="Visa" style={{ height: '9px', width: 'auto', display: 'block' }} />
+          <img src={palette.isDark ? visaDarkLogo : visaLogo} alt="Visa" style={{ height: '9px', width: 'auto', display: 'block' }} />
           <img src={mastercardLogo} alt="Mastercard" style={{ height: '13px', width: 'auto', display: 'block' }} />
           <img src={amexLogo} alt="Amex" style={{ height: '11px', width: 'auto', display: 'block' }} />
-          <img src={applePayLogo} alt="Apple Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
-          <img src={googlePayLogo} alt="Google Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
-          <img src={sepaLogo} alt="SEPA" style={{ height: '9px', width: 'auto', display: 'block' }} />
+          <img src={palette.isDark ? applePayDarkLogo : applePayLogo} alt="Apple Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
+          <img src={palette.isDark ? googlePayDarkLogo : googlePayLogo} alt="Google Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
+          <img src={palette.isDark ? sepaDarkLogo : sepaLogo} alt="SEPA" style={{ height: '9px', width: 'auto', display: 'block' }} />
         </div>
       </div>
       {/* min/max visibili come hint silenzioso */}
