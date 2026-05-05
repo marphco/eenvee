@@ -16,6 +16,7 @@ import { useTableauTotals } from './tableau/hooks/useTableauTotals';
 import OverflowModal from './tableau/modals/OverflowModal';
 import PublishConfirmModal from './tableau/modals/PublishConfirmModal';
 import SeatingWarningsModal from './tableau/modals/SeatingWarningsModal';
+import ConstraintWarningModal from './tableau/modals/ConstraintWarningModal';
 
 interface TableauSidebarProps {
   selectedBlock: Block;
@@ -1971,53 +1972,10 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
       )}
 
       {/* CONSTRAINT WARNING MODAL */}
-      {constraintWarning && createPortal(
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 100002,
-          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
-        }}>
-          <Surface variant="soft" style={{
-            maxWidth: '420px', width: '100%', padding: '40px 36px', borderRadius: '32px',
-            textAlign: 'center', boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
-            background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.4)',
-            animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-          }}>
-            <div style={{
-              width: '72px', height: '72px', borderRadius: '20px',
-              background: constraintWarning.type === 'avoid' ? 'rgba(239,68,68,0.08)' : 'rgba(var(--accent-rgb),0.08)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px',
-              border: constraintWarning.type === 'avoid' ? '1.5px solid rgba(239,68,68,0.2)' : '1.5px solid rgba(var(--accent-rgb),0.2)'
-            }}>
-              {constraintWarning.type === 'avoid'
-                ? <HeartOff size={30} color="#ef4444" />
-                : <Heart size={30} color="var(--accent)" fill="var(--accent)" />
-              }
-            </div>
-            <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-primary)', marginBottom: '12px', fontFamily: 'var(--font-heading)' }}>
-              {constraintWarning.type === 'avoid' ? 'Vincolo di separazione' : 'Vincolo di vicinanza'}
-            </h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-soft)', lineHeight: 1.7, marginBottom: '28px' }}>
-              {constraintWarning.type === 'avoid'
-                ? <><strong>{constraintWarning.guestName}</strong> e <strong>{constraintWarning.otherGuestName}</strong> hanno un vincolo <em>Separati</em> ma finirebbero allo stesso tavolo.</>
-                : <><strong>{constraintWarning.guestName}</strong> ha un vincolo <em>Insieme</em> con <strong>{constraintWarning.otherGuestName}</strong>, che si trova già al <strong>{constraintWarning.otherTableName}</strong>.</>
-              }
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <Button variant="accent" fullWidth onClick={() => { constraintWarning.onConfirm(); setConstraintWarning(null); }}
-                style={{ height: '48px', borderRadius: '100px', fontWeight: 800 }}>
-                Procedi comunque
-              </Button>
-              <Button variant="ghost" fullWidth onClick={() => setConstraintWarning(null)}
-                style={{ height: '48px', borderRadius: '100px', color: 'var(--text-soft)', fontWeight: 700 }}>
-                Annulla
-              </Button>
-            </div>
-          </Surface>
-        </div>,
-        document.body
-      )}
+      <ConstraintWarningModal
+        warning={constraintWarning}
+        onClose={() => setConstraintWarning(null)}
+      />
 
       {/* OVERFLOW MODAL — più ospiti che posti */}
       <OverflowModal
