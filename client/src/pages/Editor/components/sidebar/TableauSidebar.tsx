@@ -15,6 +15,8 @@ import GuestsSection from './tableau/sections/GuestsSection';
 import MetadataSection from './tableau/sections/MetadataSection';
 import TableauHeader from './tableau/sections/TableauHeader';
 
+export type TableauSection = 'tables' | 'guests' | 'rules' | 'style';
+
 interface TableauSidebarProps {
   selectedBlock: Block;
   onUpdateBlock: (blockId: string, updates: Partial<Block>) => void;
@@ -24,17 +26,23 @@ interface TableauSidebarProps {
   eventTitle?: string | undefined;
   updateEventData?: ((updates: Partial<EventData>, pushToHistory?: () => void) => void) | undefined;
   event?: EventData | null | undefined;
+  /** Modalità "compact" (mobile): salta header/paywall/tabs, mostra solo la section richiesta. */
+  compact?: boolean | undefined;
+  /** In modalità compact, quale section renderizzare. Ignorato in desktop. */
+  section?: TableauSection | undefined;
 }
 
-const TableauSidebar: React.FC<TableauSidebarProps> = ({ 
-  selectedBlock, 
-  onUpdateBlock, 
+const TableauSidebar: React.FC<TableauSidebarProps> = ({
+  selectedBlock,
+  onUpdateBlock,
   eventRsvps,
   hasTableauAccess = false,
   slug,
   eventTitle = "Evento",
   updateEventData,
-  event
+  event,
+  compact = false,
+  section,
 }) => {
   const [activeTab, setActiveTab] = useState<'tables' | 'guests'>('tables');
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
@@ -245,6 +253,139 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
     patchConfig({ tableauTables: next });
   };
 
+  // Modali sono renderizzati come Portal: identici in desktop e mobile.
+  const modals = (
+    <>
+      <PublishConfirmModal
+        show={showPublishConfirm}
+        onClose={() => setShowPublishConfirm(false)}
+        onConfirm={() => {
+          patchConfig({ tableauIsPublished: true });
+          setShowPublishConfirm(false);
+        }}
+      />
+      <SeatingWarningsModal
+        warnings={seatingWarnings}
+        onClose={() => setSeatingWarnings([])}
+        assignments={assignments}
+        tables={tables}
+        patchConfig={patchConfig}
+      />
+      <CapacityWarningModal
+        warning={capacityWarning}
+        onClose={() => setCapacityWarning(null)}
+        assignments={assignments}
+        tables={tables}
+        modalHandledIds={modalHandledIds}
+        setModalHandledIds={setModalHandledIds}
+        patchConfig={patchConfig}
+      />
+      <ConstraintWarningModal
+        warning={constraintWarning}
+        onClose={() => setConstraintWarning(null)}
+      />
+      <OverflowModal
+        show={showOverflowModal}
+        onClose={closeOverflowModal}
+        totalConfirmedGuests={totalConfirmedGuests}
+        totalCapacity={totalCapacity}
+        missingSeats={missingSeats}
+        tables={tables}
+        patchConfig={patchConfig}
+        setActiveTab={setActiveTab}
+        newTableNameInput={newTableNameInput}
+        setNewTableNameInput={setNewTableNameInput}
+        newTableCapacityInput={newTableCapacityInput}
+        setNewTableCapacityInput={setNewTableCapacityInput}
+      />
+    </>
+  );
+
+  // ── MODALITÀ COMPACT (mobile) ──
+  // Renderizza solo la section richiesta, niente paywall/header/tabs.
+  // Il MobileToolbar fa già da wrapper con padding e gestisce la nav fra tab.
+  if (compact) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+        {section === 'tables' && (
+          <TablesSection
+            tables={tables}
+            totalConfirmedGuests={totalConfirmedGuests}
+            totalCapacity={totalCapacity}
+            missingSeats={missingSeats}
+            spareSeats={spareSeats}
+            confirmDeleteTableId={confirmDeleteTableId}
+            patchConfig={patchConfig}
+            addTable={addTable}
+            moveTable={moveTable}
+            removeTable={removeTable}
+            setConfirmDeleteTableId={setConfirmDeleteTableId}
+          />
+        )}
+        {section === 'guests' && (
+          <GuestsSection
+            assignments={assignments}
+            tables={tables}
+            eventRsvps={eventRsvps}
+            config={config}
+            expandedGroups={expandedGroups}
+            setExpandedGroups={setExpandedGroups}
+            manualGuestName={manualGuestName}
+            setManualGuestName={setManualGuestName}
+            manualGuestCount={manualGuestCount}
+            setManualGuestCount={setManualGuestCount}
+            confirmDeleteManualId={confirmDeleteManualId}
+            setConfirmDeleteManualId={setConfirmDeleteManualId}
+            setCapacityWarning={setCapacityWarning}
+            setConstraintWarning={setConstraintWarning}
+            setShowPublishConfirm={setShowPublishConfirm}
+            totalConfirmedGuests={totalConfirmedGuests}
+            totalCapacity={totalCapacity}
+            missingSeats={missingSeats}
+            patchConfig={patchConfig}
+            openOverflowModal={openOverflowModal}
+            checkConstraintConflict={checkConstraintConflict}
+          />
+        )}
+        {section === 'rules' && (
+          <RulesSection
+            guestA={guestA}
+            guestB={guestB}
+            setGuestA={setGuestA}
+            setGuestB={setGuestB}
+            allGuests={allGuests}
+            assignments={assignments}
+            constraints={constraints}
+            confirmResetAssignments={confirmResetAssignments}
+            setConfirmResetAssignments={setConfirmResetAssignments}
+            patchConfig={patchConfig}
+            handleOptimize={handleOptimize}
+          />
+        )}
+        {section === 'style' && (
+          <>
+            <MetadataSection
+              config={config}
+              patchConfig={patchConfig}
+              displayColorPicker={displayColorPicker}
+              setDisplayColorPicker={setDisplayColorPicker}
+            />
+            {/* Mini publish toggle su mobile (l'header completo è solo desktop) */}
+            <Button
+              variant={config.tableauIsPublished ? 'subtle' : 'primary'}
+              onClick={() => setShowPublishConfirm(true)}
+              style={{ width: '100%', height: '44px', justifyContent: 'center', borderRadius: '100px', fontSize: '12px', fontWeight: 800 }}
+            >
+              {config.tableauIsPublished ? 'Rendi Privato (Bozza)' : 'Pubblica Tableau'}
+            </Button>
+          </>
+        )}
+        {modals}
+      </div>
+    );
+  }
+
+  // ── MODALITÀ DESKTOP ──
   return (
     <Surface variant="soft" className="panel-section" style={{ position: 'relative', overflow: hasTableauAccess ? 'visible' : 'hidden', minHeight: '400px' }}>
       <TableauHeader
@@ -270,8 +411,8 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
 
       {/* TABS */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '24px', background: 'var(--surface-light)', padding: '3px', borderRadius: '100px', border: '1px solid var(--border)' }}>
-        <Button 
-          variant={activeTab === 'tables' ? 'primary' : 'ghost'} 
+        <Button
+          variant={activeTab === 'tables' ? 'primary' : 'ghost'}
           onClick={() => setActiveTab('tables')}
           style={{ flex: 1, padding: '6px 2px', fontSize: '10px', height: 'auto', fontWeight: 800, borderRadius: '100px', textTransform: 'uppercase', letterSpacing: '0.05em', justifyContent: 'center' }}
         >
@@ -355,57 +496,8 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
         </div>
       )}
 
-      {/* MODALE WARNING PUBBLICAZIONE (PORTAL) */}
-      <PublishConfirmModal
-        show={showPublishConfirm}
-        onClose={() => setShowPublishConfirm(false)}
-        onConfirm={() => {
-          patchConfig({ tableauIsPublished: true });
-          setShowPublishConfirm(false);
-        }}
-      />
-
-      {/* SEATING WARNING MODAL */}
-      <SeatingWarningsModal
-        warnings={seatingWarnings}
-        onClose={() => setSeatingWarnings([])}
-        assignments={assignments}
-        tables={tables}
-        patchConfig={patchConfig}
-      />
-
-      {/* CAPACITY WARNING MODAL */}
-      <CapacityWarningModal
-        warning={capacityWarning}
-        onClose={() => setCapacityWarning(null)}
-        assignments={assignments}
-        tables={tables}
-        modalHandledIds={modalHandledIds}
-        setModalHandledIds={setModalHandledIds}
-        patchConfig={patchConfig}
-      />
-
-      {/* CONSTRAINT WARNING MODAL */}
-      <ConstraintWarningModal
-        warning={constraintWarning}
-        onClose={() => setConstraintWarning(null)}
-      />
-
-      {/* OVERFLOW MODAL — più ospiti che posti */}
-      <OverflowModal
-        show={showOverflowModal}
-        onClose={closeOverflowModal}
-        totalConfirmedGuests={totalConfirmedGuests}
-        totalCapacity={totalCapacity}
-        missingSeats={missingSeats}
-        tables={tables}
-        patchConfig={patchConfig}
-        setActiveTab={setActiveTab}
-        newTableNameInput={newTableNameInput}
-        setNewTableNameInput={setNewTableNameInput}
-        newTableCapacityInput={newTableCapacityInput}
-        setNewTableCapacityInput={setNewTableCapacityInput}
-      />
+      {/* MODALI (PORTAL) — vedi const modals sopra */}
+      {modals}
     </Surface>
   );
 };

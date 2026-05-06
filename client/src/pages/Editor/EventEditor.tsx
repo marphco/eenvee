@@ -411,6 +411,8 @@ export default function EventEditor() {
            setLayers={setLayers}
            setIsDirty={setIsDirty}
            slug={event?.slug || ''}
+           onUpdateBlock={updateBlock}
+           updateEventData={updateEventData}
          />
         <EditorStage 
           stageRef={stageRef} canvasRef={canvasRef} editorMode={editorMode} isMobile={isMobile}

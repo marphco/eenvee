@@ -11,6 +11,8 @@ import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
 import CustomColorPicker from "./CustomColorPicker";
 import PaymentSection from "./sidebar/PaymentSection";
+import TableauSidebar from "./sidebar/TableauSidebar";
+import type { TableauSection } from "./sidebar/TableauSidebar";
 import { DEFAULT_BLOCK_HEIGHT } from "../../../utils/blockHeight";
 import { AVAILABLE_FONTS, getFontPreviewText, loadGoogleFont, AVAILABLE_LINERS, AVAILABLE_SCENARIO_BGS } from "./EditorHelpers";
 import type { Layer, CanvasProps, Block } from "../../../types/editor";
@@ -61,6 +63,10 @@ interface MobileToolbarProps {
   setLayers?: React.Dispatch<React.SetStateAction<Layer[]>>;
   setIsDirty?: (val: boolean) => void;
   slug?: string;
+  /** Callback per aggiornare un blocco (usato da TableauSidebar in compact mode). */
+  onUpdateBlock?: (blockId: string, updates: Partial<Block>) => void;
+  /** Callback per aggiornare i campi top-level dell'evento (es. addons). */
+  updateEventData?: (updates: Partial<any>, pushToHistory?: () => void) => void;
 }
 
 const MobileToolbar: React.FC<MobileToolbarProps> = ({
@@ -107,7 +113,9 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
   layers,
   setLayers,
   setIsDirty,
-  slug
+  slug,
+  onUpdateBlock,
+  updateEventData,
 }) => {
   const galleryInputRef = React.useRef<HTMLInputElement | null>(null);
   const videoInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -230,7 +238,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {activeMobileTab === 'add_section' ? 'Aggiungi Sezione' : activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_content' ? 'Testo Form' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'widget_settings' ? (() => {
+                  {activeMobileTab === 'add_section' ? 'Aggiungi Sezione' : activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_content' ? 'Testo Form' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'tableau_tables' ? 'Tavoli' : activeMobileTab === 'tableau_guests' ? 'Ospiti & Posti' : activeMobileTab === 'tableau_rules' ? 'Vincoli & Ottimizza' : activeMobileTab === 'tableau_style' ? 'Stile Tableau' : activeMobileTab === 'widget_settings' ? (() => {
                     const t = blocks?.find(b => b.id === selectedBlockId)?.type;
                     if (t === 'gallery') return 'Galleria';
                     if (t === 'video') return 'Video';
@@ -1569,6 +1577,36 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                         slug={slug || ''}
                         compact
                         section={sectionMap[activeMobileTab as string] as 'setup' | 'content' | 'amounts' | 'style'}
+                      />
+                    </div>
+                  );
+                })()}
+
+                {/* TABLEAU: 4 tab (tavoli / ospiti / vincoli / stile). Riusa
+                    TableauSidebar in compact mode — unica fonte di verità con
+                    il desktop, niente duplicazione di logica/state. */}
+                {(['tableau_tables', 'tableau_guests', 'tableau_rules', 'tableau_style'] as const).includes(activeMobileTab as any) && selectedBlockId && blocks && (() => {
+                  const block = blocks.find(b => b.id === selectedBlockId);
+                  if (!block || block.type !== 'tableau') return null;
+                  const sectionMap: Record<string, TableauSection> = {
+                    tableau_tables: 'tables',
+                    tableau_guests: 'guests',
+                    tableau_rules: 'rules',
+                    tableau_style: 'style',
+                  };
+                  return (
+                    <div style={{ flex: 1, minWidth: 0, width: '100%', alignSelf: 'stretch' }}>
+                      <TableauSidebar
+                        selectedBlock={block as Block}
+                        onUpdateBlock={onUpdateBlock || (() => {})}
+                        eventRsvps={(event?.rsvps as any[]) || []}
+                        hasTableauAccess={!!event?.addons?.tableau}
+                        slug={slug}
+                        eventTitle={event?.title || 'Evento'}
+                        updateEventData={updateEventData as any}
+                        event={event}
+                        compact
+                        section={sectionMap[activeMobileTab as string]}
                       />
                     </div>
                   );
