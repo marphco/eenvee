@@ -6,6 +6,16 @@ Log completo delle funzionalità implementate e delle prossime feature da realiz
 
 ## ⏳ Storico Progetto (Completato)
 
+### 06-05-2026: Tableau Sidebar — Refactor in Microcomponenti 🧩
+- [x] **TableauSidebar refactor**: scomposto monolite da **2399 righe** in **17 microcomponenti** (-83% sul file principale, ora **411 righe** di solo orchestrazione). Strategia step-by-step pure-move, build verde + commit + push tra ogni estrazione. [2026-05-06]
+  - **Modals** (`tableau/modals/`): `OverflowModal`, `PublishConfirmModal`, `SeatingWarningsModal`, `ConstraintWarningModal`, `CapacityWarningModal`.
+  - **Cards** (`tableau/cards/`): `TableCard`, `GuestRsvpCard`, `GuestManualCard`.
+  - **Sections** (`tableau/sections/`): `TableauHeader` (paywall + banner + publish toggle), `MetadataSection` (titolo/desc/colore), `TablesSection`, `RulesSection` (Motore Intelligente: vincoli + Ottimizza), `GuestsSection` (form manuale + lista manual + lista RSVP + footer pubblica).
+  - **Shared** (`tableau/shared/`): `CustomTableSelect` (dropdown portal-based), `GuestSearchSelect`, `types.ts`.
+  - **Hooks** (`tableau/hooks/`): `useTableauTotals` (allGuests + capacity + missingSeats memoizzati).
+  - Predispone il file per il lavoro mobile: ogni section sarà mappata 1:1 a un tab della MobileToolbar (`tableau_tables`, `tableau_guests`, `tableau_rules`).
+  - PR draft `feature/tableau-de-mariage` con 16 commit indipendenti (uno per estrazione) per reversibility totale.
+
 ### 29-04-2026: RSVP UX & Tableau Integration — Evoluzione "Group Split" 💎
 - [x] **RSVP Group Names**: Obbligare l'utente principale a inserire i nomi di tutti i componenti del gruppo direttamente nel form RSVP (es. Rafiluccio + Moglie + 4 Figli), eliminando i segnaposto generici "Ospite X". [2026-04-29]
 - [x] **Allergie Nominative**: Ridisegnare la sezione allergie del form RSVP: non più un campo testo generico, ma una selezione per persona ("Chi ha allergie?") con campo testo specifico per ognuno. [2026-04-29]
