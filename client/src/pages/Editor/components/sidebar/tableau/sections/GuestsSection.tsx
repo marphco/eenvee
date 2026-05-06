@@ -69,35 +69,35 @@ const GuestsSection: React.FC<GuestsSectionProps> = ({
         <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Aggiungi ospite / gruppo extra
         </label>
+        <input
+          placeholder="Nome ospite o gruppo..."
+          value={manualGuestName}
+          onChange={(e) => setManualGuestName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && manualGuestName.trim()) addManualGuest();
+          }}
+          style={{ width: '100%', minWidth: 0, background: '#fff', border: '1.5px solid var(--border)', borderRadius: '12px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }}
+        />
         <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
-          <input
-            placeholder="Nome ospite o gruppo..."
-            value={manualGuestName}
-            onChange={(e) => setManualGuestName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && manualGuestName.trim()) addManualGuest();
-            }}
-            style={{ flex: 1, background: '#fff', border: '1.5px solid var(--border)', borderRadius: '12px', padding: '9px 12px', fontSize: '12px', outline: 'none', fontWeight: 600 }}
-          />
           {/* Contatore persone */}
-          <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
             <button
               onClick={() => setManualGuestCount(c => Math.max(1, c - 1))}
-              style={{ width: '32px', height: '100%', border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--text-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: '40px', height: '40px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--text-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >−</button>
-            <span style={{ minWidth: '24px', textAlign: 'center', fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>{manualGuestCount}</span>
+            <span style={{ minWidth: '32px', textAlign: 'center', fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>{manualGuestCount}</span>
             <button
               onClick={() => setManualGuestCount(c => c + 1)}
-              style={{ width: '32px', height: '100%', border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: '40px', height: '40px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >+</button>
           </div>
           <Button
             variant="subtle"
             disabled={!manualGuestName.trim()}
             onClick={addManualGuest}
-            style={{ padding: '0 12px', borderRadius: '12px', height: 'auto' }}
+            style={{ flex: 1, minWidth: 0, padding: '0 14px', borderRadius: '12px', height: '40px', justifyContent: 'center', gap: '6px' }}
           >
-            <Plus size={16} />
+            <Plus size={16} /> <span style={{ fontSize: '12px', fontWeight: 800 }}>Aggiungi</span>
           </Button>
         </div>
         {manualGuestCount > 1 && (

@@ -5,7 +5,7 @@ import {
   Shapes, Type, ChevronUp, Minus, Plus, Circle, ArrowRight, 
   ArrowLeft, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, 
   ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone, Monitor, Upload,
-  AlignJustify, CreditCard, Banknote, MapPin, CheckSquare, Images, Video as VideoIcon, Gift, Pencil, Users
+  AlignJustify, CreditCard, Banknote, MapPin, CheckSquare, Images, Video as VideoIcon, Gift, Pencil, Users, Send, Eye
 } from 'lucide-react';
 import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
@@ -238,7 +238,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {activeMobileTab === 'add_section' ? 'Aggiungi Sezione' : activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_content' ? 'Testo Form' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'tableau_tables' ? 'Tavoli' : activeMobileTab === 'tableau_guests' ? 'Ospiti & Posti' : activeMobileTab === 'tableau_rules' ? 'Vincoli & Ottimizza' : activeMobileTab === 'tableau_style' ? 'Stile Tableau' : activeMobileTab === 'widget_settings' ? (() => {
+                  {activeMobileTab === 'add_section' ? 'Aggiungi Sezione' : activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_content' ? 'Testo Form' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'tableau_tables' ? 'Tavoli' : activeMobileTab === 'tableau_guests' ? 'Ospiti & Posti' : activeMobileTab === 'tableau_rules' ? 'Vincoli & Ottimizza' : activeMobileTab === 'tableau_style' ? 'Stile Tableau' : activeMobileTab === 'tableau_publish' ? 'Pubblicazione' : activeMobileTab === 'widget_settings' ? (() => {
                     const t = blocks?.find(b => b.id === selectedBlockId)?.type;
                     if (t === 'gallery') return 'Galleria';
                     if (t === 'video') return 'Video';
@@ -1585,7 +1585,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 {/* TABLEAU: 4 tab (tavoli / ospiti / vincoli / stile). Riusa
                     TableauSidebar in compact mode — unica fonte di verità con
                     il desktop, niente duplicazione di logica/state. */}
-                {(['tableau_tables', 'tableau_guests', 'tableau_rules', 'tableau_style'] as const).includes(activeMobileTab as any) && selectedBlockId && blocks && (() => {
+                {(['tableau_tables', 'tableau_guests', 'tableau_rules', 'tableau_style', 'tableau_publish'] as const).includes(activeMobileTab as any) && selectedBlockId && blocks && (() => {
                   const block = blocks.find(b => b.id === selectedBlockId);
                   if (!block || block.type !== 'tableau') return null;
                   const sectionMap: Record<string, TableauSection> = {
@@ -1593,6 +1593,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                     tableau_guests: 'guests',
                     tableau_rules: 'rules',
                     tableau_style: 'style',
+                    tableau_publish: 'publish',
                   };
                   return (
                     <div style={{ flex: 1, minWidth: 0, width: '100%', alignSelf: 'stretch' }}>
@@ -1804,11 +1805,13 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                               }
 
                               // Tableau widget: 4 tab dedicati (Tavoli / Ospiti /
-                              // Vincoli / Stile) coerenti con i microcomponenti
-                              // sidebar desktop. Stessa estetica del payment block.
+                              // Vincoli / Stile) + 5° icona "Pubblica" sempre
+                              // accessibile (l'utente non deve aprire un tab per
+                              // rendere il tableau visibile pubblicamente).
                               if (block && block.type === 'tableau') {
-                                const tableauTabs = ['tableau_tables', 'tableau_guests', 'tableau_rules', 'tableau_style'];
+                                const tableauTabs = ['tableau_tables', 'tableau_guests', 'tableau_rules', 'tableau_style', 'tableau_publish'];
                                 const active = tableauTabs.includes(activeMobileTab as string);
+                                const isPublished = !!block.widgetProps?.tableauIsPublished;
                                 return (
                                   <div
                                     className="tableau-mobile-tabs"
@@ -1837,6 +1840,12 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                       label="Stile"
                                       variant={activeMobileTab === 'tableau_style' ? 'primary' : 'ghost'}
                                       onClick={() => setActiveMobileTab(active && activeMobileTab === 'tableau_style' ? null : 'tableau_style')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={isPublished ? Eye : Send}
+                                      label={isPublished ? 'Online' : 'Pubblica'}
+                                      variant={activeMobileTab === 'tableau_publish' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'tableau_publish' ? null : 'tableau_publish')}
                                     />
                                   </div>
                                 );

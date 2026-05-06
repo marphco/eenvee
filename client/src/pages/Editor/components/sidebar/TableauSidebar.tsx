@@ -15,7 +15,7 @@ import GuestsSection from './tableau/sections/GuestsSection';
 import MetadataSection from './tableau/sections/MetadataSection';
 import TableauHeader from './tableau/sections/TableauHeader';
 
-export type TableauSection = 'tables' | 'guests' | 'rules' | 'style';
+export type TableauSection = 'tables' | 'guests' | 'rules' | 'style' | 'publish';
 
 interface TableauSidebarProps {
   selectedBlock: Block;
@@ -363,23 +363,66 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
           />
         )}
         {section === 'style' && (
-          <>
-            <MetadataSection
-              config={config}
-              patchConfig={patchConfig}
-              displayColorPicker={displayColorPicker}
-              setDisplayColorPicker={setDisplayColorPicker}
-            />
-            {/* Mini publish toggle su mobile (l'header completo è solo desktop) */}
-            <Button
-              variant={config.tableauIsPublished ? 'subtle' : 'primary'}
-              onClick={() => setShowPublishConfirm(true)}
-              style={{ width: '100%', height: '44px', justifyContent: 'center', borderRadius: '100px', fontSize: '12px', fontWeight: 800 }}
-            >
-              {config.tableauIsPublished ? 'Rendi Privato (Bozza)' : 'Pubblica Tableau'}
-            </Button>
-          </>
+          <MetadataSection
+            config={config}
+            patchConfig={patchConfig}
+            displayColorPicker={displayColorPicker}
+            setDisplayColorPicker={setDisplayColorPicker}
+          />
         )}
+        {section === 'publish' && (() => {
+          const totalAssigned = assignments.filter((a: any) => a.tableId).reduce((acc, a) => acc + (a.numPeople || 1), 0);
+          const isPublished = !!config.tableauIsPublished;
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Recap */}
+              <div style={{
+                padding: '16px', borderRadius: '20px',
+                background: isPublished ? 'rgba(var(--accent-rgb), 0.08)' : 'rgba(245, 158, 11, 0.06)',
+                border: isPublished ? '1.5px solid rgba(var(--accent-rgb), 0.2)' : '1.5px solid rgba(245, 158, 11, 0.2)',
+                display: 'flex', alignItems: 'center', gap: '12px'
+              }}>
+                <div style={{
+                  width: '44px', height: '44px', borderRadius: '14px', flexShrink: 0,
+                  background: isPublished ? 'var(--accent)' : '#f59e0b',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: isPublished ? '0 4px 12px rgba(var(--accent-rgb), 0.3)' : '0 4px 12px rgba(245, 158, 11, 0.3)'
+                }}>
+                  <span style={{ fontSize: '20px' }}>{isPublished ? '✓' : '✎'}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: isPublished ? 'var(--accent)' : '#d97706', marginBottom: '2px' }}>
+                    {isPublished ? 'Online' : 'Bozza privata'}
+                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                    {totalAssigned}/{totalConfirmedGuests} ospiti assegnati
+                  </div>
+                </div>
+              </div>
+
+              <p style={{ fontSize: '11px', color: 'var(--text-soft)', lineHeight: 1.5, margin: 0, padding: '0 4px' }}>
+                {isPublished
+                  ? 'Il tableau è visibile a tutti gli ospiti nella pagina pubblica dell\'evento. Puoi tornare in bozza se devi rivedere la disposizione.'
+                  : 'Il tableau è ancora in bozza: solo tu lo vedi. Pubblicalo quando sei sicuro della disposizione finale.'}
+              </p>
+
+              <Button
+                variant={isPublished ? 'subtle' : 'accent'}
+                fullWidth
+                onClick={() => {
+                  if (!isPublished && totalAssigned < totalConfirmedGuests) {
+                    setShowPublishConfirm(true);
+                  } else {
+                    patchConfig({ tableauIsPublished: !isPublished });
+                  }
+                }}
+                style={{ height: '52px', borderRadius: '100px', fontWeight: 800, fontSize: '13px', letterSpacing: '0.02em' }}
+              >
+                {isPublished ? 'Rendi Privato (Bozza)' : 'Pubblica Tableau'}
+              </Button>
+            </div>
+          );
+        })()}
         {modals}
       </div>
     );
