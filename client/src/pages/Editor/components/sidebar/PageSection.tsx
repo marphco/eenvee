@@ -1155,12 +1155,12 @@ const PageSection: React.FC<PageSectionProps> = ({
                             }}
                           >
                             <span style={{ fontSize: '12px', fontWeight: 600 }}>Pulsante & Accenti</span>
-                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: selectedBlock.widgetProps?.formPrimaryColor || 'var(--accent)', border: '1px solid rgba(0,0,0,0.1)' }} />
+                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: selectedBlock.widgetProps?.formPrimaryColor || event?.theme?.accent || '#14b8a6', border: '1px solid rgba(0,0,0,0.1)' }} />
                           </Button>
                           {displayColorPicker === 'formPrimary' && (
                             <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '8px' }}>
-                              <CustomColorPicker 
-                                color={selectedBlock.widgetProps?.formPrimaryColor || '#14b8a6'} 
+                              <CustomColorPicker
+                                color={selectedBlock.widgetProps?.formPrimaryColor || event?.theme?.accent || '#14b8a6'}
                                 onChange={(color) => {
                                   if (onUpdateBlock && selectedBlock) {
                                     onUpdateBlock(selectedBlock.id as string, { widgetProps: { formPrimaryColor: color } });

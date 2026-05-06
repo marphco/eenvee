@@ -205,7 +205,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     layers: [],
     blocks: [
       { id: "m1", type: "map", order: 1, height: 560, props: { title: "Dove & Quando", address: "", mapUrl: "" } },
-      { id: "r1", type: "rsvp", order: 2, height: 600, props: {}, widgetProps: { formY: 360 } },
+      { id: "r1", type: "rsvp", order: 2, height: 820, props: {}, widgetProps: { formY: 360 } },
     ],
   },
 
@@ -233,7 +233,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     ],
     blocks: [
       { id: "m1", type: "map", order: 1, height: 560, props: { title: "Dove & Quando", address: "", mapUrl: "" } },
-      { id: "r1", type: "rsvp", order: 2, height: 600, props: {}, widgetProps: { formY: 360 } }
+      { id: "r1", type: "rsvp", order: 2, height: 820, props: {}, widgetProps: { formY: 360 } }
     ]
   },
   {
@@ -258,7 +258,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
       { id: "l3", type: "text", text: "24 MAGGIO 2027", x: "center", y: 462, fontSize: 24, fontFamily: "Space Grotesk", fontWeight: "500", color: "#1a1a1a", textAlign: "center", width: "max-content" }
     ],
     blocks: [
-      { id: "r1", type: "rsvp", order: 1, height: 600, props: {}, widgetProps: { formY: 360 } }
+      { id: "r1", type: "rsvp", order: 1, height: 820, props: {}, widgetProps: { formY: 360 } }
     ]
   },
   {
@@ -283,7 +283,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
       { id: "l3", type: "text", text: "Duomo di Milano, ore 16:00", x: "center", y: 511, fontSize: 22, fontFamily: "Inter", fontWeight: "300", color: "#555555", textAlign: "center", width: "max-content" }
     ],
     blocks: [
-      { id: "r1", type: "rsvp", order: 1, height: 600, props: {}, widgetProps: { formY: 360 } }
+      { id: "r1", type: "rsvp", order: 1, height: 820, props: {}, widgetProps: { formY: 360 } }
     ]
   },
 
@@ -311,7 +311,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     ],
     blocks: [
       { id: "p1", type: "photo", order: 1, height: 480, props: { image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80", caption: "Cocktails", variant: "full" } },
-      { id: "r1", type: "rsvp", order: 2, height: 600, props: {}, widgetProps: { formY: 360 } }
+      { id: "r1", type: "rsvp", order: 2, height: 820, props: {}, widgetProps: { formY: 360 } }
     ]
   },
 
@@ -339,7 +339,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     ],
     blocks: [
       { id: "m1", type: "map", order: 1, height: 560, props: { title: "Location Sede", address: "", mapUrl: "" } },
-      { id: "r1", type: "rsvp", order: 2, height: 600, props: {}, widgetProps: { formY: 360 } }
+      { id: "r1", type: "rsvp", order: 2, height: 820, props: {}, widgetProps: { formY: 360 } }
     ]
   },
 
@@ -366,7 +366,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
       { id: "l3", type: "text", text: "Domenica 18 Ottobre 2026\nChiesa di San Lorenzo, ore 11:00\nSeguirà rinfresco presso Villa Flora.", x: "center", y: 760, fontSize: 20, fontFamily: "Inter", fontWeight: "normal", color: "#444444", textAlign: "center", width: "max-content" }
     ],
     blocks: [
-      { id: "r1", type: "rsvp", order: 1, height: 600, props: {}, widgetProps: { formY: 360 } }
+      { id: "r1", type: "rsvp", order: 1, height: 820, props: {}, widgetProps: { formY: 360 } }
     ]
   },
   {
@@ -389,7 +389,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
       { id: "l1", type: "text", text: "Gala Dinner", x: "center", y: 300, fontSize: 64, fontFamily: "Playfair Display", fontWeight: "bold", color: "#ffffff", textAlign: "center", width: "max-content" }
     ],
     blocks: [
-      { id: "r1", type: "rsvp", order: 1, height: 600, props: {}, widgetProps: { formY: 360 } }
+      { id: "r1", type: "rsvp", order: 1, height: 820, props: {}, widgetProps: { formY: 360 } }
     ]
   }
 ];

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { LayoutGrid } from 'lucide-react';
 import { Surface, Button } from "../../../../ui";
 import type { Block, EventData } from "../../../../types/editor";
 import { optimizeSeating } from "../../../../utils/seatingEngine";
 import type { SplitWarning } from "../../../../utils/seatingEngine";
+import EventPurchaseModal from "../../../../components/payments/EventPurchaseModal";
 import { useTableauTotals } from './tableau/hooks/useTableauTotals';
 import OverflowModal from './tableau/modals/OverflowModal';
 import PublishConfirmModal from './tableau/modals/PublishConfirmModal';
@@ -15,7 +17,7 @@ import GuestsSection from './tableau/sections/GuestsSection';
 import MetadataSection from './tableau/sections/MetadataSection';
 import TableauHeader from './tableau/sections/TableauHeader';
 
-export type TableauSection = 'tables' | 'guests' | 'rules' | 'style' | 'publish';
+export type TableauSection = 'tables' | 'guests' | 'rules' | 'style' | 'publish' | 'paywall';
 
 interface TableauSidebarProps {
   selectedBlock: Block;
@@ -305,6 +307,56 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
   // Renderizza solo la section richiesta, niente paywall/header/tabs.
   // Il MobileToolbar fa già da wrapper con padding e gestisce la nav fra tab.
   if (compact) {
+    // Paywall mobile: utente non ha ancora attivato l'add-on tableau.
+    // Renderizza la card di acquisto invece dei tab di modifica.
+    if (section === 'paywall' || !hasTableauAccess) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px 16px', textAlign: 'center' }}>
+          <div style={{
+            width: '56px', height: '56px', borderRadius: '16px',
+            background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 8px 24px rgba(var(--accent-rgb), 0.2)'
+          }}>
+            <LayoutGrid size={28} />
+          </div>
+          <div>
+            <h4 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 900, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>Tableau Premium</h4>
+            <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.6, color: 'var(--text-soft)', maxWidth: '280px' }}>
+              Attiva l'add-on per gestire i tavoli, gli ospiti e usare l'algoritmo intelligente di assegnazione posti.
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={() => setIsPurchaseModalOpen(true)}
+            style={{ height: '52px', justifyContent: 'center', borderRadius: '100px', fontWeight: 800, fontSize: '13px', maxWidth: '320px' }}
+          >
+            Attiva ora per €15
+          </Button>
+          {slug && (
+            <EventPurchaseModal
+              open={isPurchaseModalOpen}
+              onClose={() => setIsPurchaseModalOpen(false)}
+              eventSlug={slug}
+              eventTitle={eventTitle}
+              purchaseType="tableau_addon"
+              onUnlocked={() => {
+                setIsPurchaseModalOpen(false);
+                if (updateEventData) {
+                  updateEventData({
+                    addons: {
+                      ...(event?.addons || {}),
+                      tableau: true
+                    }
+                  });
+                }
+              }}
+            />
+          )}
+        </div>
+      );
+    }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
         {section === 'tables' && (

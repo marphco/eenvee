@@ -1,9 +1,12 @@
 import type { Block } from "../types/editor";
 
-/** Altezza logica minima consigliata per tipo (canvas editor 1000px largo). */
+/** Altezza logica minima consigliata per tipo (canvas editor 1000px largo).
+ *  Aumentate dopo che il form RSVP è cresciuto (multi-guest names + allergie
+ *  per persona) — 600px tagliava il bottone "Invia Conferma" su eventi
+ *  appena creati. */
 export const DEFAULT_BLOCK_HEIGHT: Record<string, number> = {
   map: 560,
-  rsvp: 600,
+  rsvp: 820,
   gallery: 660,
   video: 700,
   payment: 760,
@@ -12,7 +15,7 @@ export const DEFAULT_BLOCK_HEIGHT: Record<string, number> = {
   canvas: 480,
 };
 
-const LEGACY_FALLBACK = 400;
+const LEGACY_FALLBACKS = [400, 600];
 
 /**
  * Risolve l'altezza logica della sezione per l'editor (desktop/mobile preview).
@@ -29,7 +32,9 @@ export function resolveBlockHeight(block: Pick<Block, "type" | "height">): numbe
     return minH;
   }
 
-  if (raw === LEGACY_FALLBACK && ["map", "rsvp", "gallery", "video", "payment"].includes(t)) {
+  // Eventi/template salvati con valori legacy troppo bassi vengono alzati al
+  // minimo del tipo (evita form/widget tagliati nei salvataggi storici).
+  if (LEGACY_FALLBACKS.includes(raw) && ["map", "rsvp", "gallery", "video", "payment"].includes(t)) {
     return Math.max(raw, minH);
   }
 

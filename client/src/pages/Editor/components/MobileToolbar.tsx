@@ -238,7 +238,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {activeMobileTab === 'add_section' ? 'Aggiungi Sezione' : activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_content' ? 'Testo Form' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'tableau_tables' ? 'Tavoli' : activeMobileTab === 'tableau_guests' ? 'Ospiti & Posti' : activeMobileTab === 'tableau_rules' ? 'Vincoli & Ottimizza' : activeMobileTab === 'tableau_style' ? 'Stile Tableau' : activeMobileTab === 'tableau_publish' ? 'Pubblicazione' : activeMobileTab === 'widget_settings' ? (() => {
+                  {activeMobileTab === 'add_section' ? 'Aggiungi Sezione' : activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_content' ? 'Testo Form' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'tableau_tables' ? 'Tavoli' : activeMobileTab === 'tableau_guests' ? 'Ospiti & Posti' : activeMobileTab === 'tableau_rules' ? 'Vincoli & Ottimizza' : activeMobileTab === 'tableau_style' ? 'Stile Tableau' : activeMobileTab === 'tableau_publish' ? 'Pubblicazione' : activeMobileTab === 'tableau_paywall' ? 'Tableau Premium' : activeMobileTab === 'widget_settings' ? (() => {
                     const t = blocks?.find(b => b.id === selectedBlockId)?.type;
                     if (t === 'gallery') return 'Galleria';
                     if (t === 'video') return 'Video';
@@ -985,13 +985,13 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                             onClick={() => setDisplayColorPicker(displayColorPicker === 'formPrimary' ? false : 'formPrimary')}
                           >
                             <span style={{ fontWeight: 600 }}>Pulsante & Accenti</span>
-                            <div style={{ width: '18px', height: '18px', borderRadius: '4px', background: block.widgetProps?.formPrimaryColor || 'var(--accent)', border: '1px solid var(--border)' }} />
+                            <div style={{ width: '18px', height: '18px', borderRadius: '4px', background: block.widgetProps?.formPrimaryColor || event?.theme?.accent || '#14b8a6', border: '1px solid var(--border)' }} />
                           </Button>
                           
                           {displayColorPicker === 'formPrimary' && (
                             <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                               <CustomColorPicker 
-                                color={block.widgetProps?.formPrimaryColor || '#14b8a6'} 
+                                color={block.widgetProps?.formPrimaryColor || event?.theme?.accent || '#14b8a6'}
                                 onChange={(color) => {
                                   if (setBlocks) {
                                     if (setIsDirty) setIsDirty(true);
@@ -1585,7 +1585,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 {/* TABLEAU: 4 tab (tavoli / ospiti / vincoli / stile). Riusa
                     TableauSidebar in compact mode — unica fonte di verità con
                     il desktop, niente duplicazione di logica/state. */}
-                {(['tableau_tables', 'tableau_guests', 'tableau_rules', 'tableau_style', 'tableau_publish'] as const).includes(activeMobileTab as any) && selectedBlockId && blocks && (() => {
+                {(['tableau_tables', 'tableau_guests', 'tableau_rules', 'tableau_style', 'tableau_publish', 'tableau_paywall'] as const).includes(activeMobileTab as any) && selectedBlockId && blocks && (() => {
                   const block = blocks.find(b => b.id === selectedBlockId);
                   if (!block || block.type !== 'tableau') return null;
                   const sectionMap: Record<string, TableauSection> = {
@@ -1594,6 +1594,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                     tableau_rules: 'rules',
                     tableau_style: 'style',
                     tableau_publish: 'publish',
+                    tableau_paywall: 'paywall',
                   };
                   return (
                     <div style={{ flex: 1, minWidth: 0, width: '100%', alignSelf: 'stretch' }}>
@@ -1809,6 +1810,22 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                               // accessibile (l'utente non deve aprire un tab per
                               // rendere il tableau visibile pubblicamente).
                               if (block && block.type === 'tableau') {
+                                const hasTableauAccess = !!event?.addons?.tableau;
+                                // Paywall mobile: senza addon attivato mostriamo
+                                // SOLO l'icona "Attiva" che apre il pannello con
+                                // la card di acquisto, coerente col paywall
+                                // overlay del desktop. Niente accesso ai tab di
+                                // modifica finché non è acquistato.
+                                if (!hasTableauAccess) {
+                                  return (
+                                    <MobileIconBtn
+                                      icon={Sparkles}
+                                      label="Attiva"
+                                      variant={activeMobileTab === 'tableau_paywall' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(activeMobileTab === 'tableau_paywall' ? null : 'tableau_paywall')}
+                                    />
+                                  );
+                                }
                                 const tableauTabs = ['tableau_tables', 'tableau_guests', 'tableau_rules', 'tableau_style', 'tableau_publish'];
                                 const active = tableauTabs.includes(activeMobileTab as string);
                                 const isPublished = !!block.widgetProps?.tableauIsPublished;
