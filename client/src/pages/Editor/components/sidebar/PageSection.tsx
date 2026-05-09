@@ -2,12 +2,14 @@ import React from 'react';
 import { Surface, Button } from "../../../../ui";
 import { 
   Type, Image as ImageIcon, MapPin, CheckSquare, Plus, Trash2, Monitor, Smartphone, Check, Pencil,
-  Images, Video as VideoIcon, Upload, GripVertical, Youtube, Gift, LayoutGrid
+  Images, Video as VideoIcon, Upload, GripVertical, Youtube, Gift, LayoutGrid, BookOpen
 } from "lucide-react";
 import PropertyPanel from "../PropertyPanel";
 import CustomColorPicker from "../CustomColorPicker";
 import PaymentSection from "./PaymentSection";
 import TableauSidebar from "./TableauSidebar";
+import LibrettoSidebar from "./LibrettoSidebar";
+import { createDefaultLibretto } from "../../../../utils/libretto/templates";
 import type { Layer, Block, EventData } from "../../../../types/editor";
 import { apiFetch } from "../../../../utils/apiFetch";
 import { parseVideoUrl } from "../widgets/VideoWidget";
@@ -261,7 +263,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                       sono sezioni widget-only, le immagini libere non hanno senso
                       (la galleria gestisce già le foto, il video ha il suo player,
                       la mappa e il form non accettano overlay immagine). */}
-                  {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && selectedBlock?.type !== 'tableau' && (
+                  {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && selectedBlock?.type !== 'tableau' && selectedBlock?.type !== 'libretto' && (
                     <Button variant="subtle" style={{ width: '100%', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
                       <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
                     </Button>
@@ -284,7 +286,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                    <Type size={18} style={{marginRight: 8}}/> Testo
                  </Button>
                 {/* Stesso filtro sopra: niente immagine su rsvp/map/gallery/video. */}
-                {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && (
+                {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && selectedBlock?.type !== 'tableau' && selectedBlock?.type !== 'libretto' && (
                   <Button variant="subtle" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }} onClick={() => fileInputRef.current?.click()}>
                     <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
                   </Button>
@@ -1010,7 +1012,7 @@ const PageSection: React.FC<PageSectionProps> = ({
 
             {/* SETTINGS SPECIFICI PER WIDGET TABLEAU */}
             {selectedBlock && selectedBlock.type === 'tableau' && (
-              <TableauSidebar 
+              <TableauSidebar
                 selectedBlock={selectedBlock}
                 onUpdateBlock={onUpdateBlock || ((id, up) => {
                   if (blocks && setBlocks) {
@@ -1020,6 +1022,24 @@ const PageSection: React.FC<PageSectionProps> = ({
                 })}
                 eventRsvps={event?.rsvps || []}
                 hasTableauAccess={event?.addons?.tableau || false}
+                slug={slug}
+                eventTitle={event?.title}
+                updateEventData={updateEventData}
+                event={event}
+              />
+            )}
+
+            {/* SETTINGS SPECIFICI PER WIDGET LIBRETTO MESSA */}
+            {selectedBlock && selectedBlock.type === 'libretto' && (
+              <LibrettoSidebar
+                selectedBlock={selectedBlock}
+                onUpdateBlock={onUpdateBlock || ((id, up) => {
+                  if (blocks && setBlocks) {
+                    setIsDirty(true);
+                    setBlocks(blocks.map(b => b.id === id ? { ...b, ...up } : b));
+                  }
+                })}
+                hasLibrettoAccess={event?.addons?.libretto || false}
                 slug={slug}
                 eventTitle={event?.title}
                 updateEventData={updateEventData}
@@ -1663,7 +1683,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                     height: 800,
                     bgColor: '#f8fafc',
                     props: { bgColor: '#f8fafc' },
-                    widgetProps: { 
+                    widgetProps: {
                       tableauTables: [],
                       tableauAssignments: [],
                       tableauConstraints: [],
@@ -1674,6 +1694,38 @@ const PageSection: React.FC<PageSectionProps> = ({
                 }
               }}>
                 <LayoutGrid size={18} style={{marginRight: 8}}/> Sezione Tableau
+              </Button>
+
+              <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                if (blocks && setBlocks) {
+                  setIsDirty(true);
+                  const newBlockId = 'block-libretto-' + Date.now();
+                  // Pre-popola libretto con template default + nomi sposi se disponibili
+                  // dal titolo evento. Persistere subito evita IDs pagine instabili
+                  // (ogni mount di LibrettoWidget ne genererebbe di nuovi).
+                  const defaultLibretto = createDefaultLibretto('con-messa', {
+                    sposo1: '',
+                    sposo2: '',
+                    data: event?.date || '',
+                    chiesa: '',
+                  });
+                  setBlocks([...blocks, {
+                    id: newBlockId,
+                    type: 'libretto',
+                    order: blocks.length,
+                    y: 0,
+                    height: 720,
+                    bgColor: '#fffdf7',
+                    props: { bgColor: '#fffdf7' },
+                    widgetProps: {
+                      libretto: defaultLibretto,
+                      mobileOrder: 5,
+                    }
+                  } as any]);
+                  pushToHistory();
+                }
+              }}>
+                <BookOpen size={18} style={{marginRight: 8}}/> Sezione Libretto
               </Button>
             </div>
           </Surface>

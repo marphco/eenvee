@@ -5,7 +5,7 @@ import {
   Shapes, Type, ChevronUp, Minus, Plus, Circle, ArrowRight, 
   ArrowLeft, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, 
   ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone, Monitor, Upload,
-  AlignJustify, CreditCard, Banknote, MapPin, CheckSquare, Images, Video as VideoIcon, Gift, Pencil, Users, Send, Eye
+  AlignJustify, CreditCard, Banknote, MapPin, CheckSquare, Images, Video as VideoIcon, Gift, Pencil, Users, Send, Eye, BookOpen, FileText, LayoutGrid
 } from 'lucide-react';
 import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
@@ -13,6 +13,9 @@ import CustomColorPicker from "./CustomColorPicker";
 import PaymentSection from "./sidebar/PaymentSection";
 import TableauSidebar from "./sidebar/TableauSidebar";
 import type { TableauSection } from "./sidebar/TableauSidebar";
+import LibrettoSidebar from "./sidebar/LibrettoSidebar";
+import type { LibrettoSection } from "./sidebar/LibrettoSidebar";
+import { createDefaultLibretto } from "../../../utils/libretto/templates";
 import { DEFAULT_BLOCK_HEIGHT } from "../../../utils/blockHeight";
 import { AVAILABLE_FONTS, getFontPreviewText, loadGoogleFont, AVAILABLE_LINERS, AVAILABLE_SCENARIO_BGS } from "./EditorHelpers";
 import type { Layer, CanvasProps, Block } from "../../../types/editor";
@@ -238,7 +241,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {activeMobileTab === 'add_section' ? 'Aggiungi Sezione' : activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_content' ? 'Testo Form' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'tableau_tables' ? 'Tavoli' : activeMobileTab === 'tableau_guests' ? 'Ospiti & Posti' : activeMobileTab === 'tableau_rules' ? 'Vincoli & Ottimizza' : activeMobileTab === 'tableau_style' ? 'Stile Tableau' : activeMobileTab === 'tableau_publish' ? 'Pubblicazione' : activeMobileTab === 'tableau_paywall' ? 'Tableau Premium' : activeMobileTab === 'widget_settings' ? (() => {
+                  {activeMobileTab === 'add_section' ? 'Aggiungi Sezione' : activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_content' ? 'Testo Form' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'tableau_tables' ? 'Tavoli' : activeMobileTab === 'tableau_guests' ? 'Ospiti & Posti' : activeMobileTab === 'tableau_rules' ? 'Vincoli & Ottimizza' : activeMobileTab === 'tableau_style' ? 'Stile Tableau' : activeMobileTab === 'tableau_publish' ? 'Pubblicazione' : activeMobileTab === 'tableau_paywall' ? 'Tableau Premium' : activeMobileTab === 'libretto_cover' ? 'Copertina Libretto' : activeMobileTab === 'libretto_pages' ? 'Pagine Libretto' : activeMobileTab === 'libretto_style' ? 'Stile Libretto' : activeMobileTab === 'libretto_publish' ? 'Pubblicazione Libretto' : activeMobileTab === 'libretto_paywall' ? 'Libretto Premium' : activeMobileTab === 'widget_settings' ? (() => {
                     const t = blocks?.find(b => b.id === selectedBlockId)?.type;
                     if (t === 'gallery') return 'Galleria';
                     if (t === 'video') return 'Video';
@@ -1152,8 +1155,8 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                     duplicati). Su mobile l'utente può comunque incollare un
                     link YouTube/Vimeo come sorgente video senza upload. */}
                 {activeMobileTab === 'add_section' && (
-                  <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
-                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px'}}>
+                  <div style={{ animation: 'fadeIn 0.2s ease-out', width: '100%' }}>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', width: '100%'}}>
                       <Button variant="primary" style={{width: '100%', justifyContent: 'center'}} onClick={() => {
                         if (blocks && setBlocks) {
                           setIsDirty && setIsDirty(true);
@@ -1326,6 +1329,64 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                         }
                       }}>
                         <Gift size={16} style={{marginRight: 6}}/> Regali
+                      </Button>
+
+                      {/* Tableau de Mariage — paywall €69 add-on, gestito a valle. */}
+                      <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                        if (blocks && setBlocks) {
+                          setIsDirty && setIsDirty(true);
+                          const newBlockId = 'block-tableau-' + Date.now();
+                          setBlocks([...blocks, {
+                            id: newBlockId,
+                            type: 'tableau',
+                            order: blocks.length,
+                            y: 0,
+                            height: 800,
+                            bgColor: '#f8fafc',
+                            props: { bgColor: '#f8fafc' },
+                            widgetProps: {
+                              tableauTables: [],
+                              tableauAssignments: [],
+                              tableauConstraints: [],
+                              tableauSettings: { showFloorPlan: true }
+                            }
+                          } as any]);
+                          pushToHistory();
+                          setActiveMobileTab(null);
+                        }
+                      }}>
+                        <LayoutGrid size={16} style={{marginRight: 6}}/> Tableau
+                      </Button>
+
+                      {/* Libretto Messa — pre-popolato con template + nomi sposi se data evento disponibile */}
+                      <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                        if (blocks && setBlocks) {
+                          setIsDirty && setIsDirty(true);
+                          const newBlockId = 'block-libretto-' + Date.now();
+                          const defaultLibretto = createDefaultLibretto('con-messa', {
+                            sposo1: '',
+                            sposo2: '',
+                            data: event?.date || '',
+                            chiesa: '',
+                          });
+                          setBlocks([...blocks, {
+                            id: newBlockId,
+                            type: 'libretto',
+                            order: blocks.length,
+                            y: 0,
+                            height: 720,
+                            bgColor: '#fffdf7',
+                            props: { bgColor: '#fffdf7' },
+                            widgetProps: {
+                              libretto: defaultLibretto,
+                              mobileOrder: 5,
+                            }
+                          } as any]);
+                          pushToHistory();
+                          setActiveMobileTab(null);
+                        }
+                      }}>
+                        <BookOpen size={16} style={{marginRight: 6}}/> Libretto
                       </Button>
                     </div>
                   </div>
@@ -1613,6 +1674,35 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                     </div>
                   );
                 })()}
+
+                {/* LIBRETTO MESSA: 4 tab (Copertina / Pagine / Stile / Pubblica) + paywall.
+                    Stesso pattern del Tableau: LibrettoSidebar in compact mode. */}
+                {(['libretto_cover', 'libretto_pages', 'libretto_style', 'libretto_publish', 'libretto_paywall'] as const).includes(activeMobileTab as any) && selectedBlockId && blocks && (() => {
+                  const block = blocks.find(b => b.id === selectedBlockId);
+                  if (!block || block.type !== 'libretto') return null;
+                  const sectionMap: Record<string, LibrettoSection> = {
+                    libretto_cover: 'cover',
+                    libretto_pages: 'pages',
+                    libretto_style: 'style',
+                    libretto_publish: 'publish',
+                    libretto_paywall: 'paywall',
+                  };
+                  return (
+                    <div style={{ flex: 1, minWidth: 0, width: '100%', alignSelf: 'stretch' }}>
+                      <LibrettoSidebar
+                        selectedBlock={block as Block}
+                        onUpdateBlock={onUpdateBlock || (() => {})}
+                        hasLibrettoAccess={!!event?.addons?.libretto}
+                        slug={slug}
+                        eventTitle={event?.title || 'Evento'}
+                        updateEventData={updateEventData as any}
+                        event={event}
+                        compact
+                        section={sectionMap[activeMobileTab as string]}
+                      />
+                    </div>
+                  );
+                })()}
             </div>
           </div>
         )}
@@ -1868,6 +1958,57 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                 );
                               }
 
+                              // LIBRETTO MESSA: stesso pattern del Tableau — paywall mobile
+                              // se non pagato, altrimenti 4 tab (Copertina/Pagine/Stile) + Pubblica.
+                              if (block && block.type === 'libretto') {
+                                const hasLibrettoAccess = !!event?.addons?.libretto;
+                                if (!hasLibrettoAccess) {
+                                  return (
+                                    <MobileIconBtn
+                                      icon={Sparkles}
+                                      label="Attiva"
+                                      variant={activeMobileTab === 'libretto_paywall' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(activeMobileTab === 'libretto_paywall' ? null : 'libretto_paywall')}
+                                    />
+                                  );
+                                }
+                                const librettoTabs = ['libretto_cover', 'libretto_pages', 'libretto_style', 'libretto_publish'];
+                                const active = librettoTabs.includes(activeMobileTab as string);
+                                const lib = (block.widgetProps as any)?.libretto;
+                                const isPublished = !!lib?.isPublished;
+                                return (
+                                  <div
+                                    className="libretto-mobile-tabs"
+                                    style={{ display: 'flex', gap: '2px', alignItems: 'center', flex: 1, overflowX: 'auto', minWidth: 0 }}
+                                  >
+                                    <MobileIconBtn
+                                      icon={BookOpen}
+                                      label="Copertina"
+                                      variant={activeMobileTab === 'libretto_cover' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'libretto_cover' ? null : 'libretto_cover')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={FileText}
+                                      label="Pagine"
+                                      variant={activeMobileTab === 'libretto_pages' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'libretto_pages' ? null : 'libretto_pages')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={Palette}
+                                      label="Stile"
+                                      variant={activeMobileTab === 'libretto_style' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'libretto_style' ? null : 'libretto_style')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={isPublished ? Eye : Send}
+                                      label={isPublished ? 'Online' : 'Pubblica'}
+                                      variant={activeMobileTab === 'libretto_publish' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'libretto_publish' ? null : 'libretto_publish')}
+                                    />
+                                  </div>
+                                );
+                              }
+
                               return (
                                 <>
                                   <MobileIconBtn 
@@ -1884,7 +2025,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                   {/* Filtro coerente con sidebar desktop: niente "Foto"
                                       su widget-only (rsvp/map/gallery/video hanno già le
                                       loro sorgenti media specifiche). */}
-                                  {(!block || !['rsvp','map','gallery','video','payment','tableau'].includes(block.type as string)) && (
+                                  {(!block || !['rsvp','map','gallery','video','payment','tableau','libretto'].includes(block.type as string)) && (
                                     <MobileIconBtn 
                                       icon={ImageIcon} 
                                       label="Foto" 

@@ -47,7 +47,9 @@ const CapacityWarningModal: React.FC<CapacityWarningModalProps> = ({
     <div style={{
       position: 'fixed', inset: 0, zIndex: 100000,
       background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+      paddingTop: 'max(20px, env(safe-area-inset-top))',
+      paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
     }}>
       <Surface variant="soft" style={{
         maxWidth: '460px', width: '100%', borderRadius: '32px',
@@ -55,7 +57,8 @@ const CapacityWarningModal: React.FC<CapacityWarningModalProps> = ({
         background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
         border: '1px solid rgba(255,255,255,0.4)',
         animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-        overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh'
+        // 90dvh > 90vh su mobile: tiene conto della browser chrome dinamica.
+        overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90dvh'
       }}>
         {/* Header */}
         <div style={{ padding: '32px 32px 24px', textAlign: 'center' }}>

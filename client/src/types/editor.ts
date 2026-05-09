@@ -119,6 +119,12 @@ export interface Block {
       autoSplitGroups?: boolean;
       showFloorPlan?: boolean;
     };
+    // Libretto Messa (cattolico) — l'intero stato del widget vive sotto questa chiave
+    // per non inquinare il top-level di widgetProps; tipizzazione in `utils/libretto/types.ts`.
+    libretto?: any; // LibrettoData (import circolare evitato; valida via funzione)
+    librettoAccentColor?: string;
+    librettoX?: number;
+    librettoY?: number;
     [key: string]: any;
   };
 }
@@ -163,6 +169,7 @@ export interface EventData {
   rsvps?: any[];
   addons?: {
     tableau?: boolean;
+    libretto?: boolean;
     [key: string]: any;
   };
 }

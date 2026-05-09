@@ -38,7 +38,9 @@ const OverflowModal: React.FC<OverflowModalProps> = ({
     <div style={{
       position: 'fixed', inset: 0, zIndex: 100003,
       background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+      paddingTop: 'max(20px, env(safe-area-inset-top))',
+      paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
     }}>
       <Surface variant="soft" style={{
         maxWidth: '460px', width: '100%', borderRadius: '32px',
@@ -46,8 +48,14 @@ const OverflowModal: React.FC<OverflowModalProps> = ({
         background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
         border: '1px solid rgba(255,255,255,0.4)',
         animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        // FIX mobile clipping: il modale era più alto della viewport e i bottoni
+        // in fondo finivano fuori schermo. Ora maxHeight 90dvh + scroll interno
+        // sul contenuto, footer dei bottoni FISSO in fondo (out of scroll).
+        maxHeight: '90dvh',
         overflow: 'hidden', display: 'flex', flexDirection: 'column'
       }}>
+        {/* Wrapper scrollabile: tutto tranne il footer dei pulsanti. */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ padding: '32px 32px 20px', textAlign: 'center' }}>
           <div style={{
             width: '72px', height: '72px', borderRadius: '20px', background: '#fffbeb',
@@ -220,7 +228,14 @@ const OverflowModal: React.FC<OverflowModalProps> = ({
           </div>
         )}
 
-        <div style={{ padding: '16px 32px 24px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        </div>
+        {/* Footer fisso (fuori dallo scroll): garantisce che i pulsanti siano
+            sempre visibili anche su schermi piccoli. */}
+        <div style={{
+          padding: '16px 32px 24px', borderTop: '1px solid var(--border)',
+          display: 'flex', flexDirection: 'column', gap: '8px',
+          flexShrink: 0, background: 'rgba(255,255,255,0.97)',
+        }}>
           {missingSeats === 0 ? (
             <Button variant="primary" fullWidth onClick={onClose}
               style={{ height: '48px', borderRadius: '100px', fontWeight: 800, fontSize: '13px' }}>

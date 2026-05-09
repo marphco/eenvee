@@ -16,6 +16,7 @@ import GalleryWidget from "../Editor/components/widgets/GalleryWidget";
 import VideoWidget from "../Editor/components/widgets/VideoWidget";
 import PaymentWidget from "../Editor/components/widgets/PaymentWidget";
 import TableauWidget from "../Editor/components/widgets/TableauWidget";
+import LibrettoWidget from "../Editor/components/widgets/LibrettoWidget";
 import DonationModal from "./DonationModal";
 import { widgetLayerIdForBlock } from "../../utils/widgetLayerId";
 
@@ -259,7 +260,7 @@ export default function EventPublic() {
               {orderedBlocks.map((block) => {
                 const layoutPreset = block.props?.layoutPreset || "single";
                 const currentScale = isMobile ? 1 : stageScale;
-                const isWidget = ['map', 'gallery', 'video', 'payment', 'tableau'].includes(block.type);
+                const isWidget = ['map', 'gallery', 'video', 'payment', 'tableau', 'libretto'].includes(block.type);
                 // Su mobile gallery e video cadono nel ramo LOGICAL CANVAS con
                 // ReadOnlyCanvas `isMobile+isBlock`, che genera uno stream flex
                 // column interleaved (stesso comportamento di SectionCanvas mobile).
@@ -268,7 +269,13 @@ export default function EventPublic() {
                 // con coordinate del canvas logico 1000x400, che su mobile cadono
                 // in posizioni incoerenti. Map resta nel ramo isWidget anche su
                 // mobile perché non ha un widget-layer ordinabile (è fill-parent).
-                const useAbsoluteWidgetBranch = isWidget && !(isMobile && (block.type === 'gallery' || block.type === 'video' || block.type === 'payment' || block.type === 'tableau'));
+                // Tableau e Libretto sono widget "full-section" che riempiono l'intero
+                // blocco — non hanno bisogno di interleaving con layer di testo decorativi
+                // come gallery/video/payment. Quindi su mobile usiamo il ramo absolute
+                // widget (rendering diretto del widget) sia per desktop che mobile.
+                // Bug precedente: erano esclusi qui ma il logical-canvas stream non
+                // iniettava un `custom-widget` layer per loro → invisibili su mobile pubblico.
+                const useAbsoluteWidgetBranch = isWidget && !(isMobile && (block.type === 'gallery' || block.type === 'video' || block.type === 'payment'));
                 const scaledHeight = (block.height || 400) * currentScale;
                 const isRsvpBlock = block.type === 'rsvp';
                 const rsvpFormY = isRsvpBlock
@@ -440,6 +447,12 @@ export default function EventPublic() {
                               block={block}
                               isEditor={false}
                               hasTableauAccess={!!event?.addons?.tableau}
+                              // FIX critico: senza accentColor il widget cadeva su
+                              // var(--accent) come stringa, hexToRgb tornava null,
+                              // e tutti i rgba(var(--accent-rgb), …) collassavano
+                              // a nero/trasparente — colori "spenti" in public.
+                              accentColor={block.widgetProps?.tableauAccentColor || event.theme?.accent}
+                              sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
                             />
                           );
                           if (!hasPos) return tableauEl;
@@ -453,6 +466,34 @@ export default function EventPublic() {
                               width: 'min(1000px, calc(100% - 40px))'
                             }}>
                               {tableauEl}
+                            </div>
+                          );
+                        })()}
+                        {block.type === 'libretto' && (() => {
+                          const hasPos = !isMobile
+                            && typeof block.widgetProps?.widgetX === 'number'
+                            && typeof block.widgetProps?.widgetY === 'number';
+                          const librettoEl = (
+                            <LibrettoWidget
+                              block={block}
+                              isEditor={false}
+                              hasLibrettoAccess={!!event?.addons?.libretto}
+                              accentColor={block.widgetProps?.librettoAccentColor || event.theme?.accent}
+                              sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
+                              previewMobile={isMobile}
+                            />
+                          );
+                          if (!hasPos) return librettoEl;
+                          return (
+                            <div style={{
+                              ...widgetAbsoluteStyleFromEditorCoords(
+                                block.widgetProps!.widgetX as number,
+                                block.widgetProps!.widgetY as number,
+                                block.height || 400
+                              ),
+                              width: 'min(1000px, calc(100% - 40px))'
+                            }}>
+                              {librettoEl}
                             </div>
                           );
                         })()}
@@ -721,6 +762,18 @@ export default function EventPublic() {
                                       block={block}
                                       isEditor={false}
                                       hasTableauAccess={!!event?.addons?.tableau}
+                                    />
+                                  </div>
+                                );
+                              }
+                              if (layer.type === 'custom-widget' && block.type === 'libretto') {
+                                return (
+                                  <div style={{ pointerEvents: 'auto', width: '100%' }}>
+                                    <LibrettoWidget
+                                      block={block}
+                                      isEditor={false}
+                                      hasLibrettoAccess={!!event?.addons?.libretto}
+                                      previewMobile={isMobile}
                                     />
                                   </div>
                                 );

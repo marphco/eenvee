@@ -13,6 +13,8 @@ export const DEFAULT_BLOCK_HEIGHT: Record<string, number> = {
   photo: 480,
   custom: 480,
   canvas: 480,
+  tableau: 720,
+  libretto: 980,
 };
 
 const LEGACY_FALLBACKS = [400, 600];

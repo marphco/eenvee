@@ -253,18 +253,36 @@ export default function EventEditor() {
     }
   };
 
+  // Debounce per il push history su updateBlock: coalesce typing rapido in
+  // un singolo step di undo (es. utente scrive "Renzo" letter-by-letter ma
+  // l'undo lo riporta solo a stringa vuota, non a "Renz"/"Ren"/...).
+  // Senza questo guard, ogni cambiamento sul libretto/tableau/altri widget
+  // NON produceva alcun snapshot (pushToHistory non era chiamato), così
+  // l'undo cancellava di colpo tutte le modifiche fino al più vecchio
+  // snapshot disponibile (es. quando il libretto è stato creato).
+  const lastBlockUpdatePushRef = useRef<number>(0);
+  const BLOCK_UPDATE_PUSH_DEBOUNCE_MS = 800;
+
   const updateBlock = (blockId: string, updates: Partial<Block>) => {
+    // Cattura snapshot dello stato CORRENTE (pre-change) se è passato abbastanza
+    // tempo dall'ultimo push. Stesso pattern del Tableau / sezioni invito.
+    const now = Date.now();
+    if (now - lastBlockUpdatePushRef.current > BLOCK_UPDATE_PUSH_DEBOUNCE_MS) {
+      pushToHistory();
+      lastBlockUpdatePushRef.current = now;
+    }
+
     setBlocks(prev => {
       const newBlocks = prev.map(b => {
         if (b.id !== blockId) return b;
-        
+
         // Deep merge per widgetProps e props per evitare sovrascritture accidentali
-        return { 
-          ...b, 
-          ...updates, 
-          widgetProps: { 
-            ...(b.widgetProps || {}), 
-            ...(updates.widgetProps || {}) 
+        return {
+          ...b,
+          ...updates,
+          widgetProps: {
+            ...(b.widgetProps || {}),
+            ...(updates.widgetProps || {})
           },
           props: {
             ...(b.props || {}),

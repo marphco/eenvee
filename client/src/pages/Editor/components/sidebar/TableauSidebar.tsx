@@ -191,36 +191,151 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
     const manualAll = assignments.filter((a: any) => a.guestId.startsWith('manual-'));
     const manualAssigned = manualAll.filter((a: any) => a.tableId);
     const manualUnassigned = manualAll.filter((a: any) => !a.tableId);
+
+    // PreOccupancy iniziale: solo i manuali ESPLICITAMENTE assegnati (l'utente li
+    // ha messi a un tavolo specifico, non vogliamo spostarli).
     const preOccupancy = new Map<string, number>();
     manualAssigned.forEach((a: any) => {
       preOccupancy.set(a.tableId, (preOccupancy.get(a.tableId) || 0) + (a.numPeople || 1));
     });
-    const result = optimizeSeating(tables, eventRsvps, constraints, preOccupancy);
 
-    // Calcolo occupazione dopo gli RSVP per piazzare anche i manuali non assegnati
-    const occupancyAfter = new Map<string, number>(preOccupancy);
-    result.assignments.forEach((a: any) => {
-      occupancyAfter.set(a.tableId, (occupancyAfter.get(a.tableId) || 0) + 1);
-    });
-    // Greedy: gruppi più grandi per primi nei tavoli con spazio
+    // FIX: piazziamo i manuali NON assegnati PRIMA di optimizeSeating, riservando
+    // la loro capienza nel preOccupancy. In questo modo gli RSVP si adattano allo
+    // spazio rimanente e nessun manuale resta fuori.
+    // Bug precedente: optimizeSeating riempiva i tavoli con gli RSVP fino al limite,
+    // poi i manuali "size > 1" non trovavano un tavolo con N posti consecutivi
+    // anche se la capienza totale combaciava (frammentazione).
+    // Greedy: gruppi più grandi prima (servono N posti consecutivi).
     const sortedManuals = [...manualUnassigned].sort((a: any, b: any) => (b.numPeople || 1) - (a.numPeople || 1));
-    const placedManuals = sortedManuals.map((m: any) => {
-      const groupSize = m.numPeople || 1;
-      const targetTable = tables.find((t: any) => {
-        const occ = occupancyAfter.get(t.id) || 0;
-        return (t.capacity - occ) >= groupSize;
+
+    // Mappa tableId → guestId[] dei manuali già piazzati al tavolo: serve per il
+    // controllo dei vincoli `avoid` durante il greedy. Inizializziamo con i manuali
+    // già esplicitamente assegnati dall'utente.
+    const placedManualsByTable = new Map<string, string[]>();
+    manualAssigned.forEach((a: any) => {
+      const arr = placedManualsByTable.get(a.tableId) || [];
+      arr.push(a.guestId);
+      placedManualsByTable.set(a.tableId, arr);
+    });
+
+    /** Controlla se piazzare il manuale `m` al tavolo `t` violerebbe un vincolo
+        `avoid` con un altro manuale già al tavolo. */
+    const violatesAvoid = (m: any, tableId: string): boolean => {
+      const peers = placedManualsByTable.get(tableId) || [];
+      if (peers.length === 0) return false;
+      return constraints.some((c: any) => {
+        if (c.type !== 'avoid') return false;
+        const involvesMe = c.guestId1 === m.guestId || c.guestId2 === m.guestId;
+        if (!involvesMe) return false;
+        const otherId = c.guestId1 === m.guestId ? c.guestId2 : c.guestId1;
+        return peers.includes(otherId);
       });
+    };
+
+    /** Restituisce il tavolo dove un peer di `m` legato da vincolo `together`
+        è già stato piazzato (se esiste). Permette di forzare il piazzamento
+        al tavolo del peer per rispettare la regola "Insieme". */
+    const findTogetherPeerTable = (m: any): string | null => {
+      for (const c of constraints) {
+        if (c.type !== 'together') continue;
+        const involvesMe = c.guestId1 === m.guestId || c.guestId2 === m.guestId;
+        if (!involvesMe) continue;
+        const otherId = c.guestId1 === m.guestId ? c.guestId2 : c.guestId1;
+        const placedEntries: Array<[string, string[]]> = Array.from(placedManualsByTable.entries());
+        for (const [tableId, ids] of placedEntries) {
+          if (ids.includes(otherId)) return tableId;
+        }
+      }
+      return null;
+    };
+
+    const manualPlacements = sortedManuals.map((m: any) => {
+      const groupSize = m.numPeople || 1;
+
+      // Priorità 1: vincolo "Insieme" — se un peer è già al tavolo X e c'è
+      // capienza, piazziamo lì anche `m`. Avoid potrebbe entrare in conflitto
+      // (raro), in tal caso il check successivo lo segnalerà.
+      let targetTable: any = null;
+      const peerTableId = findTogetherPeerTable(m);
+      if (peerTableId) {
+        const peerTable = tables.find((t: any) => t.id === peerTableId);
+        if (peerTable) {
+          const occ = preOccupancy.get(peerTable.id) || 0;
+          if ((peerTable.capacity - occ) >= groupSize) {
+            targetTable = peerTable;
+          }
+        }
+      }
+
+      // Priorità 2: tavolo con capienza E senza violazione avoid.
+      if (!targetTable) {
+        targetTable = tables.find((t: any) => {
+          const occ = preOccupancy.get(t.id) || 0;
+          if ((t.capacity - occ) < groupSize) return false;
+          return !violatesAvoid(m, t.id);
+        });
+      }
+
+      // Priorità 3: rilassamento — solo capienza. Conflitti residui verranno
+      // segnalati all'utente come warning (vedi sotto).
+      if (!targetTable) {
+        targetTable = tables.find((t: any) => {
+          const occ = preOccupancy.get(t.id) || 0;
+          return (t.capacity - occ) >= groupSize;
+        });
+      }
+
       if (targetTable) {
-        occupancyAfter.set(targetTable.id, (occupancyAfter.get(targetTable.id) || 0) + groupSize);
+        preOccupancy.set(targetTable.id, (preOccupancy.get(targetTable.id) || 0) + groupSize);
+        const arr = placedManualsByTable.get(targetTable.id) || [];
+        arr.push(m.guestId);
+        placedManualsByTable.set(targetTable.id, arr);
         return { ...m, tableId: targetTable.id };
       }
-      return m;
+      return m; // resta unassigned se proprio nessun tavolo regge il gruppo intero
     });
 
-    const finalManuals = [...manualAssigned, ...placedManuals];
+    // Ora optimizeSeating gira con la capienza già impegnata dai manuali.
+    const result = optimizeSeating(tables, eventRsvps, constraints, preOccupancy);
+
+    const finalManuals = [...manualAssigned, ...manualPlacements];
+
+    // Verifica post-hoc: se un vincolo manuale-vs-manuale è ancora violato dopo
+    // il greedy, emettiamo un warning visibile nel SeatingWarningsModal.
+    const extraWarnings: SplitWarning[] = [];
+    constraints.forEach((c: any) => {
+      const a1 = finalManuals.find(a => a.guestId === c.guestId1);
+      const a2 = finalManuals.find(a => a.guestId === c.guestId2);
+      if (!a1 || !a2 || !a1.tableId || !a2.tableId) return;
+      if (c.type === 'avoid' && a1.tableId === a2.tableId) {
+        const t = tables.find((tb: any) => tb.id === a1.tableId);
+        extraWarnings.push({
+          type: 'constraint_unresolved',
+          groupGuests: [
+            { id: a1.guestId, name: a1.guestName || 'Ospite' },
+            { id: a2.guestId, name: a2.guestName || 'Ospite' },
+          ],
+          reason: `Impossibile separare ${a1.guestName} e ${a2.guestName}: nessun altro tavolo li accoglie. Sono entrambi al ${t?.name || 'tavolo'}.`,
+        });
+      }
+      if (c.type === 'together' && a1.tableId !== a2.tableId) {
+        const t1 = tables.find((tb: any) => tb.id === a1.tableId);
+        const t2 = tables.find((tb: any) => tb.id === a2.tableId);
+        extraWarnings.push({
+          type: 'constraint_unresolved',
+          groupGuests: [
+            { id: a1.guestId, name: a1.guestName || 'Ospite' },
+            { id: a2.guestId, name: a2.guestName || 'Ospite' },
+          ],
+          reason: `Impossibile tenere insieme ${a1.guestName} e ${a2.guestName}: capienza insufficiente al ${t1?.name || 'primo tavolo'}. Ora sono al ${t1?.name || '?'} e al ${t2?.name || '?'}.`,
+        });
+      }
+    });
+
     patchConfig({ tableauAssignments: [...finalManuals, ...result.assignments] });
-    if (result.warnings.length > 0) {
-      setSeatingWarnings(result.warnings);
+    const allWarnings = [...result.warnings, ...extraWarnings];
+    if (allWarnings.length > 0) {
+      setSeatingWarnings(allWarnings);
     }
   };
 

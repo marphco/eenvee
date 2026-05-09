@@ -24,24 +24,94 @@ const TableauWidget: React.FC<TableauWidgetProps> = ({ block, isEditor, hasTable
   const assignments = (config.tableauAssignments || []) as any[];
   const layout = config.tableauLayout || 'grid';
   const [search, setSearch] = React.useState('');
+  /** Quando la ricerca produce match a tavoli DIVERSI, l'utente deve scegliere
+      quale ospite è effettivamente lui (es. due Marco a tavoli diversi). */
+  const [pickedMatchId, setPickedMatchId] = React.useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Reset della selezione di disambiguazione ogni volta che il termine cambia
+  React.useEffect(() => { setPickedMatchId(null); }, [search]);
 
   // L'overlay viene mostrato SOLO se siamo in vista PUBBLICA e non c'è accesso.
   // In editor l'utente deve poterlo configurare per vedere cosa sta comprando.
   const showOverlay = !isEditor && !hasTableauAccess;
   const isDraft = !isEditor && !config.tableauIsPublished && hasTableauAccess;
 
-  const searchResult = React.useMemo(() => {
-    if (!search.trim() || search.length < 2) return null;
+  /** Espande un'assignment in array di nomi (gestisce ospiti manuali multi-persona). */
+  const expandAssignmentNames = (a: any): string[] => {
+    const isManual = typeof a.guestId === 'string' && a.guestId.startsWith('manual-');
+    if (isManual) {
+      if (Array.isArray(a.names) && a.names.length > 0) {
+        return a.names.map((n: string, i: number) => n || `Ospite ${i + 1}`);
+      }
+      if ((a.numPeople || 1) > 1) {
+        return Array.from({ length: a.numPeople }, (_, i) =>
+          i === 0 ? (a.guestName || 'Ospite') : `Ospite ${i + 1}`
+        );
+      }
+    }
+    return [a.guestName || 'Ospite'];
+  };
+
+  /** Tutti i match per il termine corrente (tutti i nomi a livello di singola
+      persona, anche dentro gruppi manuali, tutti i tavoli). Ogni elemento ha un
+      id univoco usato per la disambiguazione quando ci sono più tavoli. */
+  type Match = { id: string; displayName: string; tableId: string; tableName: string };
+  const matches: Match[] = React.useMemo(() => {
+    if (!search.trim() || search.length < 2) return [];
     const term = search.toLowerCase();
-    // Cerchiamo l'ospite nelle assegnazioni
-    const found = assignments.find(a => a.guestName?.toLowerCase().includes(term));
-    if (!found) return 'not_found';
-    
-    // Cerchiamo i dettagli del tavolo
-    const table = tables.find((t: any) => t.id === found.tableId);
-    return { ...found, table };
+    const results: Match[] = [];
+    for (const a of assignments) {
+      if (!a.tableId) continue;
+      const names = expandAssignmentNames(a);
+      names.forEach((n, idx) => {
+        if (!n.toLowerCase().includes(term)) return;
+        const table = tables.find((t: any) => t.id === a.tableId);
+        if (!table) return;
+        results.push({
+          id: `${a.guestId}__${idx}`,
+          displayName: n,
+          tableId: a.tableId,
+          tableName: table.name,
+        });
+      });
+    }
+    return results;
   }, [search, assignments, tables]);
+
+  /** Tavoli unici tra i match — se 1 solo, niente disambiguazione. */
+  const uniqueMatchTableIds = React.useMemo(
+    () => Array.from(new Set(matches.map(m => m.tableId))),
+    [matches]
+  );
+
+  /** Match "attivo": quello mostrato nel pannello pieno.
+      - Se l'utente ha cliccato su una scelta in disambiguazione → usa quella.
+      - Se tutti i match sono allo STESSO tavolo → uso il primo (l'evidenziazione
+        sotto coprirà comunque tutti i nomi che combaciano col termine).
+      - Se i match sono distribuiti su più tavoli → null (mostriamo lista). */
+  const activeMatch: Match | null = React.useMemo(() => {
+    if (matches.length === 0) return null;
+    if (pickedMatchId) return matches.find(m => m.id === pickedMatchId) ?? null;
+    if (uniqueMatchTableIds.length === 1) return matches[0] ?? null;
+    return null;
+  }, [matches, pickedMatchId, uniqueMatchTableIds]);
+
+  /** Compagni di tavolo del match attivo (espansi). */
+  const activeTableMates: string[] = React.useMemo(() => {
+    if (!activeMatch) return [];
+    return assignments
+      .filter((a: any) => a.tableId === activeMatch.tableId)
+      .flatMap(expandAssignmentNames);
+  }, [activeMatch, assignments]);
+
+  /** Stato sintetico per il rendering del pannello: 'empty' (no input), 'not_found',
+      'ambiguous' (>1 tavolo, scelta richiesta), 'resolved' (pannello pieno). */
+  const searchState: 'empty' | 'not_found' | 'ambiguous' | 'resolved' =
+    !search.trim() || search.length < 2 ? 'empty'
+    : matches.length === 0 ? 'not_found'
+    : !activeMatch ? 'ambiguous'
+    : 'resolved';
 
   if (isDraft) {
     return (
@@ -248,14 +318,21 @@ const TableauWidget: React.FC<TableauWidgetProps> = ({ block, isEditor, hasTable
               transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
             }}>
               <Search size={20} style={{ color: search ? 'var(--accent)' : 'var(--text-soft)', marginRight: '16px' }} />
-              <input 
+              <input
                 type="text"
                 className="tableau-search-input"
-                placeholder="Cerca il tuo tavolo per nome..." 
+                placeholder="Cerca il tuo nome…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{ 
-                  flex: 1, background: 'transparent', border: 'none', outline: 'none', 
+                // FIX UX: il browser autofill mostrava un'icona profilo a destra
+                // dell'input perché interpretava il campo come username.
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="words"
+                spellCheck={false}
+                name="tableau-guest-search"
+                style={{
+                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
                   color: 'var(--text-primary)', fontSize: '16px', fontWeight: 500,
                   fontFamily: 'inherit'
                 }}
@@ -275,58 +352,200 @@ const TableauWidget: React.FC<TableauWidgetProps> = ({ block, isEditor, hasTable
               )}
             </div>
 
-            {/* SEARCH RESULTS OVERLAY */}
-            {searchResult && (
+            {/* SEARCH RESULTS OVERLAY — opaco (no trasparenza), copre la grid sotto */}
+            {searchState !== 'empty' && (
               <div style={{
                 position: 'absolute',
                 top: 'calc(100% + 16px)',
                 left: '10px', right: '10px',
-                background: 'var(--surface)',
+                // Sfondo OPACO: var(--surface) era semi-trasparente in alcuni temi.
+                background: '#ffffff',
                 border: '1px solid var(--border)',
                 borderRadius: '32px',
-                padding: '32px',
+                padding: '32px 28px',
                 zIndex: 40,
-                boxShadow: '0 30px 80px rgba(0,0,0,0.2)',
+                boxShadow: '0 30px 80px rgba(0,0,0,0.25)',
                 textAlign: 'center',
                 animation: 'fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
               }}>
-                {searchResult === 'not_found' ? (
+                {searchState === 'not_found' && (
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-soft)' }}>
+                    Non abbiamo trovato "{search}" tra gli invitati assegnati.
+                  </div>
+                )}
+
+                {/* AMBIGUOUS: più match su tavoli diversi.
+                    Mostriamo per ogni tavolo coinvolto: nome + lista dei compagni
+                    (con i nomi che combaciano evidenziati). L'utente riconosce
+                    il proprio tavolo dal contesto degli altri ospiti (es. la
+                    moglie/marito vicino al proprio nome) — niente click obbligato.
+                    Le card sono comunque cliccabili per "fissare" il pannello. */}
+                {searchState === 'ambiguous' && (
                   <div>
-                    <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-soft)' }}>
-                      Non abbiamo trovato "{search}" tra gli invitati assegnati.
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: '8px' }}>
+                      {matches.length} risultati su {uniqueMatchTableIds.length} tavoli
+                    </div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-primary)', marginBottom: '20px', lineHeight: 1.5 }}>
+                      Riconosci il tuo tavolo dagli altri ospiti
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {uniqueMatchTableIds.map((tableId) => {
+                        const tableInfo = tables.find((t: any) => t.id === tableId);
+                        if (!tableInfo) return null;
+                        // Match a questo tavolo (per evidenziazione)
+                        const matchesAtTable = matches.filter((m) => m.tableId === tableId);
+                        const matchNamesLower = new Set(matchesAtTable.map((m) => m.displayName.toLowerCase()));
+                        // Compagni di tavolo (espansi a livello di singola persona)
+                        const mates: string[] = assignments
+                          .filter((a: any) => a.tableId === tableId)
+                          .flatMap(expandAssignmentNames);
+
+                        // Click sulla card → fissa il match (apre il pannello pieno)
+                        const firstMatchId = matchesAtTable[0]?.id ?? null;
+
+                        return (
+                          <div
+                            key={tableId}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => firstMatchId && setPickedMatchId(firstMatchId)}
+                            onKeyDown={(e) => {
+                              if ((e.key === 'Enter' || e.key === ' ') && firstMatchId) {
+                                e.preventDefault();
+                                setPickedMatchId(firstMatchId);
+                              }
+                            }}
+                            style={{
+                              padding: '16px 18px',
+                              background: 'rgba(var(--accent-rgb), 0.04)',
+                              border: '1px solid rgba(var(--accent-rgb), 0.20)',
+                              borderRadius: '20px',
+                              cursor: 'pointer',
+                              transition: 'all .15s ease',
+                              textAlign: 'center',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(var(--accent-rgb), 0.08)';
+                              e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb), 0.35)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(var(--accent-rgb), 0.04)';
+                              e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb), 0.20)';
+                            }}
+                          >
+                            <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+                              Tavolo
+                            </div>
+                            <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--accent)', fontFamily: 'var(--font-heading)', marginBottom: '12px', lineHeight: 1.1 }}>
+                              {tableInfo.name}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {mates.map((name, i) => {
+                                const isMatch = matchNamesLower.has(name.toLowerCase());
+                                return (
+                                  <div
+                                    key={i}
+                                    style={{
+                                      fontSize: '13px',
+                                      fontWeight: isMatch ? 800 : 500,
+                                      color: isMatch ? 'var(--accent)' : 'var(--text-primary)',
+                                      background: isMatch ? 'rgba(var(--accent-rgb), 0.10)' : 'transparent',
+                                      border: isMatch ? '1px solid rgba(var(--accent-rgb), 0.25)' : '1px solid transparent',
+                                      borderRadius: '100px',
+                                      padding: '5px 12px',
+                                    }}
+                                  >
+                                    {name}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                ) : (
+                )}
+
+                {/* RESOLVED: 1 match (o tutti allo stesso tavolo), oppure
+                    l'utente ha cliccato sulla disambiguazione. Mostriamo il
+                    tavolo + lista compagni con i nomi che combaciano evidenziati. */}
+                {searchState === 'resolved' && activeMatch && (
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
-                      Piacere di vederti, {searchResult.guestName}!
+                    {pickedMatchId && (
+                      <button
+                        onClick={() => setPickedMatchId(null)}
+                        style={{
+                          background: 'transparent', border: 'none', cursor: 'pointer',
+                          fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)',
+                          padding: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        ← Altri risultati
+                      </button>
+                    )}
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: '8px' }}>
+                      Tavolo
                     </div>
-                    <div style={{ fontSize: '16px', color: 'var(--text-primary)', marginBottom: '8px' }}>Il tuo posto è al</div>
-                    <h3 style={{ margin: 0, fontSize: '32px', fontWeight: 900, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>
-                      {searchResult.table?.name || 'Tavolo non assegnato'}
+                    <h3 style={{ margin: 0, fontSize: '36px', fontWeight: 900, color: 'var(--accent)', fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
+                      {activeMatch.tableName}
                     </h3>
-                    <div style={{ 
-                      marginTop: '20px', display: 'inline-flex', alignItems: 'center', gap: '8px',
-                      padding: '8px 16px', background: 'rgba(var(--accent-rgb), 0.08)', borderRadius: '100px',
-                      fontSize: '13px', fontWeight: 700, color: 'var(--accent)'
-                    }}>
-                      <MapIcon size={14} /> Vedilo sulla mappa
-                    </div>
+
+                    {activeTableMates.length > 0 && (
+                      <div style={{
+                        marginTop: '24px',
+                        paddingTop: '20px',
+                        borderTop: '1px solid var(--border-subtle, var(--border))',
+                        display: 'flex', flexDirection: 'column', gap: '6px',
+                        maxWidth: '340px', margin: '24px auto 0',
+                      }}>
+                        {activeTableMates.map((name, i) => {
+                          const term = search.toLowerCase().trim();
+                          // Evidenziamo se l'utente ha disambiguato → solo il nome esatto scelto.
+                          // Altrimenti tutti i nomi che combaciano (caso "5 zii Marco stesso tavolo").
+                          const isMe = pickedMatchId
+                            ? name === activeMatch.displayName
+                            : (term.length >= 2 && name.toLowerCase().includes(term));
+                          return (
+                            <div
+                              key={i}
+                              style={{
+                                fontSize: '14px',
+                                fontWeight: isMe ? 800 : 500,
+                                color: isMe ? 'var(--accent)' : 'var(--text-primary)',
+                                background: isMe ? 'rgba(var(--accent-rgb), 0.10)' : 'transparent',
+                                border: isMe ? '1px solid rgba(var(--accent-rgb), 0.25)' : '1px solid transparent',
+                                borderRadius: '100px',
+                                padding: '8px 14px',
+                                textAlign: 'center',
+                              }}
+                            >
+                              {name}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* TABLES GRID (SMART CENTERING) */}
+          {/* TABLES GRID (SMART CENTERING).
+              Quando c'è un risultato di ricerca attivo, sfochiamo + sbiadiamo
+              la grid in modo che il pannello risultati (sopra) risalti senza
+              competere visivamente con i nomi dei tavoli. */}
           <div style={{
             display: 'flex',
             flexWrap: 'wrap',
             justifyContent: 'center',
             gap: '40px',
-            opacity: searchResult ? 0.3 : 1,
-            pointerEvents: searchResult ? 'none' : 'auto',
-            transition: 'opacity 0.3s ease'
+            opacity: searchState !== 'empty' ? 0.25 : 1,
+            filter: searchState !== 'empty' ? 'blur(4px)' : 'none',
+            pointerEvents: searchState !== 'empty' ? 'none' : 'auto',
+            transition: 'opacity 0.35s ease, filter 0.35s ease'
           }}>
             {tables.map((table: any) => {
                 const tableAssignments = assignments.filter(a => a.tableId === table.id);
@@ -349,9 +568,9 @@ const TableauWidget: React.FC<TableauWidgetProps> = ({ block, isEditor, hasTable
                     position: 'relative',
                     textAlign: 'center',
                     borderTop: `6px solid var(--accent)`,
-                    transform: searchResult && searchResult !== 'not_found' && searchResult.tableId === table.id ? 'scale(1.05)' : 'scale(1)',
-                    zIndex: searchResult && searchResult !== 'not_found' && searchResult.tableId === table.id ? 2 : 1,
-                    boxShadow: searchResult && searchResult !== 'not_found' && searchResult.tableId === table.id ? '0 20px 50px rgba(var(--accent-rgb), 0.2)' : '0 12px 40px rgba(0,0,0,0.06)'
+                    transform: activeMatch && activeMatch.tableId === table.id ? 'scale(1.05)' : 'scale(1)',
+                    zIndex: activeMatch && activeMatch.tableId === table.id ? 2 : 1,
+                    boxShadow: activeMatch && activeMatch.tableId === table.id ? '0 20px 50px rgba(var(--accent-rgb), 0.2)' : '0 12px 40px rgba(0,0,0,0.06)'
                   }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
                       <div style={{ 

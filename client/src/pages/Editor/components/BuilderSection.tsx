@@ -290,7 +290,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
               if (selectedLayerIds.length !== 1) return { isFirstLayer: false, isLastLayer: false };
               const selId = selectedLayerIds[0]!;
               const blockLayers = layers.filter(l => l.blockId === block.id && !l.hiddenMobile);
-              const widgetId = ['rsvp', 'gallery', 'video', 'map', 'payment', 'tableau'].includes(block.type)
+              const widgetId = ['rsvp', 'gallery', 'video', 'map', 'payment', 'tableau', 'libretto'].includes(block.type)
                 ? widgetLayerIdForBlock(String(block.id))
                 : null;
               const items: { id: string; mobileOrder: number }[] = [
@@ -319,6 +319,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
                   if (block.type === 'video') return 'Video';
                   if (block.type === 'payment') return 'Regali Digitali';
                   if (block.type === 'tableau') return 'Tableau';
+                  if (block.type === 'libretto') return 'Libretto Messa';
                   return 'Widget';
                 }
                 const layer = layers.find(l => l.id === selId);

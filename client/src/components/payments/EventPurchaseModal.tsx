@@ -20,6 +20,7 @@ function getStripePromise() {
 
 const UNLOCK_EUR = 69;
 const TABLEAU_ADDON_EUR = 15;
+const LIBRETTO_ADDON_EUR = 15;
 const labelStyle: React.CSSProperties = {
   fontSize: "11px",
   textTransform: "uppercase",
@@ -53,7 +54,7 @@ export interface EventPurchaseModalProps {
   /** Sottotitolo sotto il titolo; se omesso si usa `eventTitle`. */
   paymentSubtitle?: string;
   /** Tipo di acquisto: sblocco evento intero o add-on specifico. */
-  purchaseType?: "event_unlock" | "tableau_addon";
+  purchaseType?: "event_unlock" | "tableau_addon" | "libretto_addon";
 }
 
 type Step = "intro" | "payment" | "success" | "error" | "dev_simulate";
@@ -77,8 +78,10 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
   purchaseType = "event_unlock",
 }) => {
   const isTableau = purchaseType === "tableau_addon";
-  const amountEur = isTableau ? TABLEAU_ADDON_EUR : UNLOCK_EUR;
-  const paymentTitle = paymentTitleProp?.trim() || (isTableau ? "Attivazione Tableau" : "Pagamento");
+  const isLibretto = purchaseType === "libretto_addon";
+  const amountEur = isTableau ? TABLEAU_ADDON_EUR : isLibretto ? LIBRETTO_ADDON_EUR : UNLOCK_EUR;
+  const paymentTitle = paymentTitleProp?.trim() ||
+    (isTableau ? "Attivazione Tableau" : isLibretto ? "Attivazione Libretto Messa" : "Pagamento");
   const paymentSubtitle = (paymentSubtitleProp ?? eventTitle).trim();
   const [step, setStep] = useState<Step>("intro");
   const [accentColor, setAccentColor] = useState("#1ABC9C");
@@ -378,6 +381,8 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
         alignItems: "center",
         justifyContent: "center",
         padding: "16px",
+        paddingTop: "max(16px, env(safe-area-inset-top))",
+        paddingBottom: "max(16px, env(safe-area-inset-bottom))",
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget && step !== "payment") onClose();
@@ -387,7 +392,7 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
         style={{
           width: "100%",
           maxWidth: "480px",
-          maxHeight: "90vh",
+          maxHeight: "90dvh",
           background: "#ffffff",
           borderRadius: "20px",
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",

@@ -8,6 +8,7 @@ import GalleryWidget from './widgets/GalleryWidget';
 import VideoWidget from './widgets/VideoWidget';
 import PaymentWidget from './widgets/PaymentWidget';
 import TableauWidget from './widgets/TableauWidget';
+import LibrettoWidget from './widgets/LibrettoWidget';
 import { widgetLayerIdForBlock } from '../../../utils/widgetLayerId';
 import { resolveBlockHeight } from '../../../utils/blockHeight';
 
@@ -474,6 +475,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           const widgetId =
             block.type === 'rsvp' || block.type === 'gallery' || block.type === 'video'
             || block.type === 'payment' || block.type === 'map' || block.type === 'tableau'
+            || block.type === 'libretto'
               ? widgetSelId
               : null;
 
@@ -586,13 +588,24 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                       />
                     )}
                     {block.type === 'tableau' && (
-                      <TableauWidget 
+                      <TableauWidget
                         block={block}
                         isEditor={true}
                         hasTableauAccess={event?.addons?.tableau || false}
                         onUpdateBlock={onUpdateBlock}
                         accentColor={block.widgetProps?.tableauAccentColor || theme?.accent}
                         sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
+                      />
+                    )}
+                    {block.type === 'libretto' && (
+                      <LibrettoWidget
+                        block={block}
+                        isEditor={true}
+                        hasLibrettoAccess={event?.addons?.libretto || false}
+                        onUpdateBlock={onUpdateBlock}
+                        accentColor={block.widgetProps?.librettoAccentColor || theme?.accent}
+                        sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
+                        previewMobile={previewMobile}
                       />
                     )}
                   </div>
@@ -903,6 +916,55 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           </div>
         </div>
       )}
+
+      {block.type === 'libretto' && (() => {
+        // Libretto: posizione draggable come tableau (libX/libY).
+        const wx = typeof block.widgetProps?.librettoX === 'number' && !isNaN(block.widgetProps.librettoX)
+          ? (block.widgetProps.librettoX as number) + 'px' : '50%';
+        const wy = typeof block.widgetProps?.librettoY === 'number' && !isNaN(block.widgetProps.librettoY)
+          ? (block.widgetProps.librettoY as number) + 'px' : '50%';
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              top: wy,
+              left: wx,
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'auto',
+              cursor: 'grab',
+              touchAction: 'none',
+              zIndex: 5,
+              width: 'min(900px, calc(100% - 40px))'
+            }}
+            onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
+              widgetId: widgetSelId, xKey: 'librettoX', yKey: 'librettoY',
+              defaultX: (containerRef.current?.clientWidth || 1000) / 2,
+              defaultY: logicalH / 2,
+            })}
+          >
+            {selectedLayerIds.includes(widgetSelId) && (
+              <div style={{
+                position: 'absolute',
+                top: -8, bottom: -8, left: -8, right: -8,
+                border: '2px solid var(--accent)',
+                borderRadius: '16px',
+                pointerEvents: 'none',
+                zIndex: 100
+              }} />
+            )}
+            <div style={{ pointerEvents: 'none', width: '100%' }}>
+              <LibrettoWidget
+                block={block}
+                isEditor={true}
+                hasLibrettoAccess={event?.addons?.libretto || false}
+                onUpdateBlock={onUpdateBlock}
+                accentColor={block.widgetProps?.librettoAccentColor || theme?.accent}
+                sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       {block.type === 'tableau' && (() => {
         // Tableau: stessa logica del modulo RSVP — draggabile in tutte le direzioni, centrato di default.
