@@ -16,14 +16,18 @@ const PublishConfirmModal: React.FC<PublishConfirmModalProps> = ({ show, onClose
     <div style={{
       position: 'fixed', inset: 0, zIndex: 10000,
       background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+      // Su mobile usiamo dvh per accomodare la barra browser dinamica.
+      paddingTop: 'max(20px, env(safe-area-inset-top))',
+      paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
     }}>
       <Surface variant="soft" style={{
-        maxWidth: '440px', width: '100%', padding: '48px 40px', borderRadius: '32px',
+        maxWidth: '440px', width: '100%', padding: '40px 32px', borderRadius: '32px',
         textAlign: 'center', boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
         background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(20px)',
         border: '1px solid rgba(255,255,255,0.4)',
-        animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        maxHeight: '90dvh', overflowY: 'auto', boxSizing: 'border-box',
       }}>
         <div style={{
           width: '80px', height: '80px', borderRadius: '24px', background: '#fffbeb',

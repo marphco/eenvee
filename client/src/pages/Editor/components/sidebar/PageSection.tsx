@@ -2,16 +2,19 @@ import React from 'react';
 import { Surface, Button } from "../../../../ui";
 import { 
   Type, Image as ImageIcon, MapPin, CheckSquare, Plus, Trash2, Monitor, Smartphone, Check, Pencil,
-  Images, Video as VideoIcon, Upload, GripVertical, Youtube, Gift, LayoutGrid
+  Images, Video as VideoIcon, Upload, GripVertical, Youtube, Gift, LayoutGrid, BookOpen
 } from "lucide-react";
 import PropertyPanel from "../PropertyPanel";
 import CustomColorPicker from "../CustomColorPicker";
 import PaymentSection from "./PaymentSection";
 import TableauSidebar from "./TableauSidebar";
+import LibrettoSidebar from "./LibrettoSidebar";
+import { createDefaultLibretto } from "../../../../utils/libretto/templates";
 import type { Layer, Block, EventData } from "../../../../types/editor";
 import { apiFetch } from "../../../../utils/apiFetch";
 import { parseVideoUrl } from "../widgets/VideoWidget";
 import { widgetLayerIdForBlock } from "../../../../utils/widgetLayerId";
+import { isWidgetBlock, resolveAccentColor } from "../../../../utils/blockTypes";
 
 interface PageSectionProps {
   previewMobile: boolean;
@@ -249,23 +252,20 @@ const PageSection: React.FC<PageSectionProps> = ({
                setDisplayColorPicker={setDisplayColorPicker}
              />
              
-             {/* Opzioni di inserimento se siamo comunque dentro un blocco */}
-             {selectedBlockId && (
+             {/* Opzioni di inserimento solo per blocchi canvas free-form.
+                I widget chiusi (rsvp/map/gallery/video/payment/tableau/libretto)
+                non accettano testo/immagine: il loro contenuto è strutturato
+                e gestito dal widget interno. */}
+             {selectedBlockId && !isWidgetBlock(selectedBlock?.type) && (
                <Surface variant="soft" className="panel-section" style={{ padding: '16px' }}>
                  <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Inserisci nella Sezione</h3>
                  <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                    <Button variant="primary" style={{ width: '100%', justifyContent: 'center' }} onClick={addTextLayer}>
                      <Type size={18} style={{marginRight: 8}}/> Testo
                    </Button>
-                  {/* Immagine disabilitata su RSVP / Mappa / Galleria / Video:
-                      sono sezioni widget-only, le immagini libere non hanno senso
-                      (la galleria gestisce già le foto, il video ha il suo player,
-                      la mappa e il form non accettano overlay immagine). */}
-                  {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && selectedBlock?.type !== 'tableau' && (
                     <Button variant="subtle" style={{ width: '100%', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
                       <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
                     </Button>
-                  )}
                 </div>
               </Surface>
             )}
@@ -273,22 +273,20 @@ const PageSection: React.FC<PageSectionProps> = ({
         ) : selectedBlockId ? (
           /* PRIORITÀ 2: OPZIONI SEZIONE (Se nessun elemento è selezionato) */
           <div key={selectedBlockId}>
-           {/* Solo "Inserisci" si nasconde quando è selezionato il widget virtuale;
-               i pannelli Mappa/Galleria/Video/Payment devono restare visibili anche
-               con il widget selezionato (altrimenti sparisce PaymentSection). */}
-           {!(selectedBlock && selectedLayerIds.includes(widgetLayerIdForBlock(String(selectedBlock.id)))) && (
+           {/* "Inserisci" si nasconde quando:
+               - è selezionato il widget virtuale (i pannelli Mappa/Galleria/Video/
+                 Payment/Tableau/Libretto restano visibili con la propria UI);
+               - il blocco è un widget chiuso (no testo/immagine free-form). */}
+           {!(selectedBlock && selectedLayerIds.includes(widgetLayerIdForBlock(String(selectedBlock.id)))) && !isWidgetBlock(selectedBlock?.type) && (
              <Surface variant="soft" className="panel-section" style={{ padding: '16px' }}>
                  <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Inserisci nella Sezione</h3>
                <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                  <Button variant="primary" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }} onClick={addTextLayer}>
                    <Type size={18} style={{marginRight: 8}}/> Testo
                  </Button>
-                {/* Stesso filtro sopra: niente immagine su rsvp/map/gallery/video. */}
-                {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && (
                   <Button variant="subtle" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }} onClick={() => fileInputRef.current?.click()}>
                     <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
                   </Button>
-                )}
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{display: 'none'}} />
               </div>
             </Surface>
@@ -320,132 +318,204 @@ const PageSection: React.FC<PageSectionProps> = ({
                   </div>
                 </div>
 
-                {/* CAMPO: TITOLO SEZIONE */}
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '6px' }}>
-                    Titolo
-                  </label>
-                  <div style={{
-                    position: 'relative',
-                    display: 'flex', alignItems: 'center',
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '10px',
-                    padding: '10px 12px',
-                    transition: 'border-color .15s ease, box-shadow .15s ease'
-                  }}>
-                    <Pencil size={12} style={{ color: 'var(--text-soft)', marginRight: '8px', flexShrink: 0 }} />
-                    <input
-                      type="text"
-                      value={selectedBlock.props?.title || "Come Arrivare"}
-                      onChange={(e) => {
-                        if (onUpdateBlock && selectedBlock) {
-                          onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, title: e.target.value } });
-                        } else if (blocks && setBlocks) {
-                          setIsDirty(true);
-                          setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, title: e.target.value } } : b));
-                        }
-                      }}
-                      placeholder="Es: Cerimonia, Ricevimento…"
-                      onFocus={(e) => {
-                        const p = e.currentTarget.parentElement as HTMLDivElement | null;
-                        if (p) { p.style.borderColor = 'var(--accent)'; p.style.boxShadow = '0 0 0 3px rgba(var(--accent-rgb), 0.15)'; }
-                      }}
-                      onBlur={(e) => {
-                        const p = e.currentTarget.parentElement as HTMLDivElement | null;
-                        if (p) { p.style.borderColor = 'var(--border)'; p.style.boxShadow = 'none'; }
-                      }}
-                      style={{
-                        flex: 1, background: 'transparent', border: 'none',
-                        fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)',
-                        padding: 0, outline: 'none', width: '100%'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* CAMPO: INDIRIZZO */}
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '6px' }}>
-                    Indirizzo
-                  </label>
-                  <div style={{
-                    position: 'relative',
-                    display: 'flex', alignItems: 'center',
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '10px',
-                    padding: '10px 12px',
-                    transition: 'border-color .15s ease, box-shadow .15s ease'
-                  }}>
-                    <MapPin size={12} style={{ color: 'var(--text-soft)', marginRight: '8px', flexShrink: 0 }} />
-                    <input
-                      type="text"
-                      value={selectedBlock.props?.address || ""}
-                      onChange={(e) => {
-                        if (onUpdateBlock && selectedBlock) {
-                          onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, address: e.target.value } });
-                        } else if (blocks && setBlocks) {
-                          setIsDirty(true);
-                          setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, address: e.target.value } } : b));
-                        }
-                      }}
-                      placeholder="Es: Via Roma 1, Milano"
-                      onFocus={(e) => {
-                        const p = e.currentTarget.parentElement as HTMLDivElement | null;
-                        if (p) { p.style.borderColor = 'var(--accent)'; p.style.boxShadow = '0 0 0 3px rgba(var(--accent-rgb), 0.15)'; }
-                      }}
-                      onBlur={(e) => {
-                        const p = e.currentTarget.parentElement as HTMLDivElement | null;
-                        if (p) { p.style.borderColor = 'var(--border)'; p.style.boxShadow = 'none'; }
-                      }}
-                      style={{
-                        flex: 1, background: 'transparent', border: 'none',
-                        fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)',
-                        padding: 0, outline: 'none', width: '100%'
-                      }}
-                    />
-                  </div>
-                  <p style={{ margin: '6px 2px 0', fontSize: '10px', color: 'var(--text-soft)', lineHeight: 1.4 }}>
-                    L'indirizzo viene usato sia per la mappa che per il pulsante "Apri in Google Maps".
-                  </p>
-                </div>
-
-                {/* CAMPO: ZOOM */}
+                {/* MULTI-MAPPA: lista di mappe editabili (es. Chiesa + Ricevimento).
+                    Se `widgetProps.maps` è vuoto/assente, viene derivato un singolo
+                    entry da `block.props.address/title/description/zoom` (back-compat). */}
                 {(() => {
-                  const z = selectedBlock.props?.zoom ?? 15;
-                  const pct = Math.round(((z - 10) / (19 - 10)) * 100);
+                  const wp = (selectedBlock.widgetProps || {}) as any;
+                  const legacyEntry = {
+                    id: 'legacy',
+                    title: selectedBlock.props?.title,
+                    description: selectedBlock.props?.description,
+                    address: selectedBlock.props?.address,
+                    zoom: selectedBlock.props?.zoom,
+                  };
+                  const entries: Array<{ id: string; title?: string; description?: string; address?: string; zoom?: number }>
+                    = (Array.isArray(wp.maps) && wp.maps.length > 0) ? wp.maps : [legacyEntry];
+                  const isMulti = entries.length > 1;
+
+                  // Aggiorna l'array maps + sincronizza il primo entry su block.props
+                  // (back-compat: vecchio rendering legacy continua a funzionare).
+                  const writeMaps = (next: typeof entries) => {
+                    const first = next[0] || { title: '', description: '', address: '', zoom: 15 };
+                    if (onUpdateBlock && selectedBlock) {
+                      onUpdateBlock(selectedBlock.id as string, {
+                        widgetProps: { ...wp, maps: next },
+                        props: {
+                          ...selectedBlock.props,
+                          title: first.title,
+                          description: first.description,
+                          address: first.address,
+                          zoom: first.zoom,
+                        },
+                      });
+                    } else if (blocks && setBlocks) {
+                      setIsDirty(true);
+                      setBlocks(blocks.map(b => b.id === selectedBlock.id ? {
+                        ...b,
+                        widgetProps: { ...(b.widgetProps || {}), maps: next },
+                        props: {
+                          ...b.props,
+                          title: first.title,
+                          description: first.description,
+                          address: first.address,
+                          zoom: first.zoom,
+                        },
+                      } : b));
+                    }
+                  };
+
+                  const updateEntry = (idx: number, patch: Partial<typeof entries[0]>) => {
+                    const next = entries.map((e, i) => i === idx ? { ...e, ...patch } : e);
+                    writeMaps(next);
+                  };
+                  const addEntry = () => {
+                    const next = [...entries, {
+                      id: 'map-' + Date.now(),
+                      title: 'Ricevimento',
+                      description: '',
+                      address: '',
+                      zoom: 15,
+                    }];
+                    writeMaps(next);
+                  };
+                  const removeEntry = (idx: number) => {
+                    if (entries.length <= 1) return;
+                    const next = entries.filter((_, i) => i !== idx);
+                    writeMaps(next);
+                  };
+
+                  const labelSm = { fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', display: 'block', marginBottom: '6px' };
+                  const inputBox = {
+                    position: 'relative' as const,
+                    display: 'flex', alignItems: 'center',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    transition: 'border-color .15s ease, box-shadow .15s ease'
+                  };
+                  const inputStyle = { flex: 1, background: 'transparent', border: 'none', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', padding: 0, outline: 'none', width: '100%' } as React.CSSProperties;
+                  const onFocusBox = (e: React.FocusEvent) => { const p = e.currentTarget.parentElement as HTMLDivElement | null; if (p) { p.style.borderColor = 'var(--accent)'; p.style.boxShadow = '0 0 0 3px rgba(var(--accent-rgb), 0.15)'; } };
+                  const onBlurBox = (e: React.FocusEvent) => { const p = e.currentTarget.parentElement as HTMLDivElement | null; if (p) { p.style.borderColor = 'var(--border)'; p.style.boxShadow = 'none'; } };
+
                   return (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                          Zoom
-                        </label>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent)' }}>{z}×</span>
-                      </div>
-                      <input
-                        type="range" className="custom-slider"
-                        min={10} max={19} step={1}
-                        value={z}
-                        onChange={(e) => {
-                          const newZoom = parseInt(e.target.value, 10);
-                          if (onUpdateBlock && selectedBlock) {
-                            onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, zoom: newZoom } });
-                          } else if (blocks && setBlocks) {
-                            setIsDirty(true);
-                            setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, zoom: newZoom } } : b));
-                          }
-                        }}
-                        style={{
-                          width: '100%',
-                          background: `linear-gradient(to right, var(--accent) ${pct}%, rgba(60, 79, 118, 0.1) ${pct}%)`
-                        } as React.CSSProperties}
-                      />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '9px', color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        <span>Città</span>
-                        <span>Via</span>
-                      </div>
-                    </div>
+                    <>
+                      {entries.map((entry, idx) => {
+                        const z = entry.zoom ?? 15;
+                        const pct = Math.round(((z - 10) / 9) * 100);
+                        return (
+                          <div key={entry.id} style={{
+                            marginBottom: '16px',
+                            padding: isMulti ? '14px' : '0',
+                            background: isMulti ? 'rgba(var(--accent-rgb), 0.04)' : 'transparent',
+                            border: isMulti ? '1px dashed rgba(var(--accent-rgb), 0.25)' : 'none',
+                            borderRadius: '12px',
+                          }}>
+                            {isMulti && (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                  Mappa {idx + 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeEntry(idx)}
+                                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--error, salmon)', fontSize: '11px', fontWeight: 600, padding: '4px 8px', borderRadius: '8px' }}
+                                >
+                                  <Trash2 size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Rimuovi
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Titolo */}
+                            <div style={{ marginBottom: '10px' }}>
+                              <label style={labelSm}>Titolo</label>
+                              <div style={inputBox}>
+                                <Pencil size={12} style={{ color: 'var(--text-soft)', marginRight: '8px', flexShrink: 0 }} />
+                                <input
+                                  type="text"
+                                  value={entry.title || ''}
+                                  onChange={(e) => updateEntry(idx, { title: e.target.value })}
+                                  placeholder="Es: Chiesa, Ricevimento…"
+                                  onFocus={onFocusBox}
+                                  onBlur={onBlurBox}
+                                  style={inputStyle}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Descrizione */}
+                            <div style={{ marginBottom: '10px' }}>
+                              <label style={labelSm}>Descrizione</label>
+                              <div style={{ ...inputBox, alignItems: 'flex-start' }}>
+                                <textarea
+                                  value={entry.description || ''}
+                                  onChange={(e) => updateEntry(idx, { description: e.target.value })}
+                                  placeholder="Es: La cerimonia inizia alle 16:00."
+                                  rows={2}
+                                  onFocus={onFocusBox}
+                                  onBlur={onBlurBox}
+                                  style={{ ...inputStyle, fontWeight: 500, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, minHeight: '40px' }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Indirizzo */}
+                            <div style={{ marginBottom: '10px' }}>
+                              <label style={labelSm}>Indirizzo</label>
+                              <div style={inputBox}>
+                                <MapPin size={12} style={{ color: 'var(--text-soft)', marginRight: '8px', flexShrink: 0 }} />
+                                <input
+                                  type="text"
+                                  value={entry.address || ''}
+                                  onChange={(e) => updateEntry(idx, { address: e.target.value })}
+                                  placeholder="Es: Via Roma 1, Milano"
+                                  onFocus={onFocusBox}
+                                  onBlur={onBlurBox}
+                                  style={inputStyle}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Zoom */}
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                  Zoom
+                                </label>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent)' }}>{z}×</span>
+                              </div>
+                              <input
+                                type="range" className="custom-slider"
+                                min={10} max={19} step={1}
+                                value={z}
+                                onChange={(e) => updateEntry(idx, { zoom: parseInt(e.target.value, 10) })}
+                                style={{
+                                  width: '100%',
+                                  background: `linear-gradient(to right, var(--accent) ${pct}%, rgba(60, 79, 118, 0.1) ${pct}%)`
+                                } as React.CSSProperties}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Aggiungi mappa (max 2 per ora — più di così l'UX si appesantisce) */}
+                      {entries.length < 2 && (
+                        <Button
+                          variant="subtle"
+                          onClick={addEntry}
+                          style={{
+                            width: '100%', justifyContent: 'center',
+                            borderColor: 'var(--accent-soft)', borderStyle: 'dashed',
+                            marginTop: '4px', marginBottom: '8px',
+                            fontSize: '12px', fontWeight: 600,
+                          }}
+                        >
+                          <Plus size={14} style={{ marginRight: 6 }} /> Aggiungi seconda mappa
+                        </Button>
+                      )}
+                    </>
                   );
                 })()}
 
@@ -473,14 +543,14 @@ const PageSection: React.FC<PageSectionProps> = ({
                     <div style={{
                       width: '20px', height: '20px',
                       borderRadius: '4px',
-                      background: selectedBlock.widgetProps?.mapAccentColor || 'var(--accent)',
+                      background: resolveAccentColor(selectedBlock.widgetProps?.mapAccentColor as string | undefined, event?.theme?.accent) || 'var(--accent)',
                       border: '1px solid rgba(0,0,0,0.1)'
                     }} />
                   </Button>
                   {displayColorPicker === 'mapAccent' && (
                     <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '8px' }}>
                       <CustomColorPicker
-                        color={(selectedBlock.widgetProps?.mapAccentColor as string) || '#14b8a6'}
+                        color={resolveAccentColor(selectedBlock.widgetProps?.mapAccentColor as string | undefined, event?.theme?.accent) || '#14b8a6'}
                         onChange={(color) => {
                           if (onUpdateBlock && selectedBlock) {
                             onUpdateBlock(selectedBlock.id as string, { widgetProps: { ...selectedBlock.widgetProps, mapAccentColor: color } });
@@ -1005,12 +1075,13 @@ const PageSection: React.FC<PageSectionProps> = ({
                 setBlocks={setBlocks}
                 onUpdateBlock={onUpdateBlock}
                 slug={slug}
+                themeAccent={event?.theme?.accent}
               />
             )}
 
             {/* SETTINGS SPECIFICI PER WIDGET TABLEAU */}
             {selectedBlock && selectedBlock.type === 'tableau' && (
-              <TableauSidebar 
+              <TableauSidebar
                 selectedBlock={selectedBlock}
                 onUpdateBlock={onUpdateBlock || ((id, up) => {
                   if (blocks && setBlocks) {
@@ -1027,8 +1098,29 @@ const PageSection: React.FC<PageSectionProps> = ({
               />
             )}
 
-            {/* SETTINGS SPECIFICI PER WIDGET RSVP */}
-            {selectedBlock && selectedBlock.type === 'rsvp' && selectedLayerIds.includes(widgetLayerIdForBlock(String(selectedBlock.id))) && (
+            {/* SETTINGS SPECIFICI PER WIDGET LIBRETTO MESSA */}
+            {selectedBlock && selectedBlock.type === 'libretto' && (
+              <LibrettoSidebar
+                selectedBlock={selectedBlock}
+                onUpdateBlock={onUpdateBlock || ((id, up) => {
+                  if (blocks && setBlocks) {
+                    setIsDirty(true);
+                    setBlocks(blocks.map(b => b.id === id ? { ...b, ...up } : b));
+                  }
+                })}
+                hasLibrettoAccess={event?.addons?.libretto || false}
+                slug={slug}
+                eventTitle={event?.title}
+                updateEventData={updateEventData}
+                event={event}
+              />
+            )}
+
+            {/* SETTINGS SPECIFICI PER WIDGET RSVP — sempre visibile su selezione
+                blocco rsvp (lock-root: niente più dipendenza da widget-virtual-id
+                in selectedLayerIds, che faceva sparire la sidebar quando l'utente
+                cliccava sul bordo della sezione invece che al centro). */}
+            {selectedBlock && selectedBlock.type === 'rsvp' && (
               <Surface variant="soft" className="panel-section" style={{ marginTop: '20px' }}>
 
                   {/* HEADER DI CONTESTO — ora intestazione interna del Surface (non un box separato),
@@ -1525,38 +1617,15 @@ const PageSection: React.FC<PageSectionProps> = ({
                 if (blocks && setBlocks) {
                   setIsDirty(true);
                   const newBlockId = 'block-gallery-' + Date.now();
-                  // Il titolo della sezione è ora un **layer testo libero** (stesso
-                  // pattern RSVP), non più una prop interna del widget. Motivo: con
-                  // un layer l'utente ha controllo completo su font/colore/dimensione/
-                  // allineamento con tutti gli editor standard, esattamente come per
-                  // qualsiasi altro titolo di pagina. Il precedente rendering `h3` nel
-                  // widget con colore adattivo dava due problemi:
-                  //   1) su bg molto chiari/scuri tagliava il titolo (overflow container);
-                  //   2) forzava nero/bianco e impediva la personalizzazione brand.
-                  const galleryLayers = [
-                    ...layers,
-                    {
-                      id: 'layer-gallery-title-' + newBlockId + '-' + Date.now(),
-                      blockId: newBlockId,
-                      type: 'text',
-                      text: 'LA NOSTRA GALLERIA',
-                      x: 'center',
-                      y: 40,
-                      width: 600,
-                      fontSize: 28,
-                      fontFamily: event?.theme?.fonts?.heading || 'Playfair Display',
-                      textAlign: 'center',
-                      color: event?.theme?.accent || 'var(--accent)'
-                    }
-                  ];
-                  // Altezza = titolo layer (40 top + ~50) + padding (24) + empty state
-                  // card (16:9 su 900max = ~506) + padding bottom (24) + breathing ≈ 660.
+                  // Lock-root: niente titolo-layer automatico. Il widget gallery
+                  // si autogestisce. Se serve un titolo, va come prop interna del
+                  // widget (TODO: aggiungere campo titolo in GallerySidebar).
                   setBlocks([...blocks, {
                     id: newBlockId,
                     type: 'gallery',
                     order: blocks.length,
                     y: 0,
-                    height: 660,
+                    height: 560,
                     bgColor: '#ffffff',
                     props: {
                       bgColor: '#ffffff',
@@ -1566,7 +1635,6 @@ const PageSection: React.FC<PageSectionProps> = ({
                       gap: 12
                     }
                   } as any]);
-                  setLayers(galleryLayers as any);
                   pushToHistory();
                 }
               }}>
@@ -1577,33 +1645,14 @@ const PageSection: React.FC<PageSectionProps> = ({
                 if (blocks && setBlocks) {
                   setIsDirty(true);
                   const newBlockId = 'block-video-' + Date.now();
-                  // Titolo = layer testo libero (stesso rationale della galleria).
-                  // Sul default nero scuro (#050506) il titolo default è bianco,
-                  // così è leggibile da subito; l'utente può cambiarlo.
-                  const videoLayers = [
-                    ...layers,
-                    {
-                      id: 'layer-video-title-' + newBlockId + '-' + Date.now(),
-                      blockId: newBlockId,
-                      type: 'text',
-                      text: 'IL NOSTRO VIDEO',
-                      x: 'center',
-                      y: 40,
-                      width: 600,
-                      fontSize: 28,
-                      fontFamily: event?.theme?.fonts?.heading || 'Playfair Display',
-                      textAlign: 'center',
-                      color: '#ffffff'
-                    }
-                  ];
-                  // Altezza = titolo layer (40 top + ~50) + spacer + video 16:9 max 900
-                  // = ~506 + padding bottom (24) + breathing ≈ 700.
+                  // Lock-root: niente titolo-layer automatico (TODO: titolo
+                  // come prop interna del widget se serve).
                   setBlocks([...blocks, {
                     id: newBlockId,
                     type: 'video',
                     order: blocks.length,
                     y: 0,
-                    height: 700,
+                    height: 600,
                     bgColor: '#050506',
                     props: {
                       bgColor: '#050506',
@@ -1614,7 +1663,6 @@ const PageSection: React.FC<PageSectionProps> = ({
                       controls: true
                     }
                   } as any]);
-                  setLayers(videoLayers as any);
                   pushToHistory();
                 }
               }}>
@@ -1640,7 +1688,8 @@ const PageSection: React.FC<PageSectionProps> = ({
                       paymentMinAmount: 1,
                       paymentMaxAmount: 5000,
                       paymentShowProgress: false,
-                      paymentAccentColor: '#C9A961',
+                      // paymentAccentColor non settato: fallback a theme.accent per
+                      // coerenza con il rendering pubblico.
                       paymentMode: 'gift',
                       mobileOrder: 5,
                     }
@@ -1663,7 +1712,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                     height: 800,
                     bgColor: '#f8fafc',
                     props: { bgColor: '#f8fafc' },
-                    widgetProps: { 
+                    widgetProps: {
                       tableauTables: [],
                       tableauAssignments: [],
                       tableauConstraints: [],
@@ -1674,6 +1723,38 @@ const PageSection: React.FC<PageSectionProps> = ({
                 }
               }}>
                 <LayoutGrid size={18} style={{marginRight: 8}}/> Sezione Tableau
+              </Button>
+
+              <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                if (blocks && setBlocks) {
+                  setIsDirty(true);
+                  const newBlockId = 'block-libretto-' + Date.now();
+                  // Pre-popola libretto con template default + nomi sposi se disponibili
+                  // dal titolo evento. Persistere subito evita IDs pagine instabili
+                  // (ogni mount di LibrettoWidget ne genererebbe di nuovi).
+                  const defaultLibretto = createDefaultLibretto('con-messa', {
+                    sposo1: '',
+                    sposo2: '',
+                    data: event?.date || '',
+                    chiesa: '',
+                  });
+                  setBlocks([...blocks, {
+                    id: newBlockId,
+                    type: 'libretto',
+                    order: blocks.length,
+                    y: 0,
+                    height: 720,
+                    bgColor: '#fffdf7',
+                    props: { bgColor: '#fffdf7' },
+                    widgetProps: {
+                      libretto: defaultLibretto,
+                      mobileOrder: 5,
+                    }
+                  } as any]);
+                  pushToHistory();
+                }
+              }}>
+                <BookOpen size={18} style={{marginRight: 8}}/> Sezione Libretto
               </Button>
             </div>
           </Surface>

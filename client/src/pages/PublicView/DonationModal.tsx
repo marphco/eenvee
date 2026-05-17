@@ -4,18 +4,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import type { Stripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { apiFetch } from '../../utils/apiFetch';
-import visaLogo from '../../assets/visa.svg';
-import visaDarkLogo from '../../assets/visa-dark.svg';
-import mastercardLogo from '../../assets/mastercard.svg';
-import amexLogo from '../../assets/amex.svg';
-import applePayLogo from '../../assets/apple-pay.svg';
-import applePayDarkLogo from '../../assets/apple-pay-dark.svg';
-import googlePayLogo from '../../assets/google-pay.svg';
-import googlePayDarkLogo from '../../assets/google-pay-dark.svg';
-import sepaLogo from '../../assets/sepa.svg';
-import sepaDarkLogo from '../../assets/sepa-dark.svg';
-import stripeLogo from '../../assets/stripe.svg';
-import stripeDarkLogo from '../../assets/stripe-dark.svg';
+import StripeTrustStrip from '../../components/payments/StripeTrustStrip';
 
 const STRIPE_PUBLISHABLE_KEY = (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY || '';
 
@@ -575,26 +564,8 @@ const AmountStep: React.FC<AmountStepProps> = ({
         {creating ? <><Loader2 size={16} className="spin" /> Preparo il pagamento…</> : 'Continua al pagamento'}
       </button>
 
-      <div style={{ fontSize: '10px', color: '#888', textAlign: 'center', letterSpacing: '0.02em', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', opacity: 0.8 }}>
-          <span style={{ fontSize: '10px' }}>Pagamento sicuro via</span>
-          <img src={stripeDarkLogo} alt="Stripe" style={{ height: '11px', width: 'auto', display: 'block' }} />
-        </div>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          gap: '12px', 
-          opacity: 0.5
-        }}>
-          <img src={visaDarkLogo} alt="Visa" style={{ height: '9px', width: 'auto', display: 'block' }} />
-          <img src={mastercardLogo} alt="Mastercard" style={{ height: '13px', width: 'auto', display: 'block' }} />
-          <img src={amexLogo} alt="Amex" style={{ height: '11px', width: 'auto', display: 'block' }} />
-          <img src={applePayDarkLogo} alt="Apple Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
-          <img src={googlePayDarkLogo} alt="Google Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
-          <img src={sepaDarkLogo} alt="SEPA" style={{ height: '9px', width: 'auto', display: 'block' }} />
-        </div>
-      </div>
+      {/* DonationModal ha sfondo bianco → loghi colorati (default `bg='light'`). */}
+      <StripeTrustStrip />
     </form>
   );
 };

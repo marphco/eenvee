@@ -8,8 +8,10 @@ import GalleryWidget from './widgets/GalleryWidget';
 import VideoWidget from './widgets/VideoWidget';
 import PaymentWidget from './widgets/PaymentWidget';
 import TableauWidget from './widgets/TableauWidget';
+import LibrettoWidget from './widgets/LibrettoWidget';
 import { widgetLayerIdForBlock } from '../../../utils/widgetLayerId';
 import { resolveBlockHeight } from '../../../utils/blockHeight';
+import { isWidgetBlock, resolveAccentColor } from '../../../utils/blockTypes';
 
 interface SectionCanvasProps {
   block: Block;
@@ -45,6 +47,56 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [snapGuides, setSnapGuides] = useState<{axis: string, position: number}[]>([]);
   const lastClickRef = useRef({ id: null as string | null, time: 0 });
+
+  /**
+   * Auto-resize del block alla dimensione naturale del widget interno.
+   * Stesso pattern di TableauWidget/LibrettoWidget (che hanno la logica dentro
+   * il widget stesso) ma applicato qui a livello SectionCanvas per i widget
+   * "passivi" (rsvp/gallery/video/payment/map) che non sanno aggiornare il
+   * loro block.
+   *
+   * Senza questo, block.height resta al default 400 mentre il widget interno
+   * può essere più grande (form RSVP ~700px) o più piccolo (mappa empty 360px),
+   * generando sforatura o spazio vuoto enorme.
+   */
+  const widgetAutoResizeRef = useRef<HTMLDivElement>(null);
+  const isAutoResizeWidget = block.type === 'rsvp' || block.type === 'gallery'
+    || block.type === 'video' || block.type === 'payment' || block.type === 'map';
+  const blockHeightRef = useRef<number>(block.height || 400);
+  React.useEffect(() => { blockHeightRef.current = block.height || 400; }, [block.height]);
+
+  React.useEffect(() => {
+    if (!isAutoResizeWidget) return;
+    if (!onUpdateBlock || !widgetAutoResizeRef.current) return;
+    if (!block.id) return;
+    const el = widgetAutoResizeRef.current;
+    const blockId = block.id;
+    let debounceTimer: number | undefined;
+    const measure = () => {
+      const widgetH = el.scrollHeight;
+      const required = Math.max(widgetH + 80, 200);
+      if (Math.abs(required - blockHeightRef.current) > 8) {
+        blockHeightRef.current = required;
+        onUpdateBlock(blockId, { height: required });
+      }
+    };
+    const ro = new ResizeObserver(() => {
+      window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(measure, 80);
+    });
+    ro.observe(el);
+    // Trigger iniziali multipli per catturare layout asincroni (font/img).
+    const t1 = window.setTimeout(measure, 100);
+    const t2 = window.setTimeout(measure, 350);
+    const t3 = window.setTimeout(measure, 800);
+    return () => {
+      ro.disconnect();
+      window.clearTimeout(debounceTimer);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [isAutoResizeWidget, onUpdateBlock, block.id, block.props, block.widgetProps]);
 
   const handleResizePointerDown = (e: React.PointerEvent, layer: Layer, position: string) => {
     if (previewMobile) return; // Protezione binari: no resize in vista mobile
@@ -333,103 +385,21 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   };
 
   /**
-   * Drag handler generico per i widget posizionati (RSVP, Gallery, Video).
-   *
-   * Prima esisteva un solo `handleWidgetPointerDown` hard-coded su RSVP
-   * (`widget-rsvp` + `formX/formY`). Ora lo stesso comportamento — click-to-select,
-   * drag con conversione in coord blocco via `editorScale`, snap sugli assi
-   * centrali e sugli altri layer, push history al rilascio — vale per qualsiasi
-   * widget posizionato. Ogni widget-type ha le sue chiavi in `widgetProps` per
-   * non collidere:
-   *  - RSVP      → formX / formY (manteniamo nome storico per retrocompat DB)
-   *  - Gallery   → widgetX / widgetY
-   *  - Video     → widgetX / widgetY
+   * Click-only sui widget chiusi (lock-root): seleziona il **block-root** per
+   * attivare la sidebar contestuale. Non setta `selectedLayerIds` con il
+   * widget-virtual-id: prima così facevamo perché alcune sidebar (RSVP)
+   * dipendevano dalla selezione del widget interno, ma questo creava il
+   * paradosso "click sul bordo nasconde la sidebar / click al centro nasconde
+   * elimina-sezione". Ora la sidebar contestuale (rsvp/payment/tableau/
+   * libretto) si attiva su `selectedBlockId` puro, indipendente da dove
+   * l'utente clicca.
    */
-  const handleWidgetPointerDownGeneric = (
-    e: React.PointerEvent,
-    config: { widgetId: string; xKey: string; yKey: string; defaultX: number; defaultY: number }
-  ) => {
+  const handleWidgetClickOnly = (e: React.PointerEvent) => {
     if (previewMobile) return;
-    if (!onUpdateBlock) return;
-
     e.stopPropagation();
     if (onSelectBlock) onSelectBlock();
-    setSelectedLayerIds([config.widgetId]);
-
-    const target = e.currentTarget as HTMLElement;
-    target.setPointerCapture(e.pointerId);
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-
-    const wp: Record<string, unknown> = (block.widgetProps || {}) as any;
-    const rawX = wp[config.xKey];
-    const rawY = wp[config.yKey];
-
-    let initialX = typeof rawX === 'number' && !isNaN(rawX) ? rawX : config.defaultX;
-    let initialY = typeof rawY === 'number' && !isNaN(rawY) ? rawY : config.defaultY;
-
-    let dx = 0; let dy = 0;
-
-    const handleMove = (moveEv: PointerEvent) => {
-      dx = (moveEv.clientX - startX) / editorScale;
-      dy = (moveEv.clientY - startY) / editorScale;
-
-      let nx = initialX + dx;
-      let ny = initialY + dy;
-
-      const newGuides: { axis: string, position: number }[] = [];
-      const SNAP_THRESHOLD = 5;
-
-      if (containerRef.current) {
-        const cw = containerRef.current.clientWidth;
-        const ch = containerRef.current.clientHeight;
-
-        let snappedX = false;
-        let snappedY = false;
-
-        if (Math.abs(nx - cw / 2) < SNAP_THRESHOLD) { nx = cw / 2; newGuides.push({ axis: 'x', position: cw / 2 }); snappedX = true; }
-        if (Math.abs(ny - ch / 2) < SNAP_THRESHOLD) { ny = ch / 2; newGuides.push({ axis: 'y', position: ch / 2 }); snappedY = true; }
-
-        layers.forEach(otherL => {
-          const ox = typeof otherL.x === 'number' ? otherL.x : cw / 2;
-          const oy = typeof otherL.y === 'number' ? otherL.y : ch / 2;
-
-          if (!snappedX && Math.abs(nx - ox) < SNAP_THRESHOLD) { nx = ox; newGuides.push({ axis: 'x', position: ox }); snappedX = true; }
-          if (!snappedY && Math.abs(ny - oy) < SNAP_THRESHOLD) { ny = oy; newGuides.push({ axis: 'y', position: oy }); snappedY = true; }
-        });
-      }
-
-      setSnapGuides(newGuides);
-      // Merge con widgetProps esistente: altri settings (es. mapAccentColor,
-      // mobileOrder) non vanno persi a ogni drag.
-      onUpdateBlock(block.id as string, {
-        widgetProps: { ...(block.widgetProps || {}), [config.xKey]: nx, [config.yKey]: ny }
-      });
-    };
-
-    const handleUp = (upEv: PointerEvent) => {
-      target.releasePointerCapture(upEv.pointerId);
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-      document.body.style.overflow = '';
-      setSnapGuides([]);
-      pushToHistory();
-    };
-
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
+    setSelectedLayerIds([]);
   };
-
-  // Back-compat: il form RSVP usa ancora la stessa API `onPointerDown={handleWidgetPointerDown}`.
-  const handleWidgetPointerDown = (e: React.PointerEvent) => handleWidgetPointerDownGeneric(e, {
-    widgetId: widgetSelId,
-    xKey: 'formX',
-    yKey: 'formY',
-    defaultX: 500,
-    defaultY: logicalH / 2,
-  });
 
   if (previewMobile) {
     const sortedLayers = sortLayersForMobile(layers);
@@ -474,10 +444,14 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           const widgetId =
             block.type === 'rsvp' || block.type === 'gallery' || block.type === 'video'
             || block.type === 'payment' || block.type === 'map' || block.type === 'tableau'
+            || block.type === 'libretto'
               ? widgetSelId
               : null;
 
-          const blockLayers = sortedLayers
+          // Lock-root: nessun layer testo/immagine free-form viene renderizzato
+          // dentro a block widget (compresi i layer storici "LA NOSTRA GALLERIA"
+          // ecc. creati prima del refactor lock-root).
+          const blockLayers = isWidgetBlock(block.type) ? [] : sortedLayers
             .filter(layer => layer.blockId === block.id && !layer.hiddenMobile)
             .map(l => ({ ...l, isWidget: false }));
 
@@ -493,7 +467,11 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
 
           return allItems.map(item => {
             if (item!.isWidget) {
-              const isSelected = widgetId ? selectedLayerIds.includes(widgetId) : false;
+              // Lock-root: i widget chiusi (rsvp/map/gallery/video/payment/tableau/
+              // libretto) NON mostrano outline di selezione né cursor pointer sul
+              // root — il loro contenuto è auto-dimensionato e non spostabile
+              // come block. La selezione logica del widget interno resta attiva
+              // perché serve a triggerare le sidebar contestuali (es. RSVP form).
               return (
                 <div
                   key={item!.id}
@@ -501,34 +479,28 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                     pointerEvents: 'auto',
                     position: 'relative',
                     zIndex: 0,
-                    cursor: 'pointer',
-                    border: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
-                    borderRadius: '16px',
-                    transition: 'border-color 0.2s'
+                    cursor: 'default',
+                    border: '2px solid transparent',
+                    borderRadius: '16px'
                   }}
                   onPointerDown={(e) => {
                     e.stopPropagation();
-                    // Tutti i widget con widgetId (rsvp/gallery/video) espongono un
-                    // "widget-layer" selezionabile: mettendolo in selectedLayerIds la
-                    // sidebar mostra i controlli contestuali e la toolbar mobile
-                    // attiva SPOSTA SU/GIÙ coerentemente. La mappa invece non ha
-                    // widget-layer (resta fill-parent, selezionare il blocco basta).
-                    if (widgetId) {
-                      setSelectedLayerIds([widgetId]);
-                    } else {
-                      setSelectedLayerIds([]);
-                    }
+                    // Lock-root: solo selectedBlockId, no widget-virtual-id (vedi
+                    // commento `handleWidgetClickOnly`).
+                    setSelectedLayerIds([]);
                     if (onSelectBlock) onSelectBlock();
                   }}
                 >
                   <div style={{ fontSize: '12px', fontWeight: 600 }}>
                   {block.type === 'map' && (
                       <MapWidget
+                        maps={block.widgetProps?.maps as any}
                         address={block.props?.address}
                         title={block.props?.title}
+                        description={block.props?.description}
                         zoom={block.props?.zoom}
                         sectionBg={block.props?.bgColor || block.bgColor}
-                        accentColor={block.widgetProps?.mapAccentColor || theme?.accent}
+                        accentColor={resolveAccentColor(block.widgetProps?.mapAccentColor as string | undefined, theme?.accent)}
                         previewMobile={previewMobile}
                       />
                     )}
@@ -576,7 +548,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                         maxAmount={block.widgetProps?.paymentMaxAmount}
                         targetAmount={block.widgetProps?.paymentTargetAmount}
                         showProgress={block.widgetProps?.paymentShowProgress}
-                        accentColor={block.widgetProps?.paymentAccentColor || theme?.accent}
+                        accentColor={resolveAccentColor(block.widgetProps?.paymentAccentColor as string | undefined, theme?.accent)}
                         mode={block.widgetProps?.paymentMode}
                         ctaLabel={block.widgetProps?.paymentCtaLabel}
                         allowCustomAmount={block.widgetProps?.paymentAllowCustomAmount !== false}
@@ -586,13 +558,24 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                       />
                     )}
                     {block.type === 'tableau' && (
-                      <TableauWidget 
+                      <TableauWidget
                         block={block}
                         isEditor={true}
                         hasTableauAccess={event?.addons?.tableau || false}
                         onUpdateBlock={onUpdateBlock}
-                        accentColor={block.widgetProps?.tableauAccentColor || theme?.accent}
+                        accentColor={resolveAccentColor(block.widgetProps?.tableauAccentColor as string | undefined, theme?.accent)}
                         sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
+                      />
+                    )}
+                    {block.type === 'libretto' && (
+                      <LibrettoWidget
+                        block={block}
+                        isEditor={true}
+                        hasLibrettoAccess={event?.addons?.libretto || false}
+                        onUpdateBlock={onUpdateBlock}
+                        accentColor={resolveAccentColor(block.widgetProps?.librettoAccentColor as string | undefined, theme?.accent)}
+                        sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
+                        previewMobile={previewMobile}
                       />
                     )}
                   </div>
@@ -679,68 +662,63 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
         if (onSelectBlock) onSelectBlock();
       }
     }}>
-      {/* Mappa resta fill-parent: non è un "oggetto mobile" come form/gallery/video,
-          è un layer informativo che accompagna l'evento (indirizzo + pin). Avrebbe
-          poco senso poterla trascinare a caso nella sezione; se serve riposizionarla
-          si sposta il blocco intero. */}
+      {/* Map: ora autodimensionato come gli altri widget — il block si adatta
+          all'altezza naturale del MapWidget tramite l'effect di auto-resize
+          (vedi widgetAutoResizeRef). Niente più fill-parent forzato. */}
       {block.type === 'map' && (
-        <div style={{ pointerEvents: 'none', width: '100%', height: '100%', display: 'flex', alignItems: 'flex-start' }}>
-          <MapWidget
-            address={block.props?.address}
-            title={block.props?.title}
-            zoom={block.props?.zoom}
-            sectionBg={block.props?.bgColor || block.bgColor}
-            accentColor={block.widgetProps?.mapAccentColor || theme?.accent}
-            previewMobile={false}
-          />
+        <div
+          ref={widgetAutoResizeRef}
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'auto',
+            cursor: 'pointer',
+            touchAction: 'auto',
+            zIndex: 5,
+            width: 'min(940px, calc(100% - 40px))'
+          }}
+          onPointerDown={handleWidgetClickOnly}
+        >
+          <div style={{ pointerEvents: 'none', width: '100%' }}>
+            <MapWidget
+              maps={block.widgetProps?.maps as any}
+              address={block.props?.address}
+              title={block.props?.title}
+              description={block.props?.description}
+              zoom={block.props?.zoom}
+              sectionBg={block.props?.bgColor || block.bgColor}
+              accentColor={resolveAccentColor(block.widgetProps?.mapAccentColor as string | undefined, theme?.accent)}
+              previewMobile={false}
+            />
+          </div>
         </div>
       )}
 
-      {/* Galleria e Video come "oggetti posizionabili" — stesso pattern RSVP:
-          position absolute + translate(-50%, -50%), rettangolo di selezione accent
-          quando selezionati, drag handler che scrive in `widgetProps.widgetX/Y` e
-          pubblica le stesse guide di snap del form. Serve per poter mettere
-          testi/layers intorno al widget (es. titoli, didascalie) senza che il
-          widget occupi tutto lo spazio. */}
-      {block.type === 'gallery' && (() => {
-        const wx = typeof block.widgetProps?.widgetX === 'number' && !isNaN(block.widgetProps.widgetX)
-          ? (block.widgetProps.widgetX as number) + 'px' : '50%';
-        const wy = typeof block.widgetProps?.widgetY === 'number' && !isNaN(block.widgetProps.widgetY)
-          ? (block.widgetProps.widgetY as number) + 'px' : '50%';
-        return (
+      {/* Lock-root: tutti i widget chiusi sono SEMPRE centrati (50%/50%) nel
+          block. I valori storici `widgetX/widgetY/formX/formY/tableauX/Y/
+          librettoX/Y` sono ignorati: senza il drag-handler che li scalava
+          proporzionalmente al resize del block, lasciarli portava a widget
+          che sforavano fuori dal block (vedi tableau bug). I block restano
+          a contenere il widget tramite `onUpdateBlock(height)` interno
+          (tableau/libretto) o `minHeight: auto` (gallery/video/payment). */}
+      {block.type === 'gallery' && (
           <div
+            ref={widgetAutoResizeRef}
             style={{
               position: 'absolute',
-              top: wy,
-              left: wx,
+              top: '50%',
+              left: '50%',
               transform: 'translate(-50%, -50%)',
               pointerEvents: 'auto',
-              cursor: 'grab',
-              touchAction: 'none',
+              cursor: 'pointer',
+              touchAction: 'auto',
               zIndex: 5,
-              // Width concreta invece di `max-content`: i widget interni
-              // (Gallery empty state, Video) usano `paddingTop: 56.25%` per
-              // l'aspect ratio 16:9 — calcolato sulla width del parent. Con
-              // `max-content` il parent collassa a 0 e il video sparisce.
-              // Usiamo il maxWidth interno del widget (900px) + respiro ai lati.
               width: 'min(940px, calc(100% - 40px))'
             }}
-            onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
-              widgetId: widgetSelId, xKey: 'widgetX', yKey: 'widgetY',
-              defaultX: (containerRef.current?.clientWidth || 1000) / 2,
-              defaultY: logicalH / 2,
-            })}
+            onPointerDown={handleWidgetClickOnly}
           >
-            {selectedLayerIds.includes(widgetSelId) && (
-              <div style={{
-                position: 'absolute',
-                top: -8, bottom: -8, left: -8, right: -8,
-                border: '2px solid var(--accent)',
-                borderRadius: '12px',
-                pointerEvents: 'none',
-                zIndex: 100
-              }} />
-            )}
             <div style={{ pointerEvents: 'none', width: '100%' }}>
               <GalleryWidget
                 title={block.props?.title}
@@ -755,45 +733,24 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
               />
             </div>
           </div>
-        );
-      })()}
+      )}
 
-      {block.type === 'video' && (() => {
-        const wx = typeof block.widgetProps?.widgetX === 'number' && !isNaN(block.widgetProps.widgetX)
-          ? (block.widgetProps.widgetX as number) + 'px' : '50%';
-        const wy = typeof block.widgetProps?.widgetY === 'number' && !isNaN(block.widgetProps.widgetY)
-          ? (block.widgetProps.widgetY as number) + 'px' : '50%';
-        return (
+      {block.type === 'video' && (
           <div
+            ref={widgetAutoResizeRef}
             style={{
               position: 'absolute',
-              top: wy,
-              left: wx,
+              top: '50%',
+              left: '50%',
               transform: 'translate(-50%, -50%)',
               pointerEvents: 'auto',
-              cursor: 'grab',
-              touchAction: 'none',
+              cursor: 'pointer',
+              touchAction: 'auto',
               zIndex: 5,
-              // Vedi nota width su widget-gallery: `paddingTop: 56.25%` del
-              // VideoWidget richiede width concreta del parent, non `max-content`.
               width: 'min(940px, calc(100% - 40px))'
             }}
-            onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
-              widgetId: widgetSelId, xKey: 'widgetX', yKey: 'widgetY',
-              defaultX: (containerRef.current?.clientWidth || 1000) / 2,
-              defaultY: logicalH / 2,
-            })}
+            onPointerDown={handleWidgetClickOnly}
           >
-            {selectedLayerIds.includes(widgetSelId) && (
-              <div style={{
-                position: 'absolute',
-                top: -8, bottom: -8, left: -8, right: -8,
-                border: '2px solid var(--accent)',
-                borderRadius: '12px',
-                pointerEvents: 'none',
-                zIndex: 100
-              }} />
-            )}
             <div style={{ pointerEvents: 'none', width: '100%' }}>
               <VideoWidget
                 title={block.props?.title}
@@ -809,42 +766,24 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
               />
             </div>
           </div>
-        );
-      })()}
-      {block.type === 'payment' && (() => {
-        const wx = typeof block.widgetProps?.widgetX === 'number' && !isNaN(block.widgetProps.widgetX)
-          ? (block.widgetProps.widgetX as number) + 'px' : '50%';
-        const wy = typeof block.widgetProps?.widgetY === 'number' && !isNaN(block.widgetProps.widgetY)
-          ? (block.widgetProps.widgetY as number) + 'px' : '50%';
-        return (
+      )}
+
+      {block.type === 'payment' && (
           <div
+            ref={widgetAutoResizeRef}
             style={{
               position: 'absolute',
-              top: wy,
-              left: wx,
+              top: '50%',
+              left: '50%',
               transform: 'translate(-50%, -50%)',
               pointerEvents: 'auto',
-              cursor: 'grab',
-              touchAction: 'none',
+              cursor: 'pointer',
+              touchAction: 'auto',
               zIndex: 5,
               width: 'min(620px, calc(100% - 40px))'
             }}
-            onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
-              widgetId: widgetSelId, xKey: 'widgetX', yKey: 'widgetY',
-              defaultX: (containerRef.current?.clientWidth || 1000) / 2,
-              defaultY: logicalH / 2,
-            })}
+            onPointerDown={handleWidgetClickOnly}
           >
-            {selectedLayerIds.includes(widgetSelId) && (
-              <div style={{
-                position: 'absolute',
-                top: -8, bottom: -8, left: -8, right: -8,
-                border: '2px solid var(--accent)',
-                borderRadius: '16px',
-                pointerEvents: 'none',
-                zIndex: 100
-              }} />
-            )}
             <div style={{ pointerEvents: 'none', width: '100%' }}>
               <PaymentWidget
                 title={block.widgetProps?.paymentTitle}
@@ -854,7 +793,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                 maxAmount={block.widgetProps?.paymentMaxAmount}
                 targetAmount={block.widgetProps?.paymentTargetAmount}
                 showProgress={block.widgetProps?.paymentShowProgress}
-                accentColor={block.widgetProps?.paymentAccentColor || theme?.accent}
+                accentColor={resolveAccentColor(block.widgetProps?.paymentAccentColor as string | undefined, theme?.accent)}
                 mode={block.widgetProps?.paymentMode}
                 ctaLabel={block.widgetProps?.paymentCtaLabel}
                 allowCustomAmount={block.widgetProps?.paymentAllowCustomAmount !== false}
@@ -864,34 +803,24 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
               />
             </div>
           </div>
-        );
-      })()}
+      )}
 
       {block.type === 'rsvp' && (
-        <div 
-          style={{ 
+        <div
+          ref={widgetAutoResizeRef}
+          style={{
             position: 'absolute',
-            top: typeof block.widgetProps?.formY === 'number' && !isNaN(block.widgetProps.formY) ? block.widgetProps.formY + 'px' : '50%',
-            left: typeof block.widgetProps?.formX === 'number' && !isNaN(block.widgetProps.formX) ? block.widgetProps.formX + 'px' : '50%',
+            top: '50%',
+            left: '50%',
             transform: 'translate(-50%, -50%)',
-            pointerEvents: 'auto', 
-            cursor: 'grab',
-            touchAction: 'none',
+            pointerEvents: 'auto',
+            cursor: 'pointer',
+            touchAction: 'auto',
             zIndex: 5,
             width: 'max-content'
           }}
-          onPointerDown={handleWidgetPointerDown}
+          onPointerDown={handleWidgetClickOnly}
         >
-          {selectedLayerIds.includes(widgetSelId) && (
-            <div style={{
-              position: 'absolute',
-              top: -8, bottom: -8, left: -8, right: -8,
-              border: '2px solid var(--accent)',
-              borderRadius: '12px',
-              pointerEvents: 'none',
-              zIndex: 100
-            }} />
-          )}
           <div style={{ pointerEvents: 'none', width: '100%' }}>
             <RSVPWidget 
               block={block} 
@@ -904,56 +833,61 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
         </div>
       )}
 
-      {block.type === 'tableau' && (() => {
-        // Tableau: stessa logica del modulo RSVP — draggabile in tutte le direzioni, centrato di default.
-        // La sezione cresce verso il basso col contenuto via onUpdateBlock(height) dal TableauWidget,
-        // che scala tableauY proporzionalmente per non far perdere la posizione al widget.
-        const wx = typeof block.widgetProps?.tableauX === 'number' && !isNaN(block.widgetProps.tableauX)
-          ? (block.widgetProps.tableauX as number) + 'px' : '50%';
-        const wy = typeof block.widgetProps?.tableauY === 'number' && !isNaN(block.widgetProps.tableauY)
-          ? (block.widgetProps.tableauY as number) + 'px' : '50%';
-        return (
+      {block.type === 'libretto' && (
           <div
             style={{
               position: 'absolute',
-              top: wy,
-              left: wx,
+              top: '50%',
+              left: '50%',
               transform: 'translate(-50%, -50%)',
               pointerEvents: 'auto',
-              cursor: 'grab',
-              touchAction: 'none',
+              cursor: 'pointer',
+              touchAction: 'auto',
               zIndex: 5,
               width: 'min(900px, calc(100% - 40px))'
             }}
-            onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
-              widgetId: widgetSelId, xKey: 'tableauX', yKey: 'tableauY',
-              defaultX: (containerRef.current?.clientWidth || 1000) / 2,
-              defaultY: logicalH / 2,
-            })}
+            onPointerDown={handleWidgetClickOnly}
           >
-            {selectedLayerIds.includes(widgetSelId) && (
-              <div style={{
-                position: 'absolute',
-                top: -8, bottom: -8, left: -8, right: -8,
-                border: '2px solid var(--accent)',
-                borderRadius: '16px',
-                pointerEvents: 'none',
-                zIndex: 100
-              }} />
-            )}
             <div style={{ pointerEvents: 'none', width: '100%' }}>
-              <TableauWidget 
+              <LibrettoWidget
                 block={block}
                 isEditor={true}
-                hasTableauAccess={event?.addons?.tableau || false}
+                hasLibrettoAccess={event?.addons?.libretto || false}
                 onUpdateBlock={onUpdateBlock}
-                accentColor={block.widgetProps?.tableauAccentColor || theme?.accent}
+                accentColor={resolveAccentColor(block.widgetProps?.librettoAccentColor as string | undefined, theme?.accent)}
                 sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
               />
             </div>
           </div>
-        );
-      })()}
+      )}
+
+      {block.type === 'tableau' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'auto',
+              cursor: 'pointer',
+              touchAction: 'auto',
+              zIndex: 5,
+              width: 'min(900px, calc(100% - 40px))'
+            }}
+            onPointerDown={handleWidgetClickOnly}
+          >
+            <div style={{ pointerEvents: 'none', width: '100%' }}>
+              <TableauWidget
+                block={block}
+                isEditor={true}
+                hasTableauAccess={event?.addons?.tableau || false}
+                onUpdateBlock={onUpdateBlock}
+                accentColor={resolveAccentColor(block.widgetProps?.tableauAccentColor as string | undefined, theme?.accent)}
+                sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
+              />
+            </div>
+          </div>
+      )}
 
       {/* Questo branch è raggiunto **solo** in preview desktop dell'editor (il ramo
           mobile fa early-return più in alto). Quindi filtriamo solo `hiddenDesktop`;
@@ -961,6 +895,8 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
       {layers
         .filter(layer => {
           if (layer.hiddenDesktop) return false;
+          // Lock-root: nessun layer dentro block widget (vedi filter mobile).
+          if (isWidgetBlock(block.type)) return false;
           const bId = block.id || block._id;
           if (!layer.blockId) {
             if (bId) return false;

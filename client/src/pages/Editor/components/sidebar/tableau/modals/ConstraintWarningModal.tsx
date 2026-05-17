@@ -23,14 +23,17 @@ const ConstraintWarningModal: React.FC<ConstraintWarningModalProps> = ({ warning
     <div style={{
       position: 'fixed', inset: 0, zIndex: 100002,
       background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+      paddingTop: 'max(20px, env(safe-area-inset-top))',
+      paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
     }}>
       <Surface variant="soft" style={{
-        maxWidth: '420px', width: '100%', padding: '40px 36px', borderRadius: '32px',
+        maxWidth: '420px', width: '100%', padding: '36px 32px', borderRadius: '32px',
         textAlign: 'center', boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
         background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
         border: '1px solid rgba(255,255,255,0.4)',
-        animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        maxHeight: '90dvh', overflowY: 'auto', boxSizing: 'border-box',
       }}>
         <div style={{
           width: '72px', height: '72px', borderRadius: '20px',

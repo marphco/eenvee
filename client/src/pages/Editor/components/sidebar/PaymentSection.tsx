@@ -5,6 +5,7 @@ import CustomColorPicker from '../CustomColorPicker';
 import StripeOnboardingDialog from '../stripe/StripeOnboardingDialog';
 import type { Block } from '../../../../types/editor';
 import { apiFetch } from '../../../../utils/apiFetch';
+import { resolveAccentColor } from '../../../../utils/blockTypes';
 
 interface StripeStatus {
   connected: boolean;
@@ -37,6 +38,8 @@ interface PaymentSectionProps {
    * Se assente, mostra tutto (uso desktop).
    */
   section?: PaymentSectionTab;
+  /** Accent del tema evento; usato come fallback quando widgetProps.paymentAccentColor è vuoto/legacy. */
+  themeAccent?: string | undefined;
 }
 
 const labelStyle: React.CSSProperties = {
@@ -59,7 +62,7 @@ const inputStyle: React.CSSProperties = {
 
 const PaymentSection: React.FC<PaymentSectionProps> = ({
   block, displayColorPicker, setDisplayColorPicker, setIsDirty,
-  blocks, setBlocks, onUpdateBlock, slug, compact = false, section,
+  blocks, setBlocks, onUpdateBlock, slug, compact = false, section, themeAccent,
 }) => {
   // In compact+section, mostra solo la sezione richiesta. Se compact senza
   // section, mostra tutto (comportamento legacy). Su desktop (compact=false)
@@ -440,12 +443,12 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
             }}
           >
             <span style={{ fontSize: '12px', fontWeight: 600 }}>Pulsante & Accenti</span>
-            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: props.paymentAccentColor || 'var(--accent)', border: '1px solid rgba(0,0,0,0.1)' }} />
+            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: resolveAccentColor(props.paymentAccentColor as string | undefined, themeAccent) || 'var(--accent)', border: '1px solid rgba(0,0,0,0.1)' }} />
           </Button>
           {displayColorPicker === 'paymentAccent' && (
             <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '8px' }}>
               <CustomColorPicker
-                color={props.paymentAccentColor || '#1a1a1a'}
+                color={resolveAccentColor(props.paymentAccentColor as string | undefined, themeAccent) || '#1a1a1a'}
                 onChange={(color) => patch({ paymentAccentColor: color })}
               />
             </div>

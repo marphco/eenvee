@@ -7,14 +7,19 @@ interface CustomFontSelectProps {
   value: string;
   onChange: (font: string) => void;
   fonts: string[];
-  selectedLayer: Layer | undefined;
+  /** Layer correntemente selezionato (canvas editor): override automatico
+      del preview text con il contenuto del layer. Per usi non-canvas
+      (libretto, ecc.) lasciare undefined e passare `previewText`. */
+  selectedLayer?: Layer | undefined;
+  /** Preview text esplicito quando non c'è un layer (libretto/standalone). */
+  previewText?: string | undefined;
 }
 
-const CustomFontSelect: React.FC<CustomFontSelectProps> = ({ value, onChange, fonts, selectedLayer }) => {
+const CustomFontSelect: React.FC<CustomFontSelectProps> = ({ value, onChange, fonts, selectedLayer, previewText: previewTextProp }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const previewText = getFontPreviewText(selectedLayer);
+  const previewText = previewTextProp || getFontPreviewText(selectedLayer);
 
   useEffect(() => {
      const clickOut = (e: MouseEvent) => {

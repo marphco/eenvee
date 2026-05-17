@@ -20,6 +20,8 @@ import { useEditorInteractions } from "./hooks/useEditorInteractions";
 
 // Types
 import type { EventData, Layer, Block, CanvasProps } from "../../types/editor";
+import { isWidgetBlock } from "../../utils/blockTypes";
+import { LibrettoPreviewProvider } from "./components/widgets/libretto/LibrettoPreviewContext";
 
 export default function EventEditor() {
   const isMobile = window.innerWidth <= 768;
@@ -59,7 +61,13 @@ export default function EventEditor() {
   const [layers, setLayers] = useState<Layer[]>([]);
   const [event, setEvent] = useState<EventData | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
-  const [previewMobile, setPreviewMobile] = useState(false);
+  // Default device-aware: se l'utente apre l'editor da telefono → preview Mobile;
+  // da desktop → preview Desktop. Si può sempre togglare manualmente dalla
+  // toolbar "Visualizza su". Usiamo matchMedia (768px breakpoint del progetto).
+  const [previewMobile, setPreviewMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(max-width: 768px)').matches;
+  });
 
   const {
     isDirty, setIsDirty,
@@ -149,6 +157,18 @@ export default function EventEditor() {
 
   // --- WRAPPER FOR CONVENIENCE ---
   const addTextLayer = () => {
+    // In event_page mode il testo va SEMPRE dentro un blocco canvas selezionato.
+    // Senza selezione il layer finirebbe orfano e verrebbe renderizzato sul
+    // primo canvas (invito). Safety net contro toolbar/scorciatoie che chiamano
+    // questa funzione fuori contesto.
+    if (editorMode === 'event_page' && !selectedBlockId) return;
+    // Lock-root: blocchi widget chiusi (rsvp/map/gallery/video/payment/tableau/
+    // libretto) non accettano layer testo free-form. Guard difensivo per
+    // qualunque code-path (sidebar, toolbar, scorciatoie, future API).
+    if (editorMode === 'event_page' && selectedBlockId) {
+      const targetBlock = blocks.find(b => b.id === selectedBlockId);
+      if (targetBlock && isWidgetBlock(targetBlock.type)) return;
+    }
     const props: Partial<Layer> = {
       text: "Nuovo Testo",
       fontSize: 32,
@@ -190,6 +210,21 @@ export default function EventEditor() {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Stessa safety net di addTextLayer: in event_page mode richiede un blocco
+    // canvas selezionato, altrimenti l'immagine finirebbe orfana sull'invito.
+    if (editorMode === 'event_page' && !selectedBlockId) {
+      e.target.value = '';
+      return;
+    }
+    // Lock-root: stessa guard di addTextLayer. Niente upload immagine free-form
+    // dentro a widget chiusi (gallery ha la sua sorgente media dedicata).
+    if (editorMode === 'event_page' && selectedBlockId) {
+      const targetBlock = blocks.find(b => b.id === selectedBlockId);
+      if (targetBlock && isWidgetBlock(targetBlock.type)) {
+        e.target.value = '';
+        return;
+      }
+    }
     const file = e.target.files?.[0];
     if (file) {
       try {
@@ -253,18 +288,36 @@ export default function EventEditor() {
     }
   };
 
+  // Debounce per il push history su updateBlock: coalesce typing rapido in
+  // un singolo step di undo (es. utente scrive "Renzo" letter-by-letter ma
+  // l'undo lo riporta solo a stringa vuota, non a "Renz"/"Ren"/...).
+  // Senza questo guard, ogni cambiamento sul libretto/tableau/altri widget
+  // NON produceva alcun snapshot (pushToHistory non era chiamato), così
+  // l'undo cancellava di colpo tutte le modifiche fino al più vecchio
+  // snapshot disponibile (es. quando il libretto è stato creato).
+  const lastBlockUpdatePushRef = useRef<number>(0);
+  const BLOCK_UPDATE_PUSH_DEBOUNCE_MS = 800;
+
   const updateBlock = (blockId: string, updates: Partial<Block>) => {
+    // Cattura snapshot dello stato CORRENTE (pre-change) se è passato abbastanza
+    // tempo dall'ultimo push. Stesso pattern del Tableau / sezioni invito.
+    const now = Date.now();
+    if (now - lastBlockUpdatePushRef.current > BLOCK_UPDATE_PUSH_DEBOUNCE_MS) {
+      pushToHistory();
+      lastBlockUpdatePushRef.current = now;
+    }
+
     setBlocks(prev => {
       const newBlocks = prev.map(b => {
         if (b.id !== blockId) return b;
-        
+
         // Deep merge per widgetProps e props per evitare sovrascritture accidentali
-        return { 
-          ...b, 
-          ...updates, 
-          widgetProps: { 
-            ...(b.widgetProps || {}), 
-            ...(updates.widgetProps || {}) 
+        return {
+          ...b,
+          ...updates,
+          widgetProps: {
+            ...(b.widgetProps || {}),
+            ...(updates.widgetProps || {})
           },
           props: {
             ...(b.props || {}),
@@ -341,6 +394,7 @@ export default function EventEditor() {
   const selectedLayer = selectedLayerIds.length > 0 ? layers.find(l => selectedLayerIds.includes(l.id)) : undefined;
 
   return (
+    <LibrettoPreviewProvider>
     <div className={`editor-page ${editorMode !== 'canvas' ? 'preview-mode' : 'canvas-mode'}`} onContextMenu={(e) => e.preventDefault()}>
       <div className="editor-topbar">
           <MobileIconBtn icon={Home} label="Home" onClick={() => navigate("/")} />
@@ -439,5 +493,6 @@ export default function EventEditor() {
         />
         </div>
       </div>
+    </LibrettoPreviewProvider>
   );
 }

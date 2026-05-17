@@ -7,12 +7,39 @@ export function isoToItalianDisplay(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-/** Solo cifre, max 8; inserisce `/` dopo gg e mm mentre si digita (gg/mm/aaaa). */
+/** Solo cifre, max 8; inserisce `/` dopo gg e mm mentre si digita (gg/mm/aaaa).
+ *  Clamp soft as-you-type:
+ *    - giorno: ≤ 31 (es. "45" → "31")
+ *    - mese: ≤ 12 (es. "13" → "12")
+ *  La validazione COMPLETA (febbraio bisestile, 30/04, ecc.) avviene a
+ *  `italianDisplayToIso` via `new Date()` overflow check — qui solo i cap
+ *  ovvi che non dipendono dall'anno.
+ */
 export function formatItalianDateAsYouType(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  let digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length >= 2) {
+    const dd = parseInt(digits.slice(0, 2), 10);
+    if (dd > 31) digits = "31" + digits.slice(2);
+  }
+  if (digits.length >= 4) {
+    const mm = parseInt(digits.slice(2, 4), 10);
+    if (mm > 12) digits = digits.slice(0, 2) + "12" + digits.slice(4);
+  }
   if (digits.length <= 2) return digits;
   if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+/** True se `display` è una stringa gg/mm/aaaa che si risolve a una data reale
+ *  (es. 29/02/2023 → false perché non bisestile; 29/02/2024 → true).
+ *  Stringhe parziali (es. "12/05/") ritornano false: l'utente sta ancora digitando. */
+export function isValidItalianDate(display: string): boolean {
+  return italianDisplayToIso(display) !== null;
+}
+
+/** True se l'utente ha completato la digitazione (gg/mm/aaaa = 10 caratteri). */
+export function isCompleteItalianDate(display: string): boolean {
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(display.trim());
 }
 
 export function italianDisplayToIso(s: string): string | null {

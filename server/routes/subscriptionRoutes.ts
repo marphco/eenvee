@@ -23,6 +23,10 @@ const unlockIntentLimiter = rateLimit({
 const EVENT_UNLOCK_AMOUNT_CENTS = 6900;
 /** €15 una tantum — add-on Tableau de Mariage */
 const TABLEAU_ADDON_AMOUNT_CENTS = 1500;
+/** €15 una tantum — add-on Libretto Messa */
+const LIBRETTO_ADDON_AMOUNT_CENTS = 1500;
+
+type PurchaseKind = "event_unlock" | "tableau_addon" | "libretto_addon";
 
 function clientOrigin(): string {
   const raw = process.env.CLIENT_ORIGINS || "http://localhost:5173";
@@ -46,7 +50,7 @@ router.post("/create-unlock-intent", requireAuth, unlockIntentLimiter, async (re
       eventSlug?: string;
       receiptEmail?: string;
       payerName?: string;
-      kind?: "event_unlock" | "tableau_addon";
+      kind?: PurchaseKind;
     };
     if (!eventSlug || typeof eventSlug !== "string") {
       return res.status(400).json({ message: "eventSlug richiesto" });
@@ -77,19 +81,30 @@ router.post("/create-unlock-intent", requireAuth, unlockIntentLimiter, async (re
     if (kind === "tableau_addon" && ev.addons?.tableau) {
       return res.status(400).json({ message: "L'add-on Tableau risulta già attivato." });
     }
+    if (kind === "libretto_addon" && ev.addons?.libretto) {
+      return res.status(400).json({ message: "L'add-on Libretto risulta già attivato." });
+    }
 
-    const amount = kind === "tableau_addon" ? TABLEAU_ADDON_AMOUNT_CENTS : EVENT_UNLOCK_AMOUNT_CENTS;
-    const description = kind === "tableau_addon" 
+    const amount = kind === "tableau_addon"
+      ? TABLEAU_ADDON_AMOUNT_CENTS
+      : kind === "libretto_addon"
+        ? LIBRETTO_ADDON_AMOUNT_CENTS
+        : EVENT_UNLOCK_AMOUNT_CENTS;
+    const description = kind === "tableau_addon"
       ? `Eenvee — Add-on Tableau — ${ev.title} (${eventSlug})`
-      : `Eenvee — Piano Evento — ${ev.title} (${eventSlug})`;
+      : kind === "libretto_addon"
+        ? `Eenvee — Add-on Libretto Messa — ${ev.title} (${eventSlug})`
+        : `Eenvee — Piano Evento — ${ev.title} (${eventSlug})`;
 
     if (useMockCheckout()) {
       if (process.env.NODE_ENV === "production") {
         return res.status(503).json({ message: "Pagamenti non configurati." });
       }
-      const successPath = kind === "tableau_addon" 
+      const successPath = kind === "tableau_addon"
         ? `/api/subscriptions/${encodeURIComponent(eventSlug)}/success-tableau-mock`
-        : `/api/subscriptions/${encodeURIComponent(eventSlug)}/success-mock`;
+        : kind === "libretto_addon"
+          ? `/api/subscriptions/${encodeURIComponent(eventSlug)}/success-libretto-mock`
+          : `/api/subscriptions/${encodeURIComponent(eventSlug)}/success-mock`;
         
       return res.json({
         mode: "dev_simulate" as const,
@@ -159,8 +174,8 @@ router.post("/complete-unlock-intent", requireAuth, async (req: AuthRequest, res
     const stripeSdk = getStripe();
     const pi = await stripeSdk.paymentIntents.retrieve(paymentIntentId);
 
-    const kind = pi.metadata?.kind;
-    if (kind !== "event_unlock" && kind !== "tableau_addon") {
+    const kind = pi.metadata?.kind as PurchaseKind | undefined;
+    if (kind !== "event_unlock" && kind !== "tableau_addon" && kind !== "libretto_addon") {
       return res.status(400).json({ message: "Pagamento non valido" });
     }
     if (pi.metadata.ownerId !== req.userId) {
@@ -170,8 +185,12 @@ router.post("/complete-unlock-intent", requireAuth, async (req: AuthRequest, res
     if (!eventSlug) {
       return res.status(400).json({ message: "Metadati incompleti" });
     }
-    
-    const expectedAmount = kind === "tableau_addon" ? TABLEAU_ADDON_AMOUNT_CENTS : EVENT_UNLOCK_AMOUNT_CENTS;
+
+    const expectedAmount = kind === "tableau_addon"
+      ? TABLEAU_ADDON_AMOUNT_CENTS
+      : kind === "libretto_addon"
+        ? LIBRETTO_ADDON_AMOUNT_CENTS
+        : EVENT_UNLOCK_AMOUNT_CENTS;
     if (pi.amount !== expectedAmount || (pi.currency && pi.currency.toLowerCase() !== "eur")) {
       return res.status(400).json({ message: "Importo non valido" });
     }
@@ -189,10 +208,16 @@ router.post("/complete-unlock-intent", requireAuth, async (req: AuthRequest, res
     if (kind === "event_unlock") {
       if (isPaidPlan(ev.plan)) return res.json({ ok: true, slug: eventSlug, alreadyPaid: true });
       ev.plan = "paid";
-    } else {
+    } else if (kind === "tableau_addon") {
       if (ev.addons?.tableau) return res.json({ ok: true, slug: eventSlug, alreadyPaid: true });
       if (!ev.addons) ev.addons = {};
       ev.addons.tableau = true;
+      ev.markModified("addons");
+    } else {
+      // libretto_addon
+      if (ev.addons?.libretto) return res.json({ ok: true, slug: eventSlug, alreadyPaid: true });
+      if (!ev.addons) ev.addons = {};
+      ev.addons.libretto = true;
       ev.markModified("addons");
     }
     
@@ -384,14 +409,32 @@ router.get("/:slug/success-tableau-mock", async (req: Request, res: Response) =>
     const { slug } = req.params;
     console.log(`[DEBUG] Activating Tableau for event: ${slug}`);
     await Event.findOneAndUpdate(
-      { slug }, 
-      { $set: { "addons.tableau": true } }, 
+      { slug },
+      { $set: { "addons.tableau": true } },
       { new: true }
     );
     // Redirect all'URL corretto del builder per le pagine
     res.redirect(`${clientOrigin()}/editor/${slug}/page?payment=success&addon=tableau`);
   } catch (err) {
     res.status(500).send("Mock tableau success err");
+  }
+});
+
+router.get("/:slug/success-libretto-mock", async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).send("Not found");
+  }
+  try {
+    const { slug } = req.params;
+    console.log(`[DEBUG] Activating Libretto for event: ${slug}`);
+    await Event.findOneAndUpdate(
+      { slug },
+      { $set: { "addons.libretto": true } },
+      { new: true }
+    );
+    res.redirect(`${clientOrigin()}/editor/${slug}/page?payment=success&addon=libretto`);
+  } catch (err) {
+    res.status(500).send("Mock libretto success err");
   }
 });
 

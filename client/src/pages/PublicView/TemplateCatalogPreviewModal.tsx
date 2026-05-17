@@ -329,7 +329,7 @@ export default function TemplateCatalogPreviewModal({ template, onClose, onConti
           <div className="tc-preview-footer__inner">
             <div className="tc-preview-price-tag">
               <span className="tc-preview-price-label">Prezzo modello</span>
-              <span className="tc-preview-price-value">€49.00</span>
+              <span className="tc-preview-price-value">€69,00</span>
             </div>
             <div className="tc-preview-actions">
               <Button

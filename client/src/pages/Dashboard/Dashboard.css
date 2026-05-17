@@ -168,6 +168,175 @@
   margin-top: 4px;
 }
 
+/* Bottone Esci — deliberatamente "ghost" (no background, font smaller, color
+   muted). Sta in fondo alla toolbar, NON deve competere visivamente con Home
+   e Nuovo Evento. Retention pattern: l'azione è disponibile ma non invitante.
+   Su hover diventa appena leggermente più visibile, senza emergere. */
+.btn-logout-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted, #6b7280);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 4px;
+  opacity: 0.6;
+  transition: opacity .15s ease, color .15s ease, background .15s ease;
+}
+.btn-logout-ghost:hover,
+.btn-logout-ghost:focus-visible {
+  opacity: 1;
+  color: var(--text-primary, #1a1a1a);
+  background: rgba(60, 79, 118, 0.06);
+  outline: none;
+}
+
+/* Variante cliccabile: dà affordance "editabile" senza occupare spazio extra.
+   Padding ridotto + hover di accent leggero. Pencil icon piccola a destra. */
+.event-card-date--editable {
+  background: transparent;
+  border: 1px dashed transparent;
+  border-radius: 8px;
+  padding: 4px 8px;
+  margin: 4px 0 0 -8px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text-muted);
+  transition: all .15s ease;
+  text-align: left;
+}
+.event-card-date--editable:hover,
+.event-card-date--editable:focus-visible {
+  background: rgba(60, 79, 118, 0.05);
+  border-color: rgba(60, 79, 118, 0.2);
+  color: var(--text-primary);
+}
+.event-card-date--editable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Editor inline data: input + bottoni save/cancel + checkbox TBD.
+   2 righe per non eccedere la larghezza card su mobile. */
+.event-card-date-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+/* Tutti gli elementi del row (input + 3 bottoni) condividono `--editor-h`
+   per allineamento PERFETTO. Cambiare qui aggiorna tutto in cascata. */
+.event-card-date-edit__row {
+  --editor-h: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Wrapper input gg/mm/aaaa + bottone calendar (anchor per ItalianDatePicker).
+   Pattern identico a `.new-event-date-input-wrap` in NewEvent.css — solo
+   dimensioni compatte adatte alla card dashboard. */
+.event-card-date-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.event-card-date-input {
+  flex: 1;
+  min-width: 0;
+  height: var(--editor-h);
+  box-sizing: border-box;
+  font-size: 13px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(60, 79, 118, 0.2);
+  background: #fff;
+  color: var(--text-primary);
+  font-family: inherit;
+  line-height: 1;
+}
+.event-card-date-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* Stato invalid: bordo rosso + glow soft. Si attiva solo quando l'utente ha
+   completato la digitazione (gg/mm/aaaa) ma la data non esiste realmente
+   (es. 31/04, 29/02 non bisestile). */
+.event-card-date-input--invalid {
+  border-color: rgba(231, 76, 60, 0.6);
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.12);
+}
+.event-card-date-error {
+  font-size: 11px;
+  color: #c0392b;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+/* Tutti i bottoni icona del row (calendar / save / cancel) condividono
+   stessa silhouette quadrata = altezza identica all'input. */
+.event-card-date-calendar-btn,
+.event-card-date-btn {
+  flex-shrink: 0;
+  width: var(--editor-h);
+  height: var(--editor-h);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(60, 79, 118, 0.15);
+  background: #fff;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease, color .15s ease;
+}
+.event-card-date-calendar-btn:hover:not(:disabled),
+.event-card-date-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.event-card-date-calendar-btn:hover:not(:disabled) {
+  box-shadow: 0 0 0 3px rgba(26, 188, 156, 0.15);
+}
+.event-card-date-calendar-btn:disabled,
+.event-card-date-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.event-card-date-btn--save {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.event-card-date-btn--save:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.event-card-date-btn--cancel:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.08);
+  border-color: rgba(231, 76, 60, 0.3);
+  color: #c0392b;
+}
+.event-card-date-tbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.event-card-date-tbd input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
 /* Quick Stats */
 .event-card-quick-stats {
   background: #f8fafc;

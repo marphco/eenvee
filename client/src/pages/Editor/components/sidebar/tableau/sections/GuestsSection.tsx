@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, AlertTriangle, Zap } from 'lucide-react';
+import { Plus, AlertTriangle, Zap, Pencil } from 'lucide-react';
 import { Surface, Button } from '../../../../../../ui';
 import GuestManualCard from '../cards/GuestManualCard';
 import GuestRsvpCard from '../cards/GuestRsvpCard';
@@ -69,15 +69,37 @@ const GuestsSection: React.FC<GuestsSectionProps> = ({
         <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Aggiungi ospite / gruppo extra
         </label>
-        <input
-          placeholder="Nome ospite o gruppo..."
-          value={manualGuestName}
-          onChange={(e) => setManualGuestName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && manualGuestName.trim()) addManualGuest();
+        {/* Wrapper con icona Pencil per chiarire che è un campo compilabile.
+            Bug precedente: input bianco su sfondo bianco senza icona — l'utente
+            non capiva che doveva digitare il nome lì dentro. */}
+        <div
+          onClick={() => (document.getElementById('manual-guest-input') as HTMLInputElement | null)?.focus()}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            width: '100%', minWidth: 0, boxSizing: 'border-box',
+            background: 'var(--surface, #f6f7fb)',
+            border: '1.5px solid var(--accent-soft, rgba(0,0,0,0.18))',
+            borderRadius: '12px', padding: '12px 14px',
+            cursor: 'text',
+            transition: 'border-color .15s ease, background .15s ease',
           }}
-          style={{ width: '100%', minWidth: 0, background: '#fff', border: '1.5px solid var(--border)', borderRadius: '12px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }}
-        />
+        >
+          <Pencil size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+          <input
+            id="manual-guest-input"
+            placeholder="Scrivi il nome dell'ospite o del gruppo…"
+            value={manualGuestName}
+            onChange={(e) => setManualGuestName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && manualGuestName.trim()) addManualGuest();
+            }}
+            style={{
+              flex: 1, minWidth: 0, border: 'none', outline: 'none',
+              background: 'transparent', fontSize: '13px', fontWeight: 600,
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
           {/* Contatore persone */}
           <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>

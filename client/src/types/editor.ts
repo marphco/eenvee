@@ -67,6 +67,15 @@ export interface Block {
     address?: string;
     zoom?: number;
     mapStyle?: string;
+    // Multi-mappa nella stessa sezione (es. Chiesa + Ricevimento). Se vuoto
+    // si usa il fallback singolo da block.props.address/title/description/zoom.
+    maps?: Array<{
+      id: string;
+      title?: string;
+      description?: string;
+      address?: string;
+      zoom?: number;
+    }>;
     // RSVP specific configurations
     rsvpTitle?: string;
     rsvpDescription?: string;
@@ -119,6 +128,12 @@ export interface Block {
       autoSplitGroups?: boolean;
       showFloorPlan?: boolean;
     };
+    // Libretto Messa (cattolico) — l'intero stato del widget vive sotto questa chiave
+    // per non inquinare il top-level di widgetProps; tipizzazione in `utils/libretto/types.ts`.
+    libretto?: any; // LibrettoData (import circolare evitato; valida via funzione)
+    librettoAccentColor?: string;
+    librettoX?: number;
+    librettoY?: number;
     [key: string]: any;
   };
 }
@@ -163,6 +178,7 @@ export interface EventData {
   rsvps?: any[];
   addons?: {
     tableau?: boolean;
+    libretto?: boolean;
     [key: string]: any;
   };
 }
