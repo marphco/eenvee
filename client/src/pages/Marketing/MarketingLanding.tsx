@@ -47,6 +47,7 @@ import {
 } from "../../config/marketingDiscover";
 import { templatesPathForCategory } from "../../config/templateCategoryRoutes";
 import { LEGAL } from "../../config/legalEntity";
+import StripeTrustStrip from "../../components/payments/StripeTrustStrip";
 import invitoHero3 from "../../assets/invito-hero3.png";
 import appStoreSvg from "../../assets/app-store.svg";
 import playStoreSvg from "../../assets/play-store.svg";
@@ -398,18 +399,11 @@ export default function MarketingLanding() {
                   {user ? "Vai ai miei eventi" : "Inizia dal catalogo"}
                   <ArrowRight size={18} strokeWidth={2.3} />
                 </Button>
-                <p className="ml-plan__stick-note">
-                  <span>Pagamento sicuro via</span>{" "}
-                  <img
-                    src="/stripe-wordmark.svg"
-                    alt="Stripe"
-                    className="ml-final__stripe-logo"
-                    width={50}
-                    height={22}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </p>
+                {/* Trust strip uniforme con tutti gli altri touchpoint pagamento.
+                    Sticky CTA su sfondo chiaro → default `bg='light'`. */}
+                <div className="ml-plan__stick-note">
+                  <StripeTrustStrip />
+                </div>
               </div>
             </div>
           </div>

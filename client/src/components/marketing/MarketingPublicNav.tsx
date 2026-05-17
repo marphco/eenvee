@@ -335,6 +335,9 @@ export function MarketingPublicNav({
             <div className="ml-nav__bundle ml-nav__bundle--post">
               <div className="ml-nav__actions">
                 {user ? (
+                  // Click diretto a /dashboard — niente dropdown intermedi.
+                  // Logout vive solo nella dashboard (per ridurre friction
+                  // all'uscita: vogliamo retention, non far andare via gli utenti).
                   <button
                     type="button"
                     className="ml-nav-btn ml-nav-btn--primary ml-nav-btn--nav-pillar ml-nav__mob-tile"

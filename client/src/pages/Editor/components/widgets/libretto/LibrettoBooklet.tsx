@@ -19,7 +19,7 @@ import { motion, useMotionValue, animate as fmAnimate } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { LibrettoData, LibrettoPage } from '../../../../../utils/libretto/types';
 import { expandPaginated } from '../../../../../utils/libretto/paginate';
-import LibrettoPageRenderer from './LibrettoPageRenderer';
+import LibrettoPageRenderer, { PageScaleContext } from './LibrettoPageRenderer';
 
 interface Props {
   libretto: LibrettoData;
@@ -45,7 +45,8 @@ const PageSlot: React.FC<{
   bg: string;
   libretto: LibrettoData;
   totalPages: number;
-}> = React.memo(({ page, idx, side, bg, libretto, totalPages }) => (
+  pageScale?: number;
+}> = React.memo(({ page, idx, side, bg, libretto, totalPages, pageScale }) => (
   <div
     style={{
       width: '100%',
@@ -60,6 +61,7 @@ const PageSlot: React.FC<{
             : '0 4px 12px rgba(0,0,0,0.08)',
     }}
   >
+    <PageScaleContext.Provider value={pageScale ?? null}>
     {page ? (
       <LibrettoPageRenderer
         page={page}
@@ -79,13 +81,23 @@ const PageSlot: React.FC<{
         {idx >= totalPages ? 'Fine' : ''}
       </div>
     )}
+    </PageScaleContext.Provider>
   </div>
 ));
 PageSlot.displayName = 'PageSlot';
 
+// Dimensioni nominali della pagina interna (usate da LibrettoPageRenderer).
+// Sincronizzato con NOMINAL_WIDTH/HEIGHT del Frame in LibrettoPageRenderer.
+const PAGE_NOMINAL_WIDTH = 420;
+
 const LibrettoBooklet: React.FC<Props> = ({ libretto, maxWidth = 800, forceMobile = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
+  // Scale stabile della pagina, calcolato dal container booklet (NON dai
+  // singoli Frame): durante il flip 3D la width visiva dei Frame può
+  // fluttuare via ResizeObserver causando "vibrazione" del content. Misurando
+  // sul container esterno (che non ruota) lo scale resta costante.
+  const [pageScale, setPageScale] = useState(1);
 
   // displayedIdx = indice della pagina SINISTRA mostrata in fondo. In mobile è
   // direttamente la pagina visibile (single column).
@@ -193,6 +205,12 @@ const LibrettoBooklet: React.FC<Props> = ({ libretto, maxWidth = 800, forceMobil
       const w = containerRef.current?.offsetWidth || window.innerWidth;
       const next = w < 720;
       setIsMobile((prev) => (prev === next ? prev : next));
+      // Page scale: pagina = metà del booklet (desktop) o tutto il container
+      // (mobile single-page). Updated solo qui (container resize utente), MAI
+      // durante un flip → niente fluttuazioni del content.
+      const slotW = next ? w : w / 2;
+      const nextScale = slotW / PAGE_NOMINAL_WIDTH;
+      setPageScale((prev) => Math.abs(prev - nextScale) > 0.004 ? nextScale : prev);
     };
     update();
     const ro = new ResizeObserver(update);
@@ -292,7 +310,7 @@ const LibrettoBooklet: React.FC<Props> = ({ libretto, maxWidth = 800, forceMobil
     touchStart.current = null;
   };
 
-  const accent = libretto.style.accentColor || '#14b8a6';
+  const accent = libretto.style.accentColor || '#1ABC9C';
   const bg = libretto.style.pageBgColor || '#fffdf7';
 
   // Aspect ratio: desktop = due pagine A5 affiancate (1.4), mobile = singola A5 portrait (0.7).
@@ -348,7 +366,7 @@ const LibrettoBooklet: React.FC<Props> = ({ libretto, maxWidth = 800, forceMobil
   // PageSlot vero è hoisted a livello modulo (vedi sotto) per stabilità di
   // identity React → niente unmount/remount sui re-render del parent.
   const slot = (page: LibrettoPage | undefined, idx: number, side: 'left' | 'right' | 'single') => (
-    <PageSlot page={page} idx={idx} side={side} bg={bg} libretto={libretto} totalPages={totalPages} />
+    <PageSlot page={page} idx={idx} side={side} bg={bg} libretto={libretto} totalPages={totalPages} pageScale={pageScale} />
   );
 
   /* ─────────────────────────────────────────────────────────────────────
@@ -475,12 +493,13 @@ const LibrettoBooklet: React.FC<Props> = ({ libretto, maxWidth = 800, forceMobil
     >
       {/* Wrapper di clipping ESTERNO al container 3D: overflow:hidden qui
           assorbe le proiezioni 3D durante i flip senza interferire col
-          rendering preserve-3d. Padding generoso per dare spazio alla
-          box-shadow dell'inner. */}
+          rendering preserve-3d. Padding ai 4 lati per dare spazio alla
+          box-shadow del libretto (prima si vedeva un taglio brutto a sx
+          della pagina sinistra perché overflow:hidden clippava l'ombra). */}
       <div style={{
         overflow: 'hidden',
-        padding: '0 0 80px 0',
-        margin: '0 0 -80px 0',
+        padding: '40px 40px 80px',
+        margin: '-40px -40px -80px',
       }}>
       <motion.div
         onTouchStart={onTouchStart}
@@ -496,7 +515,11 @@ const LibrettoBooklet: React.FC<Props> = ({ libretto, maxWidth = 800, forceMobil
           position: 'relative',
           perspective: '2200px',
           background: 'transparent',
-          boxShadow: closedDesktop ? 'none' : '0 24px 60px rgba(0,0,0,0.18)',
+          // Ombra più contenuta: prima 0 24 60 sforava di 60px e veniva
+          // clippata dal parent (EventPublic section ha overflow: hidden),
+          // dando l'effetto di "ombra tagliata". 0 8 24 sta dentro al margin
+          // del wrapper di clipping ed è comunque elegante.
+          boxShadow: closedDesktop ? 'none' : '0 8px 24px rgba(0,0,0,0.12)',
           borderRadius: '4px',
         }}
       >

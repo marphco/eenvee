@@ -258,7 +258,12 @@ function resolveBody(page: LibrettoPage, libretto: LibrettoData): BodyResolution
  */
 function bodyHeightForPageType(type: LibrettoPage['type']): number {
   switch (type) {
-    case 'salmo': return 360;     // bubble compatto + tighten margins
+    // Salmo: l'header pratico (subtitle + h1 antifona possibilmente su 2 righe
+    // + ref + bubble ritornello) può arrivare a ~220-240px reali su antifone
+    // lunghe (es. salmo 148, 127). Più la R. forced-include (~25-30px) sotto.
+    // Da 360 → 320 lascia abbastanza buffer per evitare clipping di strofe
+    // finali nei salmi più lunghi. Costo: split leggermente più frequenti.
+    case 'salmo': return 320;
     case 'vangelo': return 340;   // tighten margins
     case 'lettura': return 400;   // no divider + tighten margins (h1 6px, ref 6px, footer 8px)
     // Benedizione nuziale: maschera ULTRA-conservativa. Le formule CEI
@@ -324,7 +329,31 @@ function measureChunksByDOM(
       return host.scrollHeight <= maxHeight;
     };
 
-    const paragraphs = text.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+    const rawParagraphs = text.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+
+    // PRE-GROUPING: la R. (responsorio) appartiene LOGICAMENTE alla strofa che
+    // la precede — sono un'unità inseparabile nella liturgia. Le accoppiamo
+    // come singolo "blocco" prima del fit-test, così:
+    //   1. mai R. orfana in cima a pagina nuova
+    //   2. mai strofa senza R. in fondo a pagina (= bug salmo 99/127/148)
+    // Il blocco viene paginato come un solo paragrafo. Se non entra, va
+    // intero alla pagina successiva.
+    const paragraphs: string[] = [];
+    {
+      let i = 0;
+      while (i < rawParagraphs.length) {
+        const cur = rawParagraphs[i]!;
+        const next = i + 1 < rawParagraphs.length ? rawParagraphs[i + 1]! : null;
+        if (next && !isResponseLine(cur) && isResponseLine(next)) {
+          paragraphs.push(cur + '\n\n' + next);
+          i += 2;
+        } else {
+          paragraphs.push(cur);
+          i++;
+        }
+      }
+    }
+
     const chunks: string[] = [];
     let current: string[] = [];
 
@@ -338,15 +367,6 @@ function measureChunksByDOM(
     for (const p of paragraphs) {
       const trial = current.length === 0 ? p : current.join('\n\n') + '\n\n' + p;
       if (fits(trial)) {
-        current.push(p);
-        continue;
-      }
-      // Override: se p è una R. (responsorio) e la pagina corrente termina
-      // con una strofa, FORZIAMO l'inclusione di p qui — è solo 1 riga, lo
-      // slight overflow è preferibile a orfanare la R. in cima alla pagina
-      // successiva. La R. è sempre logicamente parte della strofa che precede.
-      const lastInCurrent = current[current.length - 1];
-      if (isResponseLine(p) && lastInCurrent && !isResponseLine(lastInCurrent)) {
         current.push(p);
         continue;
       }
@@ -412,7 +432,26 @@ function greedySplit(
 ): string[] {
   if (text.length <= firstCap) return [text];
 
-  const paragraphs = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  const rawParagraphs = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+
+  // Stesso pre-grouping di measureChunksByDOM: strofa+R = blocco atomico
+  // (vedi commento esteso lì). Necessario qui per coerenza nel fallback SSR
+  // e per dati non liturgici (es. benedizioni nuziali con responsorio).
+  const paragraphs: string[] = [];
+  {
+    let i = 0;
+    while (i < rawParagraphs.length) {
+      const cur = rawParagraphs[i]!;
+      const next = i + 1 < rawParagraphs.length ? rawParagraphs[i + 1]! : null;
+      if (next && !isResponseLine(cur) && isResponseLine(next)) {
+        paragraphs.push(cur + '\n\n' + next);
+        i += 2;
+      } else {
+        paragraphs.push(cur);
+        i++;
+      }
+    }
+  }
 
   const chunks: string[] = [];
   let current = '';
@@ -448,22 +487,7 @@ function greedySplit(
 
     const candidate = current ? current + '\n\n' + p : p;
     if (candidate.length > capForCurrent) {
-      // Override: R. responsorio dopo strofa → forza-incluso, non orfanare.
-      // MA solo se il chunk risultante non sfora il limite visivo di righe.
-      // Senza questo controllo, formule verse-heavy (es. 4ª nuziale ~26 righe)
-      // overflowano la pagina visiva. Soglia 24 righe = max safe per
-      // benedizione-nuziale lineHeight=1.4. Se sfora, R va a pagina successiva.
-      const lastChunkPara = current.split('\n\n').pop() || '';
-      const candLines = candidate.split('\n').length;
-      const MAX_LINES_PER_CHUNK = 24;
-      if (
-        isResponseLine(p) && current && !isResponseLine(lastChunkPara) &&
-        candLines <= MAX_LINES_PER_CHUNK
-      ) {
-        current = candidate;
-      } else {
-        pushAndReset(p);
-      }
+      pushAndReset(p);
     } else {
       current = candidate;
     }

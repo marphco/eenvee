@@ -137,7 +137,10 @@ const TableauWidget: React.FC<TableauWidgetProps> = ({ block, isEditor, hasTable
     );
   }
 
-  const accent = accentColor || 'var(--accent)';
+  // Default hex (non var CSS): serve hex per derivare accent-rgb e usare
+  // `rgba(var(--accent-rgb), …)` per overlay/opacità all'interno del widget.
+  // #1ABC9C = tiffany brand di eenvee.
+  const accent = accentColor || '#1ABC9C';
   const isHex = accent.startsWith('#');
   const accentRgb = isHex ? hexToRgb(accent) : null;
   const sectionBg = propSectionBg || block.props?.bgColor || block.bgColor || 'transparent';

@@ -1,15 +1,19 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../../utils/apiFetch";
 import { Button, Badge } from "../../ui";
-import { 
-  PenSquare, Send, Users, ExternalLink, Link2, 
+import {
+  PenSquare, Send, Users, ExternalLink, Link2,
   Trash2, Star, Gift, Calendar, Plus, Home,
-  CheckCircle2, HelpCircle, XCircle, Users2
+  CheckCircle2, HelpCircle, XCircle, Users2,
+  LogOut, Pencil, Check, X
 } from "lucide-react";
 import EventPurchaseModal from "../../components/payments/EventPurchaseModal";
 import ScenarioThumbnail from "../../components/ScenarioThumbnail";
+import ItalianDatePicker from "../../components/datepicker/ItalianDatePicker";
+import { formatItalianDateAsYouType, isoToItalianDisplay, italianDisplayToIso, isCompleteItalianDate, isValidItalianDate } from "../../utils/italianDateInput";
 import { isPaidPlan } from "../../utils/eventPlan";
+import { performLogout } from "../../utils/logout";
 import "./Dashboard.css";
 
 interface RsvpSummary {
@@ -40,6 +44,72 @@ export default function Dashboard() {
   const [confirmDeleteSlug, setConfirmDeleteSlug] = useState<string | null>(null);
   const [rsvpSummaryBySlug, setRsvpSummaryBySlug] = useState<Record<string, RsvpSummary | null>>({});
   const [purchaseModal, setPurchaseModal] = useState<{ slug: string; title: string } | null>(null);
+  // Inline date editor: traccia slug in edit + valori temporanei.
+  // `display` è la stringa gg/mm/aaaa visibile nell'input; convertita a ISO
+  // al momento del save (italianDisplayToIso). Pattern identico a NewEvent.tsx
+  // per consistenza: stesso ItalianDatePicker + stessa utility input.
+  const [editingDate, setEditingDate] = useState<{ slug: string; display: string; tbd: boolean } | null>(null);
+  const [savingDateSlug, setSavingDateSlug] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // Ref del wrapper input+calendar — usato come anchor per il popup picker.
+  // Singolo ref globale perché solo una card può essere in edit alla volta.
+  const datePickerAnchorRef = useRef<HTMLDivElement>(null);
+
+  /** Apre l'editor inline data sulla card. */
+  const startEditDate = (ev: Event) => {
+    const iso = ev.date ? new Date(ev.date).toISOString().slice(0, 10) : '';
+    setEditingDate({ slug: ev.slug, display: iso ? isoToItalianDisplay(iso) : '', tbd: !!ev.dateTBD });
+    setPickerOpen(false);
+  };
+
+  /** Salva la data via PUT /api/events/:slug. Supporta data ISO o dateTBD. */
+  const saveDate = async (slug: string) => {
+    if (!editingDate || editingDate.slug !== slug) return;
+    // Se non TBD, l'input deve risolvere a una data ISO valida.
+    let iso: string | null = null;
+    if (!editingDate.tbd) {
+      iso = italianDisplayToIso(editingDate.display);
+      if (editingDate.display.trim() && !iso) {
+        alert("Data non valida. Usa il formato gg/mm/aaaa.");
+        return;
+      }
+    }
+    setSavingDateSlug(slug);
+    try {
+      const body: any = editingDate.tbd
+        ? { dateTBD: true }
+        : { dateTBD: false, date: iso };
+      const res = await apiFetch(`/api/events/${slug}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setEvents((prev) => prev.map((e) => (e.slug === slug ? { ...e, date: updated.date, dateTBD: updated.dateTBD } : e)));
+      setEditingDate(null);
+      setPickerOpen(false);
+    } catch {
+      alert("Errore durante il salvataggio della data.");
+    } finally {
+      setSavingDateSlug(null);
+    }
+  };
+
+  /** ISO corrente derivato dal display, per inizializzare il popup picker. */
+  const currentEditingIso = useMemo(() => {
+    if (!editingDate) return '';
+    return italianDisplayToIso(editingDate.display) || '';
+  }, [editingDate]);
+
+  /** True se l'utente ha digitato qualcosa di completo MA non valido
+   *  (es. 29/02/2023 in anno non bisestile, 31/04/2025 in aprile, ecc.).
+   *  Mentre digita stringhe parziali rimane false: niente errore prematuro. */
+  const editingDateInvalid = useMemo(() => {
+    if (!editingDate || editingDate.tbd) return false;
+    if (!isCompleteItalianDate(editingDate.display)) return false;
+    return !isValidItalianDate(editingDate.display);
+  }, [editingDate]);
 
   const deleteEvent = async (slug: string) => {
     try {
@@ -114,6 +184,18 @@ export default function Dashboard() {
             <Button className="btn-new-event" onClick={() => navigate("/templates")}>
               <Plus size={18} style={{ marginRight: 8 }} /> Nuovo Evento
             </Button>
+            {/* Logout — collocato in ULTIMA posizione e con stile "ghost" (link)
+                deliberatamente meno prominente di Home/Nuovo Evento.
+                Retention pattern: l'utente deve poter uscire ma non incoraggiamo. */}
+            <button
+              className="btn-logout-ghost"
+              onClick={() => {
+                if (confirm("Uscire dal tuo account?")) performLogout("/");
+              }}
+              aria-label="Esci dall'account"
+            >
+              <LogOut size={14} /> Esci
+            </button>
           </div>
         </div>
 
@@ -160,12 +242,106 @@ export default function Dashboard() {
 
                 <div className="event-card-content">
                   <div className="event-card-header">
-                    <div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <h2>{ev.title}</h2>
-                      <div className="event-card-date">
-                        <Calendar size={14} />
-                        {ev.dateTBD ? "Data da definire" : ev.date ? new Date(ev.date).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" }) : "Data non impostata"}
-                      </div>
+                      {editingDate?.slug === ev.slug ? (
+                        /* Editor inline: input gg/mm/aaaa + bottone calendario
+                           (ItalianDatePicker) + checkbox "Data da definire".
+                           Stesso pattern di NewEvent.tsx per consistenza. */
+                        <div className="event-card-date-edit">
+                          <div className="event-card-date-edit__row">
+                            <div className="event-card-date-input-wrap" ref={datePickerAnchorRef}>
+                              <input
+                                type="text"
+                                value={editingDate.display}
+                                onChange={(e) => setEditingDate({ ...editingDate, display: formatItalianDateAsYouType(e.target.value) })}
+                                placeholder="gg/mm/aaaa"
+                                disabled={editingDate.tbd || savingDateSlug === ev.slug}
+                                className={`event-card-date-input${editingDateInvalid ? ' event-card-date-input--invalid' : ''}`}
+                                autoComplete="off"
+                                inputMode="numeric"
+                                aria-label="Data evento gg/mm/aaaa"
+                                aria-invalid={editingDateInvalid || undefined}
+                              />
+                              <button
+                                type="button"
+                                className="event-card-date-calendar-btn"
+                                onClick={() => setPickerOpen((v) => !v)}
+                                disabled={editingDate.tbd || savingDateSlug === ev.slug}
+                                aria-label="Apri calendario"
+                                aria-expanded={pickerOpen}
+                                title="Apri calendario"
+                              >
+                                <Calendar size={14} aria-hidden />
+                              </button>
+                              {pickerOpen && !editingDate.tbd && (
+                                <ItalianDatePicker
+                                  valueIso={currentEditingIso}
+                                  minIso="1900-01-01"
+                                  maxIso="2100-12-31"
+                                  anchorRef={datePickerAnchorRef}
+                                  onSelect={(iso) => {
+                                    setEditingDate({ ...editingDate, display: iso ? isoToItalianDisplay(iso) : '' });
+                                  }}
+                                  onClose={() => setPickerOpen(false)}
+                                />
+                              )}
+                            </div>
+                            <button
+                              className="event-card-date-btn event-card-date-btn--save"
+                              onClick={() => saveDate(ev.slug)}
+                              disabled={
+                                savingDateSlug === ev.slug ||
+                                (!editingDate.tbd && (!editingDate.display.trim() || editingDateInvalid))
+                              }
+                              aria-label="Salva data"
+                              title={editingDateInvalid ? 'Data non valida' : 'Salva'}
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              className="event-card-date-btn event-card-date-btn--cancel"
+                              onClick={() => { setEditingDate(null); setPickerOpen(false); }}
+                              disabled={savingDateSlug === ev.slug}
+                              aria-label="Annulla modifica"
+                              title="Annulla"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                          {editingDateInvalid && (
+                            <div className="event-card-date-error" role="alert">
+                              Data non valida — controlla giorno e mese
+                            </div>
+                          )}
+                          <label className="event-card-date-tbd">
+                            <input
+                              type="checkbox"
+                              checked={editingDate.tbd}
+                              onChange={(e) => {
+                                setEditingDate({ ...editingDate, tbd: e.target.checked });
+                                if (e.target.checked) setPickerOpen(false);
+                              }}
+                              disabled={savingDateSlug === ev.slug}
+                            />
+                            Data da definire
+                          </label>
+                        </div>
+                      ) : (
+                        <button
+                          className="event-card-date event-card-date--editable"
+                          onClick={() => startEditDate(ev)}
+                          aria-label="Modifica data evento"
+                          title="Modifica data"
+                          type="button"
+                        >
+                          <Calendar size={14} />
+                          <span>
+                            {ev.dateTBD ? "Data da definire" : ev.date ? new Date(ev.date).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" }) : "Data non impostata"}
+                          </span>
+                          <Pencil size={11} style={{ opacity: 0.5, marginLeft: 4 }} />
+                        </button>
+                      )}
                     </div>
                     <Badge variant={paid ? "accent" : "default"} style={{ fontSize: '10px', padding: '4px 10px', borderRadius: '10px' }}>
                       {paid ? "ATTIVO" : "NON ATTIVATO"}

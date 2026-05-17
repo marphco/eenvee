@@ -129,7 +129,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
         }
       }}
       style={{
-        width: previewMobile ? '100%' : (currentScale * LOGICAL_WIDTH) + 'px', 
+        width: previewMobile ? '100%' : (currentScale * LOGICAL_WIDTH) + 'px',
         height: (previewMobile ? 'auto' : (scaledHeight + 'px')),
         minHeight: previewMobile ? '200px' : 'auto',
         backgroundColor: bgColor || '#ffffff',

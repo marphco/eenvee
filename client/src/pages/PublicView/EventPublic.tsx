@@ -19,6 +19,7 @@ import TableauWidget from "../Editor/components/widgets/TableauWidget";
 import LibrettoWidget from "../Editor/components/widgets/LibrettoWidget";
 import DonationModal from "./DonationModal";
 import { widgetLayerIdForBlock } from "../../utils/widgetLayerId";
+import { resolveAccentColor } from "../../utils/blockTypes";
 
 /** Canvas logico editor = 1000px di larghezza; Y in pixel sull'altezza del blocco.
  *  In pagina pubblica il contenitore è fluido (100% viewport): `left: 500px` non è più
@@ -278,6 +279,12 @@ export default function EventPublic() {
                 const useAbsoluteWidgetBranch = isWidget && !(isMobile && (block.type === 'gallery' || block.type === 'video' || block.type === 'payment'));
                 const scaledHeight = (block.height || 400) * currentScale;
                 const isRsvpBlock = block.type === 'rsvp';
+                // Libretto si comporta come RSVP per il public-wrapper:
+                // height: auto + overflow: visible. Senza, il booklet (aspect
+                // ratio 1.4 = altezza non triviale) veniva clippato dal
+                // `height: scaledHeight + overflow: hidden` desktop, tagliando
+                // l'ombra ai lati e creando glitch visivi durante il flip.
+                const isLibrettoBlock = block.type === 'libretto';
                 const rsvpFormY = isRsvpBlock
                   ? ((typeof block.widgetProps?.formY === 'number' && !isNaN(block.widgetProps.formY))
                       ? block.widgetProps.formY
@@ -313,14 +320,14 @@ export default function EventPublic() {
                     style={{
                        position: 'relative',
                        width: '100%', 
-                       height: isMobile ? 'auto' : (isRsvpBlock ? 'auto' : (scaledHeight + 'px')),
+                       height: isMobile ? 'auto' : (isRsvpBlock || isLibrettoBlock ? 'auto' : (scaledHeight + 'px')),
                        // Su mobile gallery/video/payment vanno in-flow con ReadOnlyCanvas
                        // mobile (padding 40px 20px già interno): imponendo un minHeight
                        // 200px si aggiungevano barre vuote sotto al widget. Per map invece
                        // teniamo 200px perché il MapWidget ha altezza naturale piccola.
                        minHeight: isMobile
                          ? (useAbsoluteWidgetBranch ? '200px' : 'auto')
-                         : (isRsvpBlock ? widgetFixedHeight : 'auto'),
+                         : (isRsvpBlock || isLibrettoBlock ? 'auto' : 'auto'),
                        background: block.props?.bgColor || block.bgColor || 'transparent',
                        // [FIX mobile gap] Il contenitore padre `.page-canvas-area` ha già
                        // `gap: 20px` su mobile: aggiungendo qui un `marginBottom: 20px`
@@ -332,7 +339,7 @@ export default function EventPublic() {
                        // contenuti absolute non sconfinano; su mobile `visible` resta
                        // perché lo stream è già in-flow. RSVP mantiene `visible` per
                        // permettere al form di espandersi oltre il `scaledHeight`.
-                       overflow: isMobile ? (isWidget || isRsvpBlock ? 'visible' : 'hidden') : (isRsvpBlock ? 'visible' : 'hidden'),
+                       overflow: isMobile ? (isWidget || isRsvpBlock ? 'visible' : 'hidden') : (isRsvpBlock || isLibrettoBlock ? 'visible' : 'hidden'),
                        display: 'flex',
                        justifyContent: 'center',
                        boxSizing: 'border-box'
@@ -361,11 +368,13 @@ export default function EventPublic() {
                       }}>
                         {block.type === 'map' && (
                           <MapWidget
+                            maps={block.widgetProps?.maps as any}
                             address={block.props?.address}
                             title={block.props?.title}
+                            description={block.props?.description}
                             zoom={block.props?.zoom || 15}
                             sectionBg={block.props?.bgColor || block.bgColor}
-                            accentColor={block.widgetProps?.mapAccentColor || event.theme?.accent}
+                            accentColor={resolveAccentColor(block.widgetProps?.mapAccentColor as string | undefined, event.theme?.accent)}
                             previewMobile={isMobile}
                           />
                         )}
@@ -451,7 +460,7 @@ export default function EventPublic() {
                               // var(--accent) come stringa, hexToRgb tornava null,
                               // e tutti i rgba(var(--accent-rgb), …) collassavano
                               // a nero/trasparente — colori "spenti" in public.
-                              accentColor={block.widgetProps?.tableauAccentColor || event.theme?.accent}
+                              accentColor={resolveAccentColor(block.widgetProps?.tableauAccentColor as string | undefined, event.theme?.accent)}
                               sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
                             />
                           );
@@ -478,7 +487,7 @@ export default function EventPublic() {
                               block={block}
                               isEditor={false}
                               hasLibrettoAccess={!!event?.addons?.libretto}
-                              accentColor={block.widgetProps?.librettoAccentColor || event.theme?.accent}
+                              accentColor={resolveAccentColor(block.widgetProps?.librettoAccentColor as string | undefined, event.theme?.accent)}
                               sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
                               previewMobile={isMobile}
                             />
@@ -511,7 +520,7 @@ export default function EventPublic() {
                               maxAmount={block.widgetProps?.paymentMaxAmount}
                               targetAmount={block.widgetProps?.paymentTargetAmount}
                               showProgress={block.widgetProps?.paymentShowProgress}
-                              accentColor={block.widgetProps?.paymentAccentColor || event.theme?.accent}
+                              accentColor={resolveAccentColor(block.widgetProps?.paymentAccentColor as string | undefined, event.theme?.accent)}
                               mode={block.widgetProps?.paymentMode}
                               ctaLabel={block.widgetProps?.paymentCtaLabel}
                               allowCustomAmount={block.widgetProps?.paymentAllowCustomAmount !== false}
@@ -743,7 +752,7 @@ export default function EventPublic() {
                                       maxAmount={block.widgetProps?.paymentMaxAmount}
                                       targetAmount={block.widgetProps?.paymentTargetAmount}
                                       showProgress={block.widgetProps?.paymentShowProgress}
-                                      accentColor={block.widgetProps?.paymentAccentColor || event.theme?.accent}
+                                      accentColor={resolveAccentColor(block.widgetProps?.paymentAccentColor as string | undefined, event.theme?.accent)}
                                       mode={block.widgetProps?.paymentMode}
                                       ctaLabel={block.widgetProps?.paymentCtaLabel}
                                       allowCustomAmount={block.widgetProps?.paymentAllowCustomAmount !== false}

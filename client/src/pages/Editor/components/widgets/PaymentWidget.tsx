@@ -2,18 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Gift, Heart, AlertCircle, Loader2 } from 'lucide-react';
 import { getAdaptivePalette } from '../../../../utils/colorUtils';
 import { apiFetch } from '../../../../utils/apiFetch';
-import visaLogo from '../../../../assets/visa.svg';
-import visaDarkLogo from '../../../../assets/visa-dark.svg';
-import mastercardLogo from '../../../../assets/mastercard.svg';
-import amexLogo from '../../../../assets/amex.svg';
-import applePayLogo from '../../../../assets/apple-pay.svg';
-import applePayDarkLogo from '../../../../assets/apple-pay-dark.svg';
-import googlePayLogo from '../../../../assets/google-pay.svg';
-import googlePayDarkLogo from '../../../../assets/google-pay-dark.svg';
-import sepaLogo from '../../../../assets/sepa.svg';
-import sepaDarkLogo from '../../../../assets/sepa-dark.svg';
-import stripeLogo from '../../../../assets/stripe.svg';
-import stripeDarkLogo from '../../../../assets/stripe-dark.svg';
+import StripeTrustStrip from '../../../../components/payments/StripeTrustStrip';
 
 export interface PaymentWidgetProps {
   eventSlug?: string | undefined;
@@ -46,7 +35,7 @@ const PaymentWidget: React.FC<PaymentWidgetProps> = ({
   maxAmount = 5000,
   targetAmount,
   showProgress = false,
-  accentColor = 'var(--accent)',
+  accentColor = '#1ABC9C',
   mode = 'gift',
   ctaLabel,
   sectionBg,
@@ -338,26 +327,12 @@ const PaymentWidget: React.FC<PaymentWidgetProps> = ({
         {effectiveCta}
       </button>
 
-      <div style={{ fontSize: '10px', color: palette.textMuted, textAlign: 'center', letterSpacing: '0.02em', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', opacity: 0.8 }}>
-          <span style={{ fontSize: '10px' }}>Pagamento sicuro via</span>
-          <img src={palette.isDark ? stripeDarkLogo : stripeLogo} alt="Stripe" style={{ height: '11px', width: 'auto', display: 'block' }} />
-        </div>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          gap: '12px', 
-          opacity: 0.5
-        }}>
-          <img src={palette.isDark ? visaDarkLogo : visaLogo} alt="Visa" style={{ height: '9px', width: 'auto', display: 'block' }} />
-          <img src={mastercardLogo} alt="Mastercard" style={{ height: '13px', width: 'auto', display: 'block' }} />
-          <img src={amexLogo} alt="Amex" style={{ height: '11px', width: 'auto', display: 'block' }} />
-          <img src={palette.isDark ? applePayDarkLogo : applePayLogo} alt="Apple Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
-          <img src={palette.isDark ? googlePayDarkLogo : googlePayLogo} alt="Google Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
-          <img src={palette.isDark ? sepaDarkLogo : sepaLogo} alt="SEPA" style={{ height: '9px', width: 'auto', display: 'block' }} />
-        </div>
-      </div>
+      {/* Trust strip Stripe — `bg` deriva dalla palette adattiva del widget:
+          sezione con sfondo scuro → loghi bianchi, sfondo chiaro → loghi colorati. */}
+      <StripeTrustStrip
+        bg={palette.isDark ? 'dark' : 'light'}
+        textColor={palette.textMuted}
+      />
       {/* min/max visibili come hint silenzioso */}
       <span style={{ display: 'none' }} data-min={minAmount} data-max={maxAmount} />
     </div>

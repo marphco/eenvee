@@ -20,6 +20,7 @@ import { LETTURE_AT, LETTURE_TEMPO_PASQUALE, SALMI, LETTURE_NT, VANGELI, CANTI_S
 import EventPurchaseModal from '../../../../components/payments/EventPurchaseModal';
 import LibrettoBooklet from '../widgets/libretto/LibrettoBooklet';
 import LibrettoEditorModal from '../widgets/libretto/LibrettoEditorModal';
+import { LibrettoPreviewContext } from '../widgets/libretto/LibrettoPreviewContext';
 import CustomColorPicker from '../CustomColorPicker';
 import CustomFontSelect from '../CustomFontSelect';
 import CustomSelect from '../CustomSelect';
@@ -243,6 +244,17 @@ const LibrettoSidebar: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<'cover' | 'pages' | 'style'>('style');
   void activeTab; // tab state ancora consumato da addPage() in compact mode
   const [editingPageIdx, setEditingPageIdx] = useState<number | null>(null);
+  // Sync con LibrettoMobileViewer nel canvas: quando in compact mode mobile
+  // l'utente tap un chip pagina, il viewer flippa a quella pagina e viceversa.
+  // Opzionale (può essere null se la sidebar è renderizzata fuori dal Provider).
+  const previewCtx = React.useContext(LibrettoPreviewContext);
+  // Helper: selezione pagina nella sidebar mobile (chip strip) sincronizza
+  // anche il viewer del canvas. Su desktop il context può comunque esistere
+  // ma il viewer single-page non è attivo (Booklet doppia pagina) → no-op.
+  const selectPageForEditing = (idx: number | null) => {
+    setEditingPageIdx(idx);
+    if (idx !== null && previewCtx) previewCtx.setPageIdx(idx);
+  };
   const [showPurchase, setShowPurchase] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showEditorModal, setShowEditorModal] = useState(false);
@@ -323,17 +335,6 @@ const LibrettoSidebar: React.FC<Props> = ({
     pages[target] = a;
     update({ pages });
     if (editingPageIdx === idx) setEditingPageIdx(target);
-  };
-
-  const resetTemplate = (variant: 'con-messa' | 'senza-messa') => {
-    const fresh = createDefaultLibretto(variant, {
-      sposo1: libretto.cover.sposo1,
-      sposo2: libretto.cover.sposo2,
-      data: libretto.cover.data,
-      chiesa: libretto.cover.chiesa,
-    });
-    update({ ...fresh, style: libretto.style });
-    setEditingPageIdx(null);
   };
 
   /** Upload foto copertina via /api/uploads (stesso endpoint della Galleria,
@@ -775,93 +776,145 @@ const LibrettoSidebar: React.FC<Props> = ({
    * ─────────────────────────────────────────────────────────────────── */
   const renderPages = () => (
     <>
-      <div style={sectionDividerStyle}>Variante</div>
-      <div style={{ display: 'flex', gap: '6px', background: 'var(--surface-light)', borderRadius: '100px', padding: '3px', border: '1px solid var(--border)', marginBottom: '16px' }}>
-        {(['con-messa', 'senza-messa'] as const).map((v) => (
-          <Button
-            key={v}
-            variant={libretto.variant === v ? 'primary' : 'ghost'}
-            size="sm"
-            style={{ flex: 1, justifyContent: 'center', borderRadius: '100px', fontSize: '11px', fontWeight: 600 }}
-            onClick={() => {
-              if (libretto.variant === v) return;
-              if (!confirm('Cambiare variante rigenererà le pagine. Continuare?')) return;
-              resetTemplate(v);
-            }}
-          >
-            {v === 'con-messa' ? 'Con Messa' : 'Senza Messa'}
-          </Button>
-        ))}
-      </div>
-
+      {/* Nota: il toggle "Con/Senza Messa" è stato rimosso — il libretto è
+          sempre con messa per definizione (è un "libretto messa"). La variante
+          'con-messa' resta default in createDefaultLibretto. */}
       <div style={sectionDividerStyle}>Pagine ({libretto.pages.length})</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: 320, overflowY: 'auto', marginBottom: '12px' }}>
-        {libretto.pages.map((p, i) => {
-          const isEditing = editingPageIdx === i;
-          return (
-            <div
-              key={p.id}
-              onClick={() => setEditingPageIdx(isEditing ? null : i)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 10px',
-                borderRadius: '10px',
-                background: isEditing ? 'rgba(var(--accent-rgb), 0.1)' : 'var(--surface)',
-                border: `1px solid ${isEditing ? 'rgba(var(--accent-rgb), 0.4)' : 'var(--border)'}`,
-                cursor: 'pointer',
-                transition: 'all .15s',
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {i + 1}. {PAGE_TYPE_LABEL[p.type]}
+
+      {compact ? (
+        /* MOBILE: strip orizzontale chip pagine (pattern font picker). Tap chip
+           → seleziona pagina per editing E flippa il LibrettoMobileViewer nel
+           canvas sopra (via LibrettoPreviewContext). Reorder/delete spostati
+           nella toolbar dell'editor inline qui sotto per non sovraffollare. */
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          overflowX: 'auto',
+          padding: '4px 2px 10px',
+          marginBottom: '12px',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'thin',
+        }}>
+          {libretto.pages.map((p, i) => {
+            const isEditing = editingPageIdx === i;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => selectPageForEditing(isEditing ? null : i)}
+                style={{
+                  flex: '0 0 auto',
+                  minWidth: 92,
+                  maxWidth: 140,
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: `1.5px solid ${isEditing ? 'var(--accent)' : 'var(--border)'}`,
+                  background: isEditing ? 'rgba(var(--accent-rgb), 0.12)' : 'var(--surface)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '3px',
+                  alignItems: 'flex-start',
+                  textAlign: 'left',
+                  transition: 'all .15s',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <div style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: isEditing ? 'var(--accent)' : 'var(--text-soft)',
+                }}>
+                  Pag. {i + 1}
                 </div>
-                <div style={{ fontSize: '10px', color: 'var(--text-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {describePage(p)}
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '116px',
+                  lineHeight: 1.2,
+                }}>
+                  {PAGE_TYPE_LABEL[p.type]}
                 </div>
-              </div>
-              <div style={{ display: 'flex', gap: '2px' }}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); movePage(i, -1); }}
-                  disabled={i === 0}
-                  style={{ padding: '4px', minWidth: 'auto' }}
-                  title="Sposta su"
-                >
-                  <ChevronUp size={13} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); movePage(i, 1); }}
-                  disabled={i === libretto.pages.length - 1}
-                  style={{ padding: '4px', minWidth: 'auto' }}
-                  title="Sposta giù"
-                >
-                  <ChevronDown size={13} />
-                </Button>
-                {p.type !== 'cover' && (
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        /* DESKTOP: lista verticale completa con su/giù/delete inline. */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: 320, overflowY: 'auto', marginBottom: '12px' }}>
+          {libretto.pages.map((p, i) => {
+            const isEditing = editingPageIdx === i;
+            return (
+              <div
+                key={p.id}
+                onClick={() => setEditingPageIdx(isEditing ? null : i)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: '10px',
+                  background: isEditing ? 'rgba(var(--accent-rgb), 0.1)' : 'var(--surface)',
+                  border: `1px solid ${isEditing ? 'rgba(var(--accent-rgb), 0.4)' : 'var(--border)'}`,
+                  cursor: 'pointer',
+                  transition: 'all .15s',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {i + 1}. {PAGE_TYPE_LABEL[p.type]}
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {describePage(p)}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '2px' }}>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm(`Eliminare "${PAGE_TYPE_LABEL[p.type]}"?`)) removePage(i);
-                    }}
-                    style={{ padding: '4px', minWidth: 'auto', color: '#c0392b' }}
-                    title="Elimina"
+                    onClick={(e) => { e.stopPropagation(); movePage(i, -1); }}
+                    disabled={i === 0}
+                    style={{ padding: '4px', minWidth: 'auto' }}
+                    title="Sposta su"
                   >
-                    <Trash2 size={13} />
+                    <ChevronUp size={13} />
                   </Button>
-                )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); movePage(i, 1); }}
+                    disabled={i === libretto.pages.length - 1}
+                    style={{ padding: '4px', minWidth: 'auto' }}
+                    title="Sposta giù"
+                  >
+                    <ChevronDown size={13} />
+                  </Button>
+                  {p.type !== 'cover' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Eliminare "${PAGE_TYPE_LABEL[p.type]}"?`)) removePage(i);
+                      }}
+                      style={{ padding: '4px', minWidth: 'auto', color: '#c0392b' }}
+                      title="Elimina"
+                    >
+                      <Trash2 size={13} />
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Sezione "Aggiungi pagina" rimossa intenzionalmente: il template CEI
           default copre l'intero rito, l'utente non ha necessità di pagine
@@ -873,8 +926,66 @@ const LibrettoSidebar: React.FC<Props> = ({
           marginTop: '16px', paddingTop: '16px',
           borderTop: '1px solid var(--border)',
         }}>
-          <div style={sectionDividerStyle}>
-            Modifica · {PAGE_TYPE_LABEL[libretto.pages[editingPageIdx]!.type]}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            marginBottom: '10px',
+          }}>
+            <div style={{ ...sectionDividerStyle, margin: 0, flex: 1, minWidth: 0 }}>
+              Modifica · {PAGE_TYPE_LABEL[libretto.pages[editingPageIdx]!.type]}
+            </div>
+            {/* Toolbar reorder/delete — su desktop ci sono già le icone inline
+                in lista; su mobile (compact, chip strip senza icone) servono
+                qui per non perdere la funzionalità. */}
+            {compact && (
+              <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    movePage(editingPageIdx, -1);
+                    if (editingPageIdx > 0) selectPageForEditing(editingPageIdx - 1);
+                  }}
+                  disabled={editingPageIdx === 0}
+                  style={{ padding: '6px', minWidth: 'auto' }}
+                  title="Sposta su"
+                >
+                  <ChevronUp size={14} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    movePage(editingPageIdx, 1);
+                    if (editingPageIdx < libretto.pages.length - 1) selectPageForEditing(editingPageIdx + 1);
+                  }}
+                  disabled={editingPageIdx === libretto.pages.length - 1}
+                  style={{ padding: '6px', minWidth: 'auto' }}
+                  title="Sposta giù"
+                >
+                  <ChevronDown size={14} />
+                </Button>
+                {libretto.pages[editingPageIdx]!.type !== 'cover' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const lbl = PAGE_TYPE_LABEL[libretto.pages[editingPageIdx]!.type];
+                      if (confirm(`Eliminare "${lbl}"?`)) {
+                        removePage(editingPageIdx);
+                        selectPageForEditing(null);
+                      }
+                    }}
+                    style={{ padding: '6px', minWidth: 'auto', color: '#c0392b' }}
+                    title="Elimina"
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
           <PageEditor
             page={libretto.pages[editingPageIdx]!}
@@ -925,7 +1036,7 @@ const LibrettoSidebar: React.FC<Props> = ({
             style={{
               width: 22, height: 22,
               borderRadius: '6px',
-              background: libretto.style.accentColor || '#14b8a6',
+              background: (libretto.style.accentColor && libretto.style.accentColor !== '#14b8a6' ? libretto.style.accentColor : null) || event?.theme?.accent || 'var(--accent)',
               border: '1px solid rgba(0,0,0,0.12)',
               boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.5)',
               flexShrink: 0,
@@ -941,7 +1052,7 @@ const LibrettoSidebar: React.FC<Props> = ({
             border: '1px solid var(--border)',
           }}>
             <CustomColorPicker
-              color={libretto.style.accentColor || '#14b8a6'}
+              color={(libretto.style.accentColor && libretto.style.accentColor !== '#14b8a6' ? libretto.style.accentColor : null) || event?.theme?.accent || '#14b8a6'}
               onChange={(c) => updateStyle({ accentColor: c })}
             />
           </div>
@@ -1457,31 +1568,55 @@ export const PageEditor: React.FC<PageEditorProps> = ({ page, onChange, uploadin
         : [];
       const recIds = new Set(recommendedLetture.map((r) => r.id));
 
+      // Strategia gruppi (sostituisce vecchio sistema `★` / `✦` prefisso):
+      // 1. "Abbinata alla tua scelta" — letture che combaciano con il salmo
+      //    già scelto nella pagina successiva. Visibili solo se applicabile.
+      // 2. "Le più scelte dai matrimoni" — letture popolari (popolare: true)
+      //    raggruppate insieme in cima dopo gli abbinamenti.
+      // 3. Categorie originali (AT / Tempo Pasquale / NT) per le restanti.
+      // Niente più simboli unicode nei label né legend confusionarie.
+      const popolariIds = new Set(
+        allLetture.filter((r) => r.popolare).map((r) => r.id),
+      );
       const letturaOptions = [
         ...recommendedLetture.map((r) => ({
           value: r.id,
-          label: `✦ ${r.titolo}`,
+          label: r.titolo,
           description: `${r.ref} · abbinata al salmo che hai scelto`,
-          group: 'Consigliato',
+          group: 'Abbinata alla tua scelta',
         })),
-        ...LETTURE_AT.filter((r) => !recIds.has(r.id)).map((r) => ({
-          value: r.id,
-          label: `${r.popolare ? '★ ' : ''}${r.titolo}`,
-          description: `${r.ref}${r.salmoCorrispondente ? ` · abbinata al Salmo ${r.salmoCorrispondente}` : ''}`,
-          group: 'Antico Testamento',
-        })),
-        ...LETTURE_TEMPO_PASQUALE.filter((r) => !recIds.has(r.id)).map((r) => ({
-          value: r.id,
-          label: `${r.popolare ? '★ ' : ''}${r.titolo}`,
-          description: `${r.ref}${r.salmoCorrispondente ? ` · abbinata al Salmo ${r.salmoCorrispondente}` : ''}`,
-          group: 'Tempo Pasquale',
-        })),
-        ...LETTURE_NT.filter((r) => !recIds.has(r.id)).map((r) => ({
-          value: r.id,
-          label: `${r.popolare ? '★ ' : ''}${r.titolo}`,
-          description: r.ref,
-          group: 'Nuovo Testamento',
-        })),
+        ...allLetture
+          .filter((r) => r.popolare && !recIds.has(r.id))
+          .map((r) => ({
+            value: r.id,
+            label: r.titolo,
+            description: `${r.ref}${r.salmoCorrispondente ? ` · abbinata al Salmo ${r.salmoCorrispondente}` : ''}`,
+            group: 'Le più scelte dai matrimoni',
+          })),
+        ...LETTURE_AT
+          .filter((r) => !recIds.has(r.id) && !popolariIds.has(r.id))
+          .map((r) => ({
+            value: r.id,
+            label: r.titolo,
+            description: `${r.ref}${r.salmoCorrispondente ? ` · abbinata al Salmo ${r.salmoCorrispondente}` : ''}`,
+            group: 'Antico Testamento',
+          })),
+        ...LETTURE_TEMPO_PASQUALE
+          .filter((r) => !recIds.has(r.id) && !popolariIds.has(r.id))
+          .map((r) => ({
+            value: r.id,
+            label: r.titolo,
+            description: `${r.ref}${r.salmoCorrispondente ? ` · abbinata al Salmo ${r.salmoCorrispondente}` : ''}`,
+            group: 'Tempo Pasquale',
+          })),
+        ...LETTURE_NT
+          .filter((r) => !recIds.has(r.id) && !popolariIds.has(r.id))
+          .map((r) => ({
+            value: r.id,
+            label: r.titolo,
+            description: r.ref,
+            group: 'Nuovo Testamento',
+          })),
       ];
 
       return (
@@ -1513,10 +1648,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({ page, onChange, uploadin
                 placeholder="— scegli dall'elenco —"
                 options={letturaOptions}
               />
-              <p style={{ fontSize: '11px', color: 'var(--text-soft)', margin: '6px 0 0', lineHeight: 1.4 }}>
-                <strong>★</strong> = scelte più frequenti.
-                {recommendedLetture.length > 0 ? <> <strong>✦</strong> = abbinata al salmo che hai scelto.</> : null}
-              </p>
               {page.letturaId && (() => {
                 const l = findLettura(page.letturaId);
                 if (!l) return null;
@@ -1557,23 +1688,34 @@ export const PageEditor: React.FC<PageEditorProps> = ({ page, onChange, uploadin
 
       const mode: 'preset' | 'custom' = page.testoCompleto ? 'custom' : 'preset';
 
-      // Costruisco le opzioni: se c'è un salmo consigliato, lo mostro in
-      // gruppo "Consigliato" in cima.
+      // Gruppi descrittivi (sostituisce vecchio sistema `★` / `✦` prefisso):
+      // 1. "Abbinato alla tua scelta" — salmo che combacia con la lettura
+      //    già scelta nella pagina precedente. Solo se applicabile.
+      // 2. "I più scelti dai matrimoni" — salmi popolari.
+      // 3. "Tutti i salmi" — restanti per esplorazione completa.
       const recOption = recommendedSalmoId
         ? SALMI.find((r) => r.id === recommendedSalmoId)
         : undefined;
       const salmoOptions = [
         ...(recOption ? [{
           value: recOption.id,
-          label: `✦ ${recOption.ref}`,
-          description: 'Consigliato per la lettura selezionata',
-          group: 'Consigliato',
+          label: recOption.ref,
+          description: 'Abbinato alla lettura che hai scelto',
+          group: 'Abbinato alla tua scelta',
         }] : []),
         ...SALMI
-          .filter((r) => r.id !== recommendedSalmoId)
+          .filter((r) => r.id !== recommendedSalmoId && r.popolare)
           .map((r) => ({
             value: r.id,
-            label: `${r.popolare ? '★ ' : ''}${r.ref}`,
+            label: r.ref,
+            description: r.titolo.length > 80 ? r.titolo.substring(0, 80) + '…' : r.titolo,
+            group: 'I più scelti dai matrimoni',
+          })),
+        ...SALMI
+          .filter((r) => r.id !== recommendedSalmoId && !r.popolare)
+          .map((r) => ({
+            value: r.id,
+            label: r.ref,
             description: r.titolo.length > 80 ? r.titolo.substring(0, 80) + '…' : r.titolo,
             group: 'Tutti i salmi',
           })),
@@ -1617,10 +1759,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({ page, onChange, uploadin
                   placeholder="— scegli dall'elenco —"
                   options={salmoOptions}
                 />
-                <p style={{ fontSize: '11px', color: 'var(--text-soft)', margin: '6px 0 0', lineHeight: 1.4 }}>
-                  <strong>★</strong> = salmi più scelti per i matrimoni.
-                  {recOption ? <> <strong>✦</strong> = consigliato per la lettura precedente.</> : null}
-                </p>
               </div>
               {/* Ritornello auto-popolato dall'antifona standard del salmo
                   scelto. L'utente può modificarlo se vuole una variante. */}
@@ -1663,15 +1801,23 @@ export const PageEditor: React.FC<PageEditorProps> = ({ page, onChange, uploadin
                 value={page.vangeloId || ''}
                 onChange={(v) => onChange({ vangeloId: v || undefined })}
                 placeholder="— scegli dall'elenco —"
-                options={VANGELI.map((r) => ({
-                  value: r.id,
-                  label: `${r.popolare ? '★ ' : ''}${r.titolo}`,
-                  description: r.ref,
-                }))}
+                options={[
+                  // Stessa strategia di letture/salmi: gruppi descrittivi al
+                  // posto del prefisso `★`. Popolari in cima, resto sotto.
+                  ...VANGELI.filter((r) => r.popolare).map((r) => ({
+                    value: r.id,
+                    label: r.titolo,
+                    description: r.ref,
+                    group: 'I più scelti dai matrimoni',
+                  })),
+                  ...VANGELI.filter((r) => !r.popolare).map((r) => ({
+                    value: r.id,
+                    label: r.titolo,
+                    description: r.ref,
+                    group: 'Tutti i passi del Vangelo',
+                  })),
+                ]}
               />
-              <p style={{ fontSize: '11px', color: 'var(--text-soft)', margin: '6px 0 0', lineHeight: 1.4 }}>
-                <strong>★</strong> = passi più scelti per i matrimoni.
-              </p>
             </div>
           )}
 

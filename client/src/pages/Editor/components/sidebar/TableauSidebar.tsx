@@ -535,6 +535,7 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
             patchConfig={patchConfig}
             displayColorPicker={displayColorPicker}
             setDisplayColorPicker={setDisplayColorPicker}
+            themeAccent={event?.theme?.accent}
           />
         )}
         {section === 'publish' && (() => {

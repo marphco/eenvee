@@ -15,6 +15,7 @@ import type { Block } from '../../../../types/editor';
 import type { LibrettoData } from '../../../../utils/libretto/types';
 import { createDefaultLibretto, migrateLibretto } from '../../../../utils/libretto/templates';
 import LibrettoBooklet from './libretto/LibrettoBooklet';
+import LibrettoMobileViewer from './libretto/LibrettoMobileViewer';
 
 interface LibrettoWidgetProps {
   block: Block;
@@ -127,7 +128,11 @@ const LibrettoWidget: React.FC<LibrettoWidgetProps> = ({
   const showPaywall = !isEditor && !hasLibrettoAccess;
   const isDraft = !isEditor && hasLibrettoAccess && !libretto.isPublished;
 
-  const accent = accentColor || libretto.style.accentColor || 'var(--accent)';
+  // Sanifico libretto.style.accentColor: i libretti creati prima del fix
+  // accent-default avevano '#14b8a6' hardcoded che non corrisponde al theme.
+  const styleAccent = libretto.style.accentColor === '#14b8a6' ? undefined : libretto.style.accentColor;
+  // Default hex tiffany brand (#1ABC9C) per consentire derivazione accent-rgb.
+  const accent = accentColor || styleAccent || '#1ABC9C';
   const isHex = accent.startsWith('#');
   const accentRgb = isHex ? hexToRgb(accent) : null;
   const sectionBg = propSectionBg || block.props?.bgColor || block.bgColor || 'transparent';
@@ -192,9 +197,11 @@ const LibrettoWidget: React.FC<LibrettoWidgetProps> = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '40px 20px 32px',
+        // Mobile: padding aggressivo ridotto per dare il massimo spazio alla
+        // pagina del libretto sopra il drawer toolbar. Desktop: padding standard.
+        padding: previewMobile ? '12px 8px 12px' : '40px 20px 32px',
         color: 'var(--text-primary)',
-        minHeight: '400px',
+        minHeight: previewMobile ? '0' : '400px',
         position: 'relative',
       }}
     >
@@ -247,35 +254,40 @@ const LibrettoWidget: React.FC<LibrettoWidgetProps> = ({
       )}
 
       {/* Header — pattern allineato al TableauWidget per coerenza visiva
-          (var(--font-heading) + fontWeight 800 + letter-spacing 0.02em) */}
+          (var(--font-heading) + fontWeight 800 + letter-spacing 0.02em).
+          Mobile: compresso al minimo (titolo piccolo, niente sottotitolo,
+          icona ridotta) per lasciare spazio alla pagina del libretto sopra
+          il drawer toolbar. */}
       <div
         style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '10px',
+          gap: previewMobile ? '4px' : '10px',
           textAlign: 'center',
-          marginBottom: '28px',
+          marginBottom: previewMobile ? '10px' : '28px',
         }}
       >
-        <div
-          style={{
-            width: '52px',
-            height: '52px',
-            borderRadius: '14px',
-            background: 'rgba(var(--accent-rgb), 0.1)',
-            border: '1px solid rgba(var(--accent-rgb), 0.25)',
-            color: 'var(--accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <BookOpen size={24} />
-        </div>
+        {!previewMobile && (
+          <div
+            style={{
+              width: '52px',
+              height: '52px',
+              borderRadius: '14px',
+              background: 'rgba(var(--accent-rgb), 0.1)',
+              border: '1px solid rgba(var(--accent-rgb), 0.25)',
+              color: 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <BookOpen size={24} />
+          </div>
+        )}
         <h3
           style={{
-            fontSize: '32px',
+            fontSize: previewMobile ? '16px' : '32px',
             fontWeight: 800,
             margin: 0,
             fontFamily: 'var(--font-heading, serif)',
@@ -286,16 +298,29 @@ const LibrettoWidget: React.FC<LibrettoWidgetProps> = ({
         >
           Libretto della Cerimonia
         </h3>
-        <p style={{ fontSize: '14px', opacity: 0.7, margin: 0, maxWidth: '420px' }}>
-          Sfoglia le pagine per seguire la celebrazione passo dopo passo.
-        </p>
+        {!previewMobile && (
+          <p style={{ fontSize: '14px', opacity: 0.7, margin: 0, maxWidth: '420px' }}>
+            Sfoglia le pagine per seguire la celebrazione passo dopo passo.
+          </p>
+        )}
       </div>
 
-      <LibrettoBooklet
-        libretto={libretto}
-        maxWidth={previewMobile ? 360 : 800}
-        forceMobile={previewMobile}
-      />
+      {/* Mobile (previewMobile=true OR public mobile): viewer single-page
+          semplice (pattern LibrettoEditorModal desktop) — aspect-ratio + nav
+          prev/next, niente flip 3D. Stabile, no artefatti scala/clipping del
+          forceMobile precedente.
+          Desktop: LibrettoBooklet a doppia pagina (anteprima sidebar che
+          funziona perfettamente). */}
+      <div style={{ maxWidth: 900, width: '100%', margin: '0 auto' }}>
+        {previewMobile ? (
+          <LibrettoMobileViewer libretto={libretto} maxWidth={360} />
+        ) : (
+          <LibrettoBooklet
+            libretto={libretto}
+            maxWidth={900}
+          />
+        )}
+      </div>
     </div>
   );
 };

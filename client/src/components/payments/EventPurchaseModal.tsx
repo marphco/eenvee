@@ -6,6 +6,7 @@ import type { Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { apiFetch } from "../../utils/apiFetch";
 import { API_BASE } from "../../config/api";
+import StripeTrustStrip from "./StripeTrustStrip";
 import "./EventPurchaseModal.css";
 
 const STRIPE_PUBLISHABLE_KEY = (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY || "";
@@ -509,9 +510,8 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
                 }}
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em", color: "#888" }}>
-                    Una tantum
-                  </span>
+                  {/* Rimossa label "Una tantum" — ridondante: il flusso è già
+                      esplicitamente one-shot e l'utente non si aspetta abbonamenti. */}
                   <strong style={{ fontSize: "22px", color: accentColor, lineHeight: 1 }}>{formattedPrice}</strong>
                 </div>
               </div>
@@ -928,9 +928,9 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
                 )}
               </button>
 
-              <div style={{ fontSize: "11px", color: "#888", textAlign: "center", lineHeight: 1.5 }}>
-                Pagamento sicuro via Stripe · carta, Apple Pay, Google Pay, SEPA.
-                <br />
+              {/* Modal con sfondo bianco → loghi colorati (default `bg='light'`). */}
+              <StripeTrustStrip />
+              <div style={{ fontSize: "11px", color: "#aaa", textAlign: "center", lineHeight: 1.5 }}>
                 eenvee non conserva i dati della tua carta.
               </div>
             </form>

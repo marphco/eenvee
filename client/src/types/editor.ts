@@ -67,6 +67,15 @@ export interface Block {
     address?: string;
     zoom?: number;
     mapStyle?: string;
+    // Multi-mappa nella stessa sezione (es. Chiesa + Ricevimento). Se vuoto
+    // si usa il fallback singolo da block.props.address/title/description/zoom.
+    maps?: Array<{
+      id: string;
+      title?: string;
+      description?: string;
+      address?: string;
+      zoom?: number;
+    }>;
     // RSVP specific configurations
     rsvpTitle?: string;
     rsvpDescription?: string;

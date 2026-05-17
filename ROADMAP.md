@@ -6,6 +6,46 @@ Log completo delle funzionalità implementate e delle prossime feature da realiz
 
 ## ⏳ Storico Progetto (Completato)
 
+### 17-05-2026: Editor lock-root, libretto mobile, polish UX globale 💎📱
+
+**Architettura widget — lock-root policy**
+- [x] **Tutti i widget block-type** (`rsvp/map/gallery/video/payment/tableau/libretto`) non sono più selezionabili come block-root: nuovo helper `isWidgetBlock` + `resolveAccentColor` in `client/src/utils/blockTypes.ts`. Layer free-form (Testo/Foto) bloccati con guard difensivo sia in `EventEditor.addTextLayer/handleImageUpload` sia nel filtro render di `SectionCanvas`. Layers orfani senza `blockId` non vengono più creati.
+- [x] **Auto-resize sezioni widget**: tutte le sezioni con widget (non solo tableau/libretto) ora si adattano in altezza al contenuto via `ResizeObserver` in `SectionCanvas`.
+- [x] **Mobile toolbar contestuale fix**: i bottoni `Testo`/`Foto` appaiono SOLO quando c'è un blocco canvas selezionato. Senza selezione resta solo `+ Sezione`. Risolve bug grave: testo da mobile finiva orfano sull'invito.
+
+**Editor libretto mobile**
+- [x] **Nuovo `LibrettoMobileViewer`** single-page (pattern `LibrettoEditorModal` desktop): `aspectRatio: 0.72` + `LibrettoPageRenderer` diretto + nav prev/next. Niente flip 3D (problematico su mobile). Usato in editor mobile preview E public mobile.
+- [x] **Strip orizzontale chip pagine** in `LibrettoSidebar` compact mode: scrollabile lateralmente, ogni chip mostra "Pag. N" + nome tipo, tap → seleziona pagina + flippa canvas.
+- [x] **Sync canvas ↔ sidebar** via nuovo `LibrettoPreviewContext` (Provider in `EventEditor`): tap chip sidebar e frecce viewer sono sincronizzati. Fallback state interno se Provider assente (public standalone).
+- [x] **Drawer mobile compatto per libretto** (`.mobile-tab-panel--compact: max-height 45dvh`): la pagina del libretto resta visibile sopra mentre si edita.
+- [x] **Default preview device-aware** in `EventEditor`: `matchMedia('(max-width: 768px)').matches` al primo load → utenti mobile vedono subito preview Mobile.
+- [x] **Rimosso toggle Con/Senza Messa** dalla sidebar libretto — è sempre con messa per definizione (è un libretto messa).
+
+**Letture/salmi/vangeli — gruppi descrittivi senza simboli**
+- [x] **Rimosso sistema `★`/`✦` prefisso** dai label dropdown: sostituito con gruppi semantici (`CustomSelect` supporta già `group`). Letture: "Abbinata alla tua scelta" + "Le più scelte dai matrimoni" + categorie AT/Tempo Pasquale/NT. Salmi: "Abbinato alla tua scelta" + "I più scelti" + "Tutti i salmi". Vangeli: "I più scelti" + "Tutti i passi". Rimossa anche la legend sotto i dropdown.
+
+**Paginazione salmi — fix definitivo**
+- [x] **Pre-grouping atomico strofa+R** in `paginate.ts` (sia `measureChunksByDOM` sia `greedySplit`): la R. responsoriale è ora inseparabile dalla strofa che precede. Rimosso vecchio "force-include con soglia overflow" troppo fragile. Fix completo per salmo 99 (Varcate le sue porte), 127 (testi tagliati), 148 (Lodate il Signore dalla terra mancante).
+- [x] `bodyHeightForPageType('salmo'): 360 → 320` per safety margin su antifone lunghe (h1 wrappa su 2 righe).
+
+**Map widget redesign**
+- [x] **Card premium** (icon accent + titolo serif + descrizione + chip indirizzo + iframe + CTA "Apri su Google Maps") con palette adattiva. **Multi-mappa** (max 2 — es. Chiesa + Ricevimento): grid `auto-fit minmax(320px, 1fr)` desktop, single col mobile. Schema dati `MapEntry[]` con back-compat da legacy `address/title/description/zoom`.
+
+**Libretto pubblico — fix clipping ombra/contenuto**
+- [x] **Block-wrapper come RSVP** in `EventPublic`: `height: auto` + `overflow: visible` per i blocchi `libretto` (oltre che `rsvp`). Risolve clipping ombra ai lati + content shift durante flip pagina.
+
+**Componente `StripeTrustStrip`**
+- [x] **Nuovo componente riutilizzabile** in `client/src/components/payments/StripeTrustStrip.tsx` con prop `bg: 'light' | 'dark'`. Centralizzato in 4 punti: `DonationModal`, `PaymentWidget` (palette-aware), `EventPurchaseModal`, `MarketingLanding` (sticky CTA piano €69). Loghi: Stripe + Visa + Mastercard + Amex + Apple Pay + Google Pay + SEPA. Variante automatica light/dark.
+- [x] **Rimossa label "Una tantum"** in `EventPurchaseModal` — ridondante, il flusso è esplicitamente one-shot.
+
+**Default accent — tiffany ovunque**
+- [x] **Tiffany `#1ABC9C` come default forzato** per tutti i widget (tableau/libretto/map/payment) tramite `resolveAccentColor` che filtra anche legacy `#14b8a6/#C9A961/#1a1a1a`. Niente più colori brand sparsi (giallo/turquoise mescolati). `themeAccent` esplicitamente IGNORATO.
+
+**Dashboard — modifica data + logout**
+- [x] **Edit data evento inline** sulla card: input `gg/mm/aaaa` con `ItalianDatePicker` popup (riusa `ItalianDatePicker` + utility `italianDateInput.ts` per consistenza totale con `NewEvent.tsx`). PUT `/api/events/:slug` con `{date}` o `{dateTBD: true}`. Validation completa al save (overflow check `new Date()` gestisce febbraio bisestile, 30/04, ecc.). Cap as-you-type giorno≤31 mese≤12. Feedback rosso + save disabilitato se data invalida.
+- [x] **Logout** — nuovo `client/src/utils/logout.ts` (`POST /api/auth/logout` + hard reload). Solo nella Dashboard (`btn-logout-ghost`, ultima posizione, stile deliberatamente meno prominente) per ridurre friction all'uscita. Niente logout nel MarketingPublicNav (retention pattern).
+- [x] **Prezzo modello catalogo €49→€69**: era hardcoded in `TemplateCatalogPreviewModal`. Tutti gli altri punti già usano la costante `UNLOCK_EUR = 69`.
+
 ### 09-05-2026: Libretto Messa — Formule ufficiali CEI + canti PD + polish finale 📖⚖️
 - [x] **Benedizione Nuziale — 4 formule ufficiali CEI 2008** (nn. 85-88) estratte parola-per-parola dal PDF ufficiale `Rito-del-MATRIMONIO-2008.pdf`. Schema `BenedizioneFormula` in `cei.ts` con id/numero/titolo/incipit/testoCompleto. UX coerente con lettura/salmo/vangelo: dropdown "Modalità" (preset/custom) + dropdown formula. Switch a custom pre-popola con la formula scelta. Convenzione fissa cover `sposo1`=uomo / `sposo2`=donna con label espliciti "Nome dello sposo" / "Nome della sposa" — placeholder `{sposo}`/`{sposa}` nei testi gender-specific.
 - [x] **Riti di Conclusione — 3 formule ufficiali CEI 2008** (n. 92, p. 62-64): `BenedizioneFinaleFormula` array in `cei.ts`, ognuna con 3 benedizioni specifiche + benedizione trinitaria comune ("E su voi tutti…"). Stesso schema dropdown preset/custom. Default nuovi libretti `formulaId: 'fin-1'`. Back-compat libretti pre-formule via campo legacy `benedizioni`.

@@ -2,12 +2,16 @@ import React from 'react';
 import { Pencil } from 'lucide-react';
 import { Button } from '../../../../../../ui';
 import CustomColorPicker from '../../../CustomColorPicker';
+import { resolveAccentColor } from '../../../../../../utils/blockTypes';
 
 interface MetadataSectionProps {
   config: any;
   patchConfig: (patch: any) => void;
   displayColorPicker: boolean | string;
   setDisplayColorPicker: React.Dispatch<React.SetStateAction<boolean | string>>;
+  /** Accent del tema evento; usato come fallback quando il widget non ha
+   *  un accentColor proprio (allineamento con il rendering pubblico). */
+  themeAccent?: string | undefined;
 }
 
 const MetadataSection: React.FC<MetadataSectionProps> = ({
@@ -15,7 +19,9 @@ const MetadataSection: React.FC<MetadataSectionProps> = ({
   patchConfig,
   displayColorPicker,
   setDisplayColorPicker,
+  themeAccent,
 }) => {
+  const fallbackAccent = themeAccent || 'var(--accent)';
   return (
     <>
       {/* TITOLI E DESCRIZIONE */}
@@ -56,12 +62,12 @@ const MetadataSection: React.FC<MetadataSectionProps> = ({
           style={{ width: '100%', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '100px' }}
         >
           <span style={{ fontSize: '12px', fontWeight: 600 }}>Pulsanti & Accenti</span>
-          <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: config.tableauAccentColor || 'var(--accent)', border: '1px solid rgba(0,0,0,0.1)' }} />
+          <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: resolveAccentColor(config.tableauAccentColor as string | undefined, themeAccent) || fallbackAccent, border: '1px solid rgba(0,0,0,0.1)' }} />
         </Button>
         {displayColorPicker === 'tableauAccent' && (
           <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '8px' }}>
             <CustomColorPicker
-              color={config.tableauAccentColor || '#1a1a1a'}
+              color={resolveAccentColor(config.tableauAccentColor as string | undefined, themeAccent) || fallbackAccent}
               onChange={(color) => patchConfig({ tableauAccentColor: color })}
             />
           </div>

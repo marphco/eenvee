@@ -201,7 +201,9 @@ export function createDefaultLibretto(
     style: {
       fontHeading: 'Cormorant Garamond',
       fontBody: 'Inter',
-      accentColor: '#14b8a6',
+      // accentColor non settato: il widget cade sul `theme.accent` dell'evento,
+      // così il default è coerente con il branding (libretto/tableau/payment/map
+      // usano tutti lo stesso accent finché l'utente non lo cambia esplicitamente).
       decoroStyle: 'classico',
       pageBgColor: '#fffdf7',
     },
@@ -232,6 +234,15 @@ const PLACEHOLDER_INTRO_TITLES = new Set([
 
 export function migrateLibretto(data: LibrettoData): LibrettoData {
   let changed = false;
+  // Migration: rimuove il vecchio default hardcoded '#14b8a6' (turchese)
+  // su style.accentColor — non corrispondeva al theme.accent dell'evento.
+  // Undefined = fallback al theme.accent dal LibrettoWidget.
+  let style = data.style;
+  if (style.accentColor === '#14b8a6') {
+    const { accentColor: _drop, ...rest } = style;
+    style = rest;
+    changed = true;
+  }
   const pages = data.pages
     .filter((p) => {
       if (p.type !== 'intro') return true;
@@ -253,7 +264,7 @@ export function migrateLibretto(data: LibrettoData): LibrettoData {
       return p;
     });
 
-  return changed ? { ...data, pages } : data;
+  return changed ? { ...data, pages, style } : data;
 }
 
 export function newPage(type: LibrettoPage['type']): LibrettoPage {

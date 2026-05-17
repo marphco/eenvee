@@ -71,6 +71,15 @@ interface Theme {
 const NOMINAL_WIDTH = 420;
 const NOMINAL_HEIGHT = 583;
 
+/**
+ * Context per propagare lo scale dal LibrettoBooklet (container stabile)
+ * fino al Frame senza dover propagare manualmente la prop attraverso le
+ * ~30 funzioni renderXXX. Il valore null indica "fallback al ResizeObserver
+ * locale del Frame" (per usi standalone fuori dal Booklet).
+ */
+const PageScaleContext = React.createContext<number | null>(null);
+export { PageScaleContext };
+
 const Frame: React.FC<{
   children: React.ReactNode;
   centered?: boolean;
@@ -80,20 +89,24 @@ const Frame: React.FC<{
   totalPages: number;
 }> = ({ children, centered, theme, page, pageIndex, totalPages }) => {
   const outerRef = useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = useState(1);
-
+  // Scale dal context (Booklet container) ha priorità. Se assente, fallback
+  // su ResizeObserver locale per usi standalone (editor preview, ecc).
+  const ctxScale = React.useContext(PageScaleContext);
+  const [localScale, setLocalScale] = useState(1);
   useEffect(() => {
+    if (ctxScale !== null) return; // misura solo se context non disponibile
     const el = outerRef.current;
     if (!el) return;
     const update = () => {
       const w = el.clientWidth;
-      if (w > 0) setScale(w / NOMINAL_WIDTH);
+      if (w > 0) setLocalScale(w / NOMINAL_WIDTH);
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [ctxScale]);
+  const scale = ctxScale ?? localScale;
 
   return (
     <div
@@ -114,8 +127,10 @@ const Frame: React.FC<{
       transformOrigin: 'top left',
       background: theme.bg,
       // Padding bottom 44px riserva spazio per il numero di pagina così
-      // i testi non gli finiscono sopra. Top 30 / sides 28 sufficiente.
-      padding: '30px 28px 44px',
+      // i testi non gli finiscono sopra. Padding orizzontale 36 (era 28)
+      // per lasciare respiro al testo italiano lungo (letture CEI) ed
+      // evitare clipping al bordo destro su scale ridotte.
+      padding: '30px 36px 44px',
       boxSizing: 'border-box',
       position: 'relative',
       display: 'flex',
@@ -318,8 +333,11 @@ const Body: React.FC<{ children: React.ReactNode; align?: 'left' | 'center'; col
         lineHeight,
         textAlign: align,
         whiteSpace: 'pre-wrap',
+        overflowWrap: 'break-word',
+        wordBreak: 'normal',
         color: color || 'inherit',
         margin: 0,
+        maxWidth: '100%',
       }}
     >
       {formatBodyText(children, boldNames)}
@@ -1132,7 +1150,7 @@ interface Props {
 }
 
 const LibrettoPageRenderer: React.FC<Props> = ({ page, libretto, pageIndex, totalPages }) => {
-  const accent = libretto.style.accentColor || '#14b8a6';
+  const accent = libretto.style.accentColor || '#1ABC9C';
   const bg = libretto.style.pageBgColor || '#fffdf7';
   // Palette adattiva: testo si scurisce/schiarisce in base al contrasto col bg.
   // Stesso pattern di RSVPWidget/PaymentWidget/ecc.
